@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claim-firewall"
+name = "aevumguard"
 version = "0.1.0"
-description = "Claim Firewall local wording policy scanner for blocked claims."
+description = "AevumGuard ProofOps control plane with Claim Firewall wording enforcement."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

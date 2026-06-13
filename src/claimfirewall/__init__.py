@@ -1,4 +1,4 @@
-"""Local wording policy scanner for blocked claims."""
+"""AevumGuard Claim Firewall wording enforcement module."""
 
 __all__ = ["__version__"]
 
