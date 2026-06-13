@@ -1,6 +1,25 @@
-# Claim Firewall
+# AevumGuard
 
-Claim Firewall is a local CLI and GitHub Action that scans Markdown, YAML, and text files for configured security wording that should not ship without separate evidence or authorization. It reports the file path, line number, matched claim, reason, and suggested ceiling, then exits non-zero when findings are present.
+ProofOps control for the AI security era.
+
+AevumGuard is the ProofOps control plane for AI-assisted security work.
+
+AevumGuard governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
+
+Claim Firewall is AevumGuard's first Claim Authority module. It is the wording enforcement edge for configured security claims, providing proof ceiling enforcement before unsupported wording ships. It is not proof authority, and it is not the product identity.
+
+The current `claimfirewall` CLI and GitHub Action scan Markdown, YAML, and text files for configured security wording that should not ship without separate evidence or authorization. They report the file path, line number, matched claim, reason, and suggested ceiling, then exit non-zero when findings are present.
+
+## Module map
+
+- Artifact Intake
+- Evidence Graph
+- Telemetry Contract Engine
+- Validation Ledger
+- Promotion Gate
+- ProofCard Generator
+- AI Work Output Register
+- Claim Authority / Claim Firewall
 
 ## 30-second use
 
@@ -36,6 +55,8 @@ python -m claimfirewall scan . --policy policy/blocked_claims.yml --exclude exam
 
 If `policy` is not provided, the action uses the bundled policy from the action package. Callers can pass `policy`, `exclude`, and `format` inputs.
 
+Compatibility note: Existing Claim Firewall behavior remains available as AevumGuard's first Claim Authority enforcement capability. Repository rename may require updating GitHub Action references after the GitHub repo settings rename.
+
 ## Policy Snippet
 
 ```yaml
@@ -55,7 +76,9 @@ blocked_claims:
 
 ## Proof Boundary
 
-Claim Firewall checks wording against configured policy only. It does not prove detection behavior, runtime telemetry, signal observation, production deployment, public-safe status, customer deployment, SOCaaS availability, AI approval, analyst approval, or final human authorization.
+AevumGuard's Claim Firewall module checks wording against configured policy only. It enforces claim ceilings; it does not authorize truth.
+
+It does not prove detection behavior, runtime telemetry, signal observation, production deployment, public-safe status, customer deployment, SOCaaS availability, AI approval, analyst approval, or final human authorization.
 
 Explicit non-claims:
 
@@ -69,3 +92,5 @@ Explicit non-claims:
 - no analyst approval claim
 
 Proof ceiling after local validation: `TOOL_FUNCTION_ONLY`.
+
+This rename and repositioning does not create runtime truth, signal truth, production readiness, SOCaaS availability, or case closure. It does not claim customer deployment, autonomous SOC capability, AI-approved disposition, or analyst-approved disposition.
