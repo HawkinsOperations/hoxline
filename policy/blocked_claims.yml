@@ -1,0 +1,87 @@
+version: 1
+blocked_claims:
+  - claim: production-ready
+    pattern: '\bproduction-ready\b'
+    reason: 'Claims production maturity that this tool does not establish.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not prove\b.*\bproduction\b'
+      - '\bdoes not claim\b.*\bproduction\b'
+      - 'not production-ready'
+      - '\bclaim:\s*production-ready\b'
+      - '\bpattern:.*production-ready\b'
+  - claim: runtime-proven
+    pattern: '\bruntime-proven\b'
+    reason: 'Claims runtime proof that must come from separate evidence.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not prove\b.*\bruntime\b'
+      - '\bdoes not claim\b.*\bruntime\b'
+      - '\bnot runtime-proven\b'
+  - claim: public-safe
+    pattern: '\bpublic-safe\b'
+    reason: 'Claims public release safety that requires separate authorization.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not approve\b.*\bpublic-safe\b'
+      - '\bdoes not prove\b.*\bpublic-safe\b'
+      - '\bdoes not claim\b.*\bpublic-safe\b'
+      - '\bnot public-safe\b'
+      - '\bno\b.*\bpublic-safe\b'
+  - claim: signal-observed
+    pattern: '\bsignal-observed\b'
+    reason: 'Claims signal observation that must be backed by runtime evidence.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not prove\b.*\bsignal\b'
+      - '\bdoes not claim\b.*\bsignal\b'
+      - '\bnot signal-observed\b'
+      - '\bno\b.*\bsignal-observed\b'
+  - claim: autonomous SOC
+    pattern: '\bautonomous\s+SOC\b'
+    reason: 'Claims autonomous SOC capability beyond this text scanner.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bautonomous\s+SOC\b'
+      - '\bno\b.*\bautonomous\s+SOC\b.*\bclaim\b'
+      - '\bnot\b.*\bautonomous\s+SOC\b'
+  - claim: AI-approved disposition
+    pattern: '\bAI-approved\s+disposition\b'
+    reason: 'Claims approval authority that this tool does not provide.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not\b.*\bAI-approved\s+disposition\b'
+      - '\bAI-approved\s+disposition\b.*\bblocked wording\b'
+      - '\bno\b.*\bAI-approved\s+disposition\b'
+  - claim: analyst-approved disposition
+    pattern: '\banalyst-approved\s+disposition\b'
+    reason: 'Claims human analyst approval that must be separately documented.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not\b.*\banalyst-approved\s+disposition\b'
+      - '\banalyst-approved\s+disposition\b.*\bblocked wording\b'
+      - '\bno\b.*\banalyst-approved\s+disposition\b'
+  - claim: customer deployment
+    pattern: '\bcustomer\s+deployment\b'
+    reason: 'Claims deployment status that this local scaffold does not establish.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not prove\b.*\bcustomer\s+deployment\b'
+      - '\bdoes not claim\b.*\bcustomer\s+deployment\b'
+      - '\bno\b.*\bcustomer\s+deployment\b'
+  - claim: SOCaaS available
+    pattern: '\bSOCaaS\s+available\b'
+    reason: 'Claims service availability that requires separate release authority.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bSOCaaS\s+available\b'
+      - '\bnot\b.*\bSOCaaS\s+available\b'
+      - '\bno\b.*\bSOCaaS\s+available\b'
+  - claim: fleet-wide coverage
+    pattern: '\bfleet-wide\s+coverage\b'
+    reason: 'Claims coverage breadth that must be proven outside text scanning.'
+    suggested_ceiling: 'TOOL_FUNCTION_ONLY'
+    allowed_context_patterns:
+      - '\bdoes not prove\b.*\bfleet-wide\s+coverage\b'
+      - '\bdoes not claim\b.*\bfleet-wide\s+coverage\b'
+      - '\bno\b.*\bfleet-wide\s+coverage\b'

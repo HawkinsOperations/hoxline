@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+
+      - name: Run tests
+        run: python -m pytest
+
+      - name: Passing example succeeds
+        run: python -m claimfirewall scan examples/pass.md --policy policy/blocked_claims.yml
+
+      - name: Failing example fails
+        run: |
+          if python -m claimfirewall scan examples/fail.md --policy policy/blocked_claims.yml; then
+            echo "Expected failing example to report blocked claims"
+            exit 1
+          fi
+
+      - name: Safe context docs succeed
+        run: python -m claimfirewall scan README.md CLAIM_BOUNDARY.md --policy policy/blocked_claims.yml
+
+      - name: JSON output is valid and contains findings
+        run: |
+          set +e
+          python -m claimfirewall scan examples/fail.md --policy policy/blocked_claims.yml --format json > findings.json
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "Expected JSON scan to exit 1"
+            exit 1
+          fi
+          python -m json.tool findings.json > /dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("findings.json").read_text())
+          if not data.get("findings"):
+              raise SystemExit("Expected JSON findings")
+          PY
+
+      - name: Old name search
+        run: |
+          if rg -n "c[l]aimlint|C[l]aimlint|C[L]AIMLINT" .; then
+            echo "Old naming found"
+            exit 1
+          fi
