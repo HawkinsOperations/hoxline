@@ -1,6 +1,6 @@
 # Module Map
 
-AevumGuard is organized around the exact product loop:
+Hoxline is organized around the exact product loop:
 
 AI-assisted security work
 → Artifact Intake
@@ -16,7 +16,7 @@ AI-assisted security work
 
 ## Loop Stage Responsibilities
 
-| Stage | AevumGuard responsibility | Primary record |
+| Stage | Hoxline responsibility | Primary record |
 | --- | --- | --- |
 | AI-assisted security work | Identify the submitted work as AI-assisted and require evidence-based promotion. | Artifact record |
 | Artifact Intake | Record artifact identity, source, scope, declared claims, and intake status. | Artifact record |

@@ -2,7 +2,7 @@
 
 Doctrine: AI is not the authority. Evidence is.
 
-AevumGuard exists because AI-assisted security work needs a control plane that can separate useful assistance from unsupported claims.
+Hoxline exists because AI-assisted security work needs a control plane that can separate useful assistance from unsupported claims.
 
 ## Control Principle
 

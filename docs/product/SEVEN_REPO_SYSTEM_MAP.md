@@ -10,7 +10,7 @@ The HawkinsOperations product system contains exactly seven repositories:
 * hawkinsoperations-website
 * aevumguard
 
-No eighth repository is introduced or implied by AevumGuard.
+No eighth repository is introduced or implied by Hoxline.
 
 ## Repository Roles
 
@@ -24,9 +24,9 @@ No eighth repository is introduced or implied by AevumGuard.
 | `hawkinsoperations-website` | Public-facing website implementation and presentation surfaces. |
 | `aevumguard` | ProofOps control plane for AI-assisted security work. |
 
-## AevumGuard Placement
+## Hoxline Placement
 
-AevumGuard governs the loop:
+Hoxline governs the loop:
 
 AI-assisted security work
 → Artifact Intake
@@ -40,4 +40,4 @@ AI-assisted security work
 → Claim Authority
 → Safe Claim / Blocked Claim
 
-It coordinates state and claim authority across the system without creating side-product repositories. Claim Firewall remains an internal AevumGuard capability.
+It coordinates state and claim authority across the system without creating side-product repositories. Claim Firewall remains an internal Hoxline capability.

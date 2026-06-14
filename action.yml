@@ -1,5 +1,5 @@
-name: AevumGuard Claim Authority / Claim Firewall
-description: Scan Markdown, YAML, and text files for configured blocked claims as AevumGuard wording enforcement.
+name: Hoxline Claim Authority / Claim Firewall
+description: Scan Markdown, YAML, and text files for configured blocked claims as Hoxline wording enforcement.
 inputs:
   paths:
     description: Space-separated files or directories in the caller repository to scan.
@@ -24,10 +24,10 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.12"
-    - name: Install AevumGuard Claim Firewall
+    - name: Install Hoxline Claim Firewall
       shell: bash
       run: python -m pip install "${{ github.action_path }}"
-    - name: Run AevumGuard Claim Firewall
+    - name: Run Hoxline Claim Firewall
       shell: bash
       run: |
         policy="${{ inputs.policy }}"

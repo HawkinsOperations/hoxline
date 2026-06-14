@@ -1,6 +1,6 @@
-# AevumGuard Gauntlet v0
+# Hoxline Gauntlet v0
 
-This gauntlet shows one artifact moving through the full AevumGuard loop without asserting proof beyond the sample records.
+This gauntlet shows one artifact moving through the full Hoxline loop without asserting proof beyond the sample records.
 
 Proof ceiling: PRODUCT_SPINE_ONLY.
 
@@ -22,7 +22,7 @@ AI-assisted security work
 
 Artifact: `artifact-ai-security-work-v0`
 
-Purpose: demonstrate how AevumGuard records an AI-assisted security artifact through the control plane.
+Purpose: demonstrate how Hoxline records an AI-assisted security artifact through the control plane.
 
 The sample artifact has:
 

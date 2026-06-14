@@ -50,7 +50,7 @@ def _scan_with_options(
         if output_format == "json":
             print(json.dumps({"error": str(exc), "findings": []}, indent=2))
         else:
-            print(f"AevumGuard Claim Firewall: error: {exc}", file=sys.stderr)
+            print(f"Hoxline Claim Firewall: error: {exc}", file=sys.stderr)
         return 2
 
     if output_format == "json":
@@ -58,12 +58,12 @@ def _scan_with_options(
         return 1 if findings else 0
 
     if findings:
-        print(f"AevumGuard Claim Firewall: blocked claims found ({len(findings)})")
+        print(f"Hoxline Claim Firewall: blocked claims found ({len(findings)})")
         for finding in findings:
             print(_format_finding(finding))
         return 1
 
-    print("AevumGuard Claim Firewall: no blocked claims found")
+    print("Hoxline Claim Firewall: no blocked claims found")
     return 0
 
 

@@ -1,16 +1,18 @@
 # Product Boundary
 
-AevumGuard is the ProofOps control plane for AI-assisted security work.
+Hoxline is a proof-bound claim control system for AI-assisted security work.
 
-AevumGuard is the HawkinsOperations product/front-door repo.
+Hoxline by HawkinsOperations is the product name for the current product/front-door repo.
 
-AevumGuard governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
+Current repository path: HawkinsOperations/aevumguard. Product name: Hoxline by HawkinsOperations. Repository rename is not yet approved.
+
+Hoxline governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
 
 Doctrine: AI is not the authority. Evidence is.
 
 ## Owns
 
-AevumGuard owns the control-plane product boundary for this loop:
+Hoxline owns the control-plane product boundary for this loop:
 
 AI-assisted security work
 → Artifact Intake
@@ -24,7 +26,7 @@ AI-assisted security work
 → Claim Authority
 → Safe Claim / Blocked Claim
 
-AevumGuard owns:
+Hoxline owns:
 
 * Artifact intake rules for AI-assisted security work.
 * Evidence graph structure and evidence sufficiency tracking.
@@ -40,7 +42,7 @@ AevumGuard owns:
 
 ## Does Not Own
 
-AevumGuard does not own:
+Hoxline does not own:
 
 * Detection engineering repositories or rule libraries.
 * Validation runners, harnesses, or external validation infrastructure.
@@ -52,7 +54,7 @@ AevumGuard does not own:
 
 ## Claim Firewall Boundary
 
-Claim Firewall is the first Claim Authority enforcement capability inside AevumGuard. It is not the product.
+Claim Firewall is the first Claim Authority enforcement capability inside Hoxline. It is not the product.
 
 Claim Firewall can block, constrain, or require edits to a claim when the evidence graph, promotion state, ProofCard, or review gate does not support the claim. It does not replace the product spine or authorize claims by itself.
 
