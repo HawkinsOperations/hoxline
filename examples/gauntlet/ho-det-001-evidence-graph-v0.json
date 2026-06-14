@@ -1,0 +1,117 @@
+{
+  "schema_version": "evidence-graph-v0",
+  "graph_id": "ho-det-001-evidence-graph-v0",
+  "artifact_id": "HO-DET-001",
+  "nodes": [
+    {
+      "id": "HO-DET-001",
+      "type": "artifact",
+      "label": "HO-DET-001 Suspicious PowerShell EncodedCommand Execution",
+      "status": "source_truth_referenced"
+    },
+    {
+      "id": "ho-det-001-telemetry-contract",
+      "type": "telemetry_contract_check",
+      "label": "Windows process creation / Sysmon Event ID 1 where available",
+      "status": "referenced_from_source_truth"
+    },
+    {
+      "id": "ho-det-001-controlled-validation",
+      "type": "controlled_validation",
+      "label": "Controlled positive and negative process-creation fixtures",
+      "status": "CONTROLLED_TEST_VALIDATED"
+    },
+    {
+      "id": "ho-det-001-runtime-candidate",
+      "type": "runtime_candidate",
+      "label": "Runtime Candidate Ledger",
+      "status": "observed=false"
+    },
+    {
+      "id": "ho-det-001-signal-observation",
+      "type": "signal_observation",
+      "label": "Signal Observation",
+      "status": "observed=false"
+    },
+    {
+      "id": "ho-det-001-human-review",
+      "type": "human_review_gate",
+      "label": "Human Review Gate",
+      "status": "required"
+    },
+    {
+      "id": "ho-det-001-proofcard-v0",
+      "type": "proofcard",
+      "label": "Hoxline ProofCard v0 reviewer bridge",
+      "status": "draft"
+    },
+    {
+      "id": "ho-det-001-claim-decision",
+      "type": "claim_decision",
+      "label": "Claim Authority decision",
+      "status": "controlled_validation_allowed_runtime_blocked"
+    }
+  ],
+  "edges": [
+    {
+      "from": "HO-DET-001",
+      "to": "ho-det-001-telemetry-contract",
+      "relationship": "feeds"
+    },
+    {
+      "from": "ho-det-001-telemetry-contract",
+      "to": "ho-det-001-controlled-validation",
+      "relationship": "checks"
+    },
+    {
+      "from": "ho-det-001-controlled-validation",
+      "to": "ho-det-001-runtime-candidate",
+      "relationship": "feeds"
+    },
+    {
+      "from": "ho-det-001-runtime-candidate",
+      "to": "ho-det-001-signal-observation",
+      "relationship": "feeds"
+    },
+    {
+      "from": "ho-det-001-signal-observation",
+      "to": "ho-det-001-human-review",
+      "relationship": "feeds"
+    },
+    {
+      "from": "ho-det-001-human-review",
+      "to": "ho-det-001-proofcard-v0",
+      "relationship": "feeds"
+    },
+    {
+      "from": "ho-det-001-proofcard-v0",
+      "to": "ho-det-001-claim-decision",
+      "relationship": "summarizes"
+    },
+    {
+      "from": "ho-det-001-claim-decision",
+      "to": "HO-DET-001",
+      "relationship": "blocks"
+    }
+  ],
+  "runtime": {
+    "candidate_id": "ho-det-001-runtime-candidate",
+    "observed": false,
+    "evidence_refs": []
+  },
+  "signal": {
+    "observed": false,
+    "evidence_refs": []
+  },
+  "claim_authority": {
+    "capability": "Claim Firewall",
+    "disposition": "safe_claim",
+    "public_safe": false,
+    "blocked_reasons": [
+      "Runtime claim remains blocked.",
+      "Signal claim remains blocked.",
+      "Public-safe claim remains blocked.",
+      "Human review is required."
+    ]
+  }
+}

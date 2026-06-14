@@ -1,0 +1,161 @@
+{
+  "artifact_id": "HO-DET-001",
+  "artifact_name": "Suspicious PowerShell EncodedCommand Execution",
+  "evidence_state": "CONTROLLED_TEST_VALIDATED",
+  "proof_ceiling": "CONTROLLED_TEST_VALIDATED",
+  "public_safe": false,
+  "allowed": true,
+  "allowed_claims": [
+    "HO-DET-001 has controlled validation evidence from controlled positive and negative process-creation fixtures and remains under review."
+  ],
+  "blocked_claims": [
+    {
+      "claim": "runtime-active",
+      "reason": "Requires public runtime deployment or enablement evidence, currentness review, and human authorization.",
+      "required_evidence": ["runtime_deployment_evidence", "human_review_gate_complete"]
+    },
+    {
+      "claim": "runtime proven",
+      "reason": "Requires runtime evidence beyond controlled fixtures.",
+      "required_evidence": ["runtime_evidence", "human_review_gate_complete"]
+    },
+    {
+      "claim": "signal observed",
+      "reason": "Requires preserved telemetry, alert, log, or search output tied to the artifact.",
+      "required_evidence": ["signal_observation_evidence", "human_review_gate_complete"]
+    },
+    {
+      "claim": "public-safe",
+      "reason": "Requires separate public wording, privacy, stale, evidence-link, and approval review.",
+      "required_evidence": ["public_safe_authorization"]
+    },
+    {
+      "claim": "production-ready",
+      "reason": "Requires runtime, signal, deployment, and completed review evidence.",
+      "required_evidence": ["runtime_evidence", "signal_observation_evidence", "human_review_gate_complete"]
+    },
+    {
+      "claim": "SOCaaS-ready",
+      "reason": "Requires separate service readiness, deployment, and public claim authorization.",
+      "required_evidence": ["service_readiness_review", "human_review_gate_complete"]
+    },
+    {
+      "claim": "SOCaaS deployed",
+      "reason": "Requires deployment evidence and customer-safe authorization.",
+      "required_evidence": ["service_deployment_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "customer deployed",
+      "reason": "Requires customer deployment evidence and approved public wording.",
+      "required_evidence": ["customer_deployment_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "live Splunk fired",
+      "reason": "Requires preserved live Splunk evidence approved for public use.",
+      "required_evidence": ["live_siem_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "Cribl routed live telemetry",
+      "reason": "Requires preserved route evidence approved for public use.",
+      "required_evidence": ["route_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "Wazuh routed live telemetry",
+      "reason": "Requires preserved route evidence approved for public use.",
+      "required_evidence": ["route_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "AWS-live",
+      "reason": "Requires AWS runtime evidence and public claim authorization.",
+      "required_evidence": ["aws_runtime_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "autonomous SOC",
+      "reason": "Requires governed operational authority evidence beyond controlled validation.",
+      "required_evidence": ["operations_authority_evidence", "human_review_gate_complete"]
+    },
+    {
+      "claim": "AI approved",
+      "reason": "AI is not claim or disposition authority.",
+      "required_evidence": ["human_review_gate_complete"]
+    },
+    {
+      "claim": "analyst approved",
+      "reason": "Requires explicit analyst review evidence.",
+      "required_evidence": ["analyst_review_record"]
+    },
+    {
+      "claim": "case closed",
+      "reason": "Requires explicit case-closure authority outside this bridge.",
+      "required_evidence": ["case_closure_record", "human_review_gate_complete"]
+    },
+    {
+      "claim": "final human authorization",
+      "reason": "Requires explicit final authorization record.",
+      "required_evidence": ["final_authorization_record"]
+    },
+    {
+      "claim": "public runtime proof",
+      "reason": "Requires public-safe runtime evidence linkage.",
+      "required_evidence": ["runtime_evidence", "public_safe_authorization"]
+    },
+    {
+      "claim": "public signal proof",
+      "reason": "Requires public-safe signal evidence linkage.",
+      "required_evidence": ["signal_observation_evidence", "public_safe_authorization"]
+    }
+  ],
+  "safer_suggestions": [
+    {
+      "blocked_claim": "runtime-active",
+      "suggestion": "controlled validation evidence remains under review"
+    },
+    {
+      "blocked_claim": "signal observed",
+      "suggestion": "signal evidence is not asserted"
+    },
+    {
+      "blocked_claim": "public-safe",
+      "suggestion": "public release status is not asserted"
+    }
+  ],
+  "required_evidence": [
+    "runtime_evidence",
+    "signal_observation_evidence",
+    "public_safe_authorization",
+    "human_review_gate_complete",
+    "analyst_review_record",
+    "case_closure_record",
+    "final_authorization_record"
+  ],
+  "authority_sources": [
+    "hawkinsoperations-proof/proof/records/HO-DET-001.md",
+    "hawkinsoperations-proof/proof/cards/HO-DET-001.md",
+    "hawkinsoperations-detections/detections/successor/ho-det-001/rule.yml",
+    "hawkinsoperations-detections/detections/successor/ho-det-001/status.yml",
+    "hawkinsoperations-validation/reports/ho-det-001/validation-result.json",
+    "hawkinsoperations-validation/validation/successor/ho-det-001/validation-cases.json",
+    "hawkinsoperations-platform/contracts/examples/ho-det-001-runtime-contract.sample.json"
+  ],
+  "non_claims": [
+    "runtime truth",
+    "signal truth",
+    "public-safe proof",
+    "production readiness",
+    "SOCaaS availability",
+    "customer deployment",
+    "autonomous SOC operation",
+    "AI-approved disposition",
+    "analyst-approved disposition",
+    "final human authorization",
+    "ProofCard proof authority",
+    "public runtime proof",
+    "public signal proof",
+    "enterprise purchase intent",
+    "legal availability",
+    "trademark clearance",
+    "LLC formation",
+    "case closure"
+  ],
+  "human_review_required": true
+}

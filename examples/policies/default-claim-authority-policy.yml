@@ -6,7 +6,15 @@ public_safe: false
 proof_ceiling_labels:
   - CLAIM_AUTHORITY_V0_ONLY
   - TOOL_FUNCTION_ONLY
+  - CONTROLLED_TEST_VALIDATED
 evidence_states:
+  - id: controlled_test_validated
+    label: Controlled Test Validated
+    allowed_phrases:
+      - controlled validation evidence
+      - controlled positive and negative process-creation fixtures
+    proof_ceiling: CONTROLLED_TEST_VALIDATED
+    public_safe: false
   - id: controlled_validation
     label: Controlled Validation
     allowed_phrases:
@@ -29,7 +37,7 @@ evidence_states:
 blocked_claims:
   - id: production_ready
     phrase: production ready
-    pattern: '\bproduction[- ]ready\b|\bproduction deployment\b'
+    pattern: '\bproduction[- ]ready\b|\bproduction deployment\b|\bproduction status\b'
     reason: Production wording requires runtime, signal, and completed review evidence outside this tool.
     safer_replacement: controlled-validation candidate
     required_evidence:
@@ -45,7 +53,7 @@ blocked_claims:
       - '\bno\b.*\bproduction\b.*\bclaim\b'
   - id: runtime_truth
     phrase: runtime proof
-    pattern: '\bruntime[- ]active\b|\bruntime proof\b|\bruntime[- ]proven\b'
+    pattern: '\bruntime[- ]active\b|\bruntime proof\b|\bruntime[- ]proven\b|\bruntime proven\b|\bpublic runtime proof\b'
     reason: Runtime wording requires runtime evidence and signal observation.
     safer_replacement: controlled-validation evidence recorded
     required_evidence:
@@ -60,7 +68,7 @@ blocked_claims:
       - '\bno\b.*\bruntime\b.*\bclaim\b'
   - id: signal_truth
     phrase: signal observation confirmed
-    pattern: '\bsignal[- ]observed\b|\bsignal observation confirmed\b|\bsignal truth\b'
+    pattern: '\bsignal[- ]observed\b|\bsignal observed\b|\bsignal observation confirmed\b|\bsignal truth\b|\bpublic signal proof\b'
     reason: Signal wording requires observed telemetry evidence.
     safer_replacement: signal observation pending
     required_evidence:
@@ -90,7 +98,7 @@ blocked_claims:
       - '\bno\b.*\bpublic[- ]safe\b.*\bclaim\b'
   - id: final_authority
     phrase: final authorization
-    pattern: '\bfinal authorization\b|\bcase closure\b|\bAI approved\b|\banalyst approved\b'
+    pattern: '\bfinal authorization\b|\bfinal human authorization\b|\bcase closure\b|\bcase closed\b|\bAI approved\b|\banalyst approved\b'
     reason: Final disposition and approval authority must come from explicit human process, not this tool.
     safer_replacement: requires human review gate disposition
     required_evidence:
@@ -106,7 +114,7 @@ blocked_claims:
       - '\bno\b.*\bfinal authorization\b.*\bclaim\b'
   - id: service_deployment
     phrase: customer deployed service
-    pattern: '\bcustomer deployed\b|\bSOCaaS is available\b|\bautonomous security operations\b'
+    pattern: '\bcustomer deployed\b|\bSOCaaS[- ]ready\b|\bSOCaaS deployed\b|\bSOCaaS is available\b|\bautonomous security operations\b|\bautonomous SOC\b'
     reason: Service availability and deployment claims require release and deployment evidence.
     safer_replacement: local wording policy scanner
     required_evidence:
@@ -121,3 +129,32 @@ blocked_claims:
       - '\bdoes not claim\b.*\bcustomer\b'
       - '\bdoes not claim\b.*\bSOCaaS\b'
       - '\bdoes not claim\b.*\bautonomous\b'
+  - id: live_telemetry_route
+    phrase: live telemetry route
+    pattern: '\blive Splunk fired\b|\bCribl routed live telemetry\b|\bWazuh routed live telemetry\b|\bCribl[- ]routed\b|\bWazuh[- ]routed\b'
+    reason: Live telemetry and routing wording requires preserved public release route evidence.
+    safer_replacement: route evidence not asserted
+    required_evidence:
+      - runtime_signal_observed
+      - public_safe_authorization
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - route evidence not asserted
+      - live telemetry evidence not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\blive Splunk\b'
+      - '\bdoes not claim\b.*\bCribl\b'
+      - '\bdoes not claim\b.*\bWazuh\b'
+  - id: aws_live
+    phrase: AWS live status
+    pattern: '\bAWS[- ]live\b'
+    reason: AWS runtime wording requires preserved AWS runtime evidence and public claim authorization.
+    safer_replacement: AWS runtime evidence not asserted
+    required_evidence:
+      - runtime_signal_observed
+      - public_safe_authorization
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - AWS runtime evidence not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bAWS[- ]live\b'

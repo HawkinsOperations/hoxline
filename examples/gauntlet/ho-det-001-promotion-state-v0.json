@@ -1,0 +1,55 @@
+{
+  "schema_version": "promotion-state-v0",
+  "artifact_id": "HO-DET-001",
+  "loop": [
+    "AI-assisted security work",
+    "Artifact Intake",
+    "Evidence Graph",
+    "Telemetry Contract Check",
+    "Controlled Validation",
+    "Runtime Candidate Ledger",
+    "Signal Observation",
+    "Human Review Gate",
+    "ProofCard",
+    "Claim Authority",
+    "Safe Claim / Blocked Claim"
+  ],
+  "current_stage": "Claim Authority",
+  "gates": {
+    "artifact_intake": "accepted",
+    "telemetry_contract_check": "passed",
+    "controlled_validation": "passed"
+  },
+  "runtime": {
+    "candidate_id": "ho-det-001-runtime-candidate",
+    "observed": false,
+    "evidence_refs": []
+  },
+  "signal": {
+    "observed": false,
+    "evidence_refs": []
+  },
+  "human_review_gate": {
+    "status": "pending",
+    "review_refs": []
+  },
+  "proofcard": {
+    "status": "draft",
+    "proofcard_id": "ho-det-001-proofcard-v0",
+    "evidence_refs": [
+      "hawkinsoperations-proof/proof/records/HO-DET-001.md",
+      "hawkinsoperations-validation/reports/ho-det-001/validation-result.json"
+    ]
+  },
+  "claim_authority": {
+    "capability": "Claim Firewall",
+    "disposition": "safe_claim",
+    "public_safe": false,
+    "blocked_reasons": [
+      "Runtime claim remains blocked.",
+      "Signal claim remains blocked.",
+      "Public-safe claim remains blocked.",
+      "Human review is required before stronger claims."
+    ]
+  }
+}
