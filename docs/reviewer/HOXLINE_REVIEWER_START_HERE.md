@@ -12,12 +12,15 @@ human_review_required: true
 
 Start with these files:
 
-1. `docs/releases/HOXLINE_PR7_PR8_PR63_RELEASE_PACKET.md`
-2. `docs/proofcards/HO-DET-001_PROOFCARD_V0.md`
-3. `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md`
-4. `examples/gauntlet/ho-det-001-proofcard-v0.json`
-5. `docs/strategy/README.md`
-6. Website route: `/hoxline/`
+1. `docs/demo/HOXLINE_CONTROLLED_DEMO_V0.md`
+2. `docs/demo/HO_DET_001_WALKTHROUGH.md`
+3. `docs/demo/CLAIM_DECISION_TABLE.md`
+4. `docs/releases/HOXLINE_PR7_PR8_PR63_RELEASE_PACKET.md`
+5. `docs/proofcards/HO-DET-001_PROOFCARD_V0.md`
+6. `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md`
+7. `examples/gauntlet/ho-det-001-proofcard-v0.json`
+8. `docs/strategy/README.md`
+9. Website route: `/hoxline/`
 
 ## Hoxline Product Loop
 
@@ -41,6 +44,11 @@ One artifact, one loop, one ProofCard, one safe claim, one blocked claim.
 
 ## HO-DET-001 Bridge Artifacts
 
+- Controlled demo overview: `docs/demo/HOXLINE_CONTROLLED_DEMO_V0.md`
+- Controlled demo walkthrough: `docs/demo/HO_DET_001_WALKTHROUGH.md`
+- Claim decision table: `docs/demo/CLAIM_DECISION_TABLE.md`
+- Controlled demo manifest: `examples/demo/ho-det-001-controlled-demo-manifest.json`
+- Claim decision summary: `examples/demo/ho-det-001-claim-decision-summary.json`
 - ProofCard bridge: `docs/proofcards/HO-DET-001_PROOFCARD_V0.md`
 - Gauntlet run: `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md`
 - Reviewer report JSON: `examples/gauntlet/ho-det-001-proofcard-v0.json`

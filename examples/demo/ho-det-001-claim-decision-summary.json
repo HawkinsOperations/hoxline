@@ -1,0 +1,85 @@
+{
+  "artifact_id": "HO-DET-001",
+  "allowed_claims": [
+    "HO-DET-001 has controlled validation evidence from controlled positive and negative process-creation fixtures and remains under review."
+  ],
+  "blocked_claims": [
+    "This summary does not claim runtime-active status.",
+    "This summary does not claim runtime proven status.",
+    "This summary does not claim signal observed status.",
+    "This summary does not claim public-safe proof.",
+    "This summary does not claim production-ready status.",
+    "This summary does not claim SOCaaS-ready status.",
+    "This summary does not claim SOCaaS deployed status.",
+    "This summary does not claim customer deployed status.",
+    "This summary does not claim live Splunk fired status.",
+    "This summary does not claim Cribl routed live telemetry.",
+    "This summary does not claim Wazuh routed live telemetry.",
+    "This summary does not claim AWS-live status.",
+    "This summary does not claim autonomous SOC operation.",
+    "This summary does not claim AI approved disposition.",
+    "This summary does not claim analyst approved disposition.",
+    "This summary does not claim final human authorization.",
+    "This summary does not claim case closed status.",
+    "This summary does not claim public runtime proof.",
+    "This summary does not claim public signal proof.",
+    "This summary does not claim enterprise purchase intent.",
+    "This summary does not claim customer traction.",
+    "This summary does not claim revenue.",
+    "This summary does not claim legal availability.",
+    "This summary does not claim trademark clearance.",
+    "This summary does not claim LLC formation.",
+    "This summary does not claim product-market fit."
+  ],
+  "safer_suggestions": [
+    {
+      "blocked_claim_family": "runtime or signal",
+      "suggestion": "controlled validation evidence remains under review"
+    },
+    {
+      "blocked_claim_family": "public release",
+      "suggestion": "public release status is not asserted"
+    },
+    {
+      "blocked_claim_family": "business, legal, or customer status",
+      "suggestion": "no business, legal, customer, revenue, or market-fit status is asserted"
+    }
+  ],
+  "required_evidence_for_promotion": [
+    "runtime_evidence",
+    "signal_observation_evidence",
+    "public_safe_authorization",
+    "human_review_gate_complete",
+    "analyst_review_record",
+    "final_authorization_record",
+    "case_closure_record",
+    "legal_review_record",
+    "business_evidence_record"
+  ],
+  "non_claims": [
+    "runtime truth",
+    "signal truth",
+    "public-safe proof",
+    "production readiness",
+    "SOCaaS availability",
+    "customer deployment",
+    "autonomous SOC operation",
+    "AI-approved disposition",
+    "analyst-approved disposition",
+    "final human authorization",
+    "ProofCard proof authority",
+    "public runtime proof",
+    "public signal proof",
+    "enterprise purchase intent",
+    "customer traction",
+    "revenue",
+    "legal availability",
+    "trademark clearance",
+    "LLC formation",
+    "product-market fit",
+    "case closure"
+  ],
+  "proof_ceiling": "CONTROLLED_TEST_VALIDATED",
+  "public_safe": false,
+  "human_review_required": true
+}
