@@ -8,9 +8,11 @@ The HawkinsOperations product system contains exactly seven repositories:
 * hawkinsoperations-platform
 * hawkinsoperations-proof
 * hawkinsoperations-website
-* aevumguard
+* hoxline
 
 No eighth repository is introduced or implied by Hoxline.
+
+Local/package/schema references to `aevumguard` remain compatibility naming until a separate migration is approved. They do not define the current product/front-door identity.
 
 ## Repository Roles
 
@@ -22,7 +24,7 @@ No eighth repository is introduced or implied by Hoxline.
 | `hawkinsoperations-platform` | Platform contracts and runtime-adjacent platform structures. |
 | `hawkinsoperations-proof` | Proof records, proof documentation, and evidence-facing artifacts. |
 | `hawkinsoperations-website` | Public-facing website implementation and presentation surfaces. |
-| `aevumguard` | ProofOps control plane for AI-assisted security work. |
+| `hoxline` | Hoxline ProofOps control plane for AI-assisted security work. |
 
 ## Hoxline Placement
 

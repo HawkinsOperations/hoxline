@@ -4,7 +4,9 @@ Hoxline is a proof-bound claim control system for AI-assisted security work.
 
 Hoxline by HawkinsOperations is the product name for the current product/front-door repo.
 
-Current repository path: HawkinsOperations/aevumguard. Product name: Hoxline by HawkinsOperations. Repository rename is not yet approved.
+Current repo: HawkinsOperations/hoxline. Product name: Hoxline by HawkinsOperations.
+
+Local/package/schema references to `aevumguard` remain compatibility naming until a separate migration is approved. They do not define the current product/front-door identity.
 
 Hoxline governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
 
@@ -48,7 +50,7 @@ Exactly seven repos. No eighth repo.
 * hawkinsoperations-platform
 * hawkinsoperations-proof
 * hawkinsoperations-website
-* aevumguard
+* hoxline
 
 No eighth repository is part of this product spine. Hoxline modules are internal product modules, not separate repositories.
 
