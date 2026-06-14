@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/aevumguard/schemas/claim-authority-policy-v0.schema.json",
+  "title": "Hoxline Claim Authority Policy v0",
+  "type": "object",
+  "required": [
+    "kind",
+    "version",
+    "name",
+    "proof_ceiling",
+    "public_safe",
+    "proof_ceiling_labels",
+    "blocked_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "claim-authority-policy"
+    },
+    "version": {
+      "const": 0
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_ceiling": {
+      "type": "string",
+      "minLength": 1
+    },
+    "public_safe": {
+      "type": "boolean",
+      "default": false
+    },
+    "proof_ceiling_labels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidence_states": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence_state"
+      },
+      "default": []
+    },
+    "blocked_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/blocked_claim"
+      }
+    }
+  },
+  "$defs": {
+    "evidence_state": {
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "proof_ceiling"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_phrases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "proof_ceiling": {
+          "type": "string",
+          "minLength": 1
+        },
+        "public_safe": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "blocked_claim": {
+      "type": "object",
+      "required": [
+        "id",
+        "phrase",
+        "pattern",
+        "reason",
+        "safer_replacement",
+        "required_evidence",
+        "proof_ceiling"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phrase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "safer_replacement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "proof_ceiling": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_replacements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "allowed_context_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}

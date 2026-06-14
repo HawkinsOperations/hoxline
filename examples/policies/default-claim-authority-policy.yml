@@ -1,0 +1,123 @@
+kind: claim-authority-policy
+version: 0
+name: Hoxline default Claim Authority policy v0
+proof_ceiling: CLAIM_AUTHORITY_V0_ONLY
+public_safe: false
+proof_ceiling_labels:
+  - CLAIM_AUTHORITY_V0_ONLY
+  - TOOL_FUNCTION_ONLY
+evidence_states:
+  - id: controlled_validation
+    label: Controlled Validation
+    allowed_phrases:
+      - controlled-validation candidate
+      - validated in a controlled test
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    public_safe: false
+  - id: runtime_signal_observed
+    label: Runtime Signal Observed
+    allowed_phrases:
+      - runtime signal observed
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    public_safe: false
+  - id: human_review_gate_complete
+    label: Human Review Gate Complete
+    allowed_phrases:
+      - human review gate complete
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    public_safe: false
+blocked_claims:
+  - id: production_ready
+    phrase: production ready
+    pattern: '\bproduction[- ]ready\b|\bproduction deployment\b'
+    reason: Production wording requires runtime, signal, and completed review evidence outside this tool.
+    safer_replacement: controlled-validation candidate
+    required_evidence:
+      - runtime_signal_observed
+      - human_review_gate_complete
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - controlled-validation candidate
+      - ready for controlled validation
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bproduction\b'
+      - '\bdoes not prove\b.*\bproduction\b'
+      - '\bno\b.*\bproduction\b.*\bclaim\b'
+  - id: runtime_truth
+    phrase: runtime proof
+    pattern: '\bruntime[- ]active\b|\bruntime proof\b|\bruntime[- ]proven\b'
+    reason: Runtime wording requires runtime evidence and signal observation.
+    safer_replacement: controlled-validation evidence recorded
+    required_evidence:
+      - runtime_signal_observed
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - controlled-validation evidence recorded
+      - runtime evidence not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bruntime\b'
+      - '\bdoes not prove\b.*\bruntime\b'
+      - '\bno\b.*\bruntime\b.*\bclaim\b'
+  - id: signal_truth
+    phrase: signal observation confirmed
+    pattern: '\bsignal[- ]observed\b|\bsignal observation confirmed\b|\bsignal truth\b'
+    reason: Signal wording requires observed telemetry evidence.
+    safer_replacement: signal observation pending
+    required_evidence:
+      - runtime_signal_observed
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - signal observation pending
+      - signal evidence not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bsignal\b'
+      - '\bdoes not prove\b.*\bsignal\b'
+      - '\bno\b.*\bsignal\b.*\bclaim\b'
+  - id: public_safe
+    phrase: public release safe
+    pattern: '\bpublic[- ]safe\b|\bpublic release safe\b'
+    reason: Public release safety requires separate authorization.
+    safer_replacement: public release status not asserted
+    required_evidence:
+      - public_safe_authorization
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - public release status not asserted
+      - public release authorization not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bpublic[- ]safe\b'
+      - '\bdoes not prove\b.*\bpublic[- ]safe\b'
+      - '\bno\b.*\bpublic[- ]safe\b.*\bclaim\b'
+  - id: final_authority
+    phrase: final authorization
+    pattern: '\bfinal authorization\b|\bcase closure\b|\bAI approved\b|\banalyst approved\b'
+    reason: Final disposition and approval authority must come from explicit human process, not this tool.
+    safer_replacement: requires human review gate disposition
+    required_evidence:
+      - human_review_gate_complete
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - requires human review gate disposition
+      - final authorization not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bfinal authorization\b'
+      - '\bdoes not claim\b.*\bcase closure\b'
+      - '\bdoes not claim\b.*\bapproved\b'
+      - '\bno\b.*\bfinal authorization\b.*\bclaim\b'
+  - id: service_deployment
+    phrase: customer deployed service
+    pattern: '\bcustomer deployed\b|\bSOCaaS is available\b|\bautonomous security operations\b'
+    reason: Service availability and deployment claims require release and deployment evidence.
+    safer_replacement: local wording policy scanner
+    required_evidence:
+      - runtime_signal_observed
+      - human_review_gate_complete
+      - public_safe_authorization
+    proof_ceiling: TOOL_FUNCTION_ONLY
+    allowed_replacements:
+      - local wording policy scanner
+      - service availability not asserted
+    allowed_context_patterns:
+      - '\bdoes not claim\b.*\bcustomer\b'
+      - '\bdoes not claim\b.*\bSOCaaS\b'
+      - '\bdoes not claim\b.*\bautonomous\b'
