@@ -59,25 +59,25 @@ Each blocked family requires additional evidence and human review before promoti
 
 | Claim family | Decision |
 |---|---|
-| runtime-active | blocked |
-| runtime proven | blocked |
-| signal observed | blocked |
+| does not claim runtime-active | blocked |
+| does not claim runtime proven | blocked |
+| does not claim signal observed | blocked |
 | does not claim public-safe | blocked |
 | does not claim production-ready | blocked |
-| SOCaaS-ready | blocked |
-| SOCaaS deployed | blocked |
-| customer deployed | blocked |
-| live Splunk fired | blocked |
-| Cribl routed live telemetry | blocked |
-| Wazuh routed live telemetry | blocked |
-| AWS-live | blocked |
+| does not claim SOCaaS-ready | blocked |
+| does not claim SOCaaS deployed | blocked |
+| does not claim customer deployed | blocked |
+| does not claim live Splunk fired | blocked |
+| does not claim Cribl routed live telemetry | blocked |
+| does not claim Wazuh routed live telemetry | blocked |
+| does not claim AWS-live | blocked |
 | does not claim autonomous SOC | blocked |
-| AI approved | blocked |
-| analyst approved | blocked |
-| case closed | blocked |
-| final human authorization | blocked |
-| public runtime proof | blocked |
-| public signal proof | blocked |
+| does not claim AI approved | blocked |
+| does not claim analyst approved | blocked |
+| does not claim case closure | blocked |
+| does not claim final authorization or final human authorization | blocked |
+| does not claim public runtime proof | blocked |
+| does not claim public signal proof | blocked |
 
 ## Output
 

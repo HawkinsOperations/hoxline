@@ -29,7 +29,7 @@ The sample artifact has:
 * No runtime observation.
 * No signal observation.
 * No external safety status.
-* No final authorization.
+* No final authorization claim.
 
 ## Gauntlet Walkthrough
 

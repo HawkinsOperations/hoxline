@@ -78,7 +78,7 @@ The signal observation stage is represented as a gate, not as achieved signal ev
 
 ## Step 7: Human Review Gate
 
-The human review gate remains required. human_review_required remains true because this demo does not create final authorization or analyst approval.
+The human review gate remains required. human_review_required remains true because this demo does not claim final authorization and does not claim analyst approval.
 
 ## Step 8: ProofCard
 
@@ -105,7 +105,7 @@ HO-DET-001 has controlled validation evidence from controlled positive and negat
 
 Blocked claim boundary:
 
-This walkthrough does not claim runtime-active status, runtime proven status, signal observed status, public-safe proof, production-ready status, SOCaaS-ready status, SOCaaS deployed status, customer deployed status, live Splunk fired status, Cribl routed live telemetry, Wazuh routed live telemetry, AWS-live status, autonomous SOC operation, AI approved disposition, analyst approved disposition, final human authorization, case closed status, public runtime proof, public signal proof, enterprise purchase intent, customer traction, revenue, legal availability, trademark clearance, LLC formation, or product-market fit.
+This walkthrough does not claim runtime-active status, runtime proven status, signal observed status, public-safe proof, production-ready status, SOCaaS-ready status, SOCaaS deployed status, customer deployed status, live Splunk fired status, Cribl routed live telemetry, Wazuh routed live telemetry, AWS-live status, autonomous SOC operation, AI approved disposition, analyst approved disposition, final authorization or final human authorization, case closure status, public runtime proof, public signal proof, enterprise purchase intent, customer traction, revenue, legal availability, trademark clearance, LLC formation, or product-market fit.
 
 ## Promotion Evidence Needed
 
@@ -116,6 +116,6 @@ Before stronger claims are considered, reviewers need evidence outside this demo
 - Public release authorization.
 - Completed human review gate.
 - Analyst review record for analyst approval.
-- Final authorization record for final authorization.
-- Case closure record for closure.
+- This walkthrough does not claim final authorization; required next evidence is `final_authorization_record`.
+- This walkthrough does not claim case closure; required next evidence is `case_closure_record`.
 - Legal and business review records for legal availability, trademark clearance, formation, revenue, traction, or market-fit language.

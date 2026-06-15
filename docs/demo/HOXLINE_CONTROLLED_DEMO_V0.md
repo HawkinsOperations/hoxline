@@ -92,7 +92,7 @@ HO-DET-001 has controlled validation evidence from controlled positive and negat
 
 ## Blocked Claim Boundaries
 
-This demo does not claim runtime-active status, runtime proven status, signal observed status, public-safe proof, production-ready status, SOCaaS-ready status, SOCaaS deployed status, customer deployed status, live Splunk fired status, Cribl routed live telemetry, Wazuh routed live telemetry, AWS-live status, autonomous SOC operation, AI approved disposition, analyst approved disposition, final human authorization, case closed status, public runtime proof, public signal proof, enterprise purchase intent, customer traction, revenue, legal availability, trademark clearance, LLC formation, or product-market fit.
+This demo does not claim runtime-active status, runtime proven status, signal observed status, public-safe proof, production-ready status, SOCaaS-ready status, SOCaaS deployed status, customer deployed status, live Splunk fired status, Cribl routed live telemetry, Wazuh routed live telemetry, AWS-live status, autonomous SOC operation, AI approved disposition, analyst approved disposition, final authorization or final human authorization, case closure status, public runtime proof, public signal proof, enterprise purchase intent, customer traction, revenue, legal availability, trademark clearance, LLC formation, or product-market fit.
 
 ## Why public_safe Remains False
 
@@ -120,6 +120,6 @@ human_review_required remains true because controlled validation is not final ap
 - Public release authorization.
 - Completed human review gate.
 - Analyst review record if analyst approval is claimed.
-- Final authorization record if final authorization is claimed.
-- Case closure record if closure is claimed.
+- This demo does not claim final authorization; required next evidence is `final_authorization_record`.
+- This demo does not claim case closure; required next evidence is `case_closure_record`.
 - Legal and business review records before legal, formation, traction, revenue, or market-fit language is considered.
