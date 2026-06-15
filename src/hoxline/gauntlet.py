@@ -214,6 +214,22 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def verify_full_loop_run_file(input_path: Path, schema_path: Path) -> list[str]:
+    schema = _load_json(schema_path)
+    report = _load_json(input_path)
+    return verify_full_loop_run(report, schema)
+
+
+def verify_full_loop_run(report: dict[str, Any], schema: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    _validate_schema_identity(schema, errors)
+    _validate_required_output_fields(report, schema, errors)
+    _validate_fixed_invariants(report, errors)
+    _validate_loop_contract(report, errors)
+    _validate_claim_boundary_contract(report, errors)
+    return errors
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise GauntletError(f"required artifact not found: {path}")
@@ -222,6 +238,163 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise GauntletError(f"required artifact is not a JSON object: {path}")
     return data
+
+
+def _validate_schema_identity(schema: dict[str, Any], errors: list[str]) -> None:
+    if schema.get("title") != "Hoxline Gauntlet Full-Loop Run v0":
+        errors.append("schema title must be Hoxline Gauntlet Full-Loop Run v0")
+    if schema.get("$id") != "https://hawkinsoperations.dev/hoxline/schemas/gauntlet-full-loop-run-v0.schema.json":
+        errors.append("schema id must identify gauntlet-full-loop-run-v0")
+
+
+def _validate_required_output_fields(report: dict[str, Any], schema: dict[str, Any], errors: list[str]) -> None:
+    required = schema.get("required")
+    if not isinstance(required, list) or not all(isinstance(item, str) for item in required):
+        errors.append("schema required field list is missing or invalid")
+        return
+
+    for field in required:
+        if field not in report:
+            errors.append(f"missing required field: {field}")
+    for field in report:
+        if field not in required:
+            errors.append(f"unexpected field: {field}")
+
+    expected_types = {
+        "run_id": str,
+        "artifact_id": str,
+        "product": str,
+        "proof_ceiling": str,
+        "public_safe": bool,
+        "human_review_required": bool,
+        "loop_stages": list,
+        "allowed_claims": list,
+        "blocked_claims": list,
+        "missing_evidence": list,
+        "authority_sources": list,
+        "reviewer_summary": str,
+        "non_claims": list,
+    }
+    for field, expected_type in expected_types.items():
+        if field in report and not isinstance(report[field], expected_type):
+            errors.append(f"field {field} must be {expected_type.__name__}")
+
+    for field in ("allowed_claims", "missing_evidence", "authority_sources", "non_claims"):
+        value = report.get(field)
+        if isinstance(value, list) and not all(isinstance(item, str) and item for item in value):
+            errors.append(f"field {field} must contain non-empty strings")
+
+
+def _validate_fixed_invariants(report: dict[str, Any], errors: list[str]) -> None:
+    fixed_values = {
+        "artifact_id": "HO-DET-001",
+        "product": "Hoxline by HawkinsOperations",
+        "proof_ceiling": "CONTROLLED_TEST_VALIDATED",
+        "public_safe": False,
+        "human_review_required": True,
+    }
+    for field, expected in fixed_values.items():
+        if report.get(field) != expected:
+            errors.append(f"field {field} must be {expected!r}")
+
+
+def _validate_loop_contract(report: dict[str, Any], errors: list[str]) -> None:
+    stages = report.get("loop_stages")
+    if not isinstance(stages, list):
+        errors.append("loop_stages must be a list")
+        return
+    if len(stages) != len(CANONICAL_LOOP):
+        errors.append("loop_stages must contain exactly 11 stages")
+        return
+
+    observed_order: list[str] = []
+    stage_by_name: dict[str, dict[str, Any]] = {}
+    for index, stage in enumerate(stages):
+        if not isinstance(stage, dict):
+            errors.append(f"loop_stages[{index}] must be an object")
+            continue
+        _validate_exact_keys(stage, {"stage", "status", "reviewer_note", "authority_refs", "missing_evidence"}, f"loop_stages[{index}]", errors)
+        name = stage.get("stage")
+        status = stage.get("status")
+        observed_order.append(name if isinstance(name, str) else "")
+        if isinstance(name, str):
+            stage_by_name[name] = stage
+        if status not in VALID_STAGE_STATUSES:
+            errors.append(f"loop stage {name or index} has invalid status: {status}")
+        for field in ("reviewer_note",):
+            if not isinstance(stage.get(field), str) or not stage.get(field):
+                errors.append(f"loop stage {name or index} field {field} must be a non-empty string")
+        for field in ("authority_refs", "missing_evidence"):
+            value = stage.get(field)
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                errors.append(f"loop stage {name or index} field {field} must be a string list")
+
+    if observed_order != CANONICAL_LOOP:
+        errors.append("loop_stages order must match the canonical Hoxline loop")
+
+    _validate_stage_not_pass_without_evidence(stage_by_name, "Runtime Candidate Ledger", "runtime_evidence", errors)
+    _validate_stage_not_pass_without_evidence(stage_by_name, "Signal Observation", "signal_observation_evidence", errors)
+
+
+def _validate_stage_not_pass_without_evidence(
+    stage_by_name: dict[str, dict[str, Any]],
+    stage_name: str,
+    missing_evidence_id: str,
+    errors: list[str],
+) -> None:
+    stage = stage_by_name.get(stage_name)
+    if not stage:
+        return
+    if stage.get("status") != "PASS":
+        return
+    authority_refs = stage.get("authority_refs")
+    if not isinstance(authority_refs, list) or not authority_refs:
+        errors.append(f"{stage_name} cannot be PASS without authority_refs evidence")
+    missing_evidence = stage.get("missing_evidence")
+    if isinstance(missing_evidence, list) and missing_evidence_id in missing_evidence:
+        errors.append(f"{stage_name} cannot be PASS while {missing_evidence_id} remains missing")
+
+
+def _validate_claim_boundary_contract(report: dict[str, Any], errors: list[str]) -> None:
+    allowed_claims = report.get("allowed_claims")
+    if isinstance(allowed_claims, list) and SAFE_CLAIM not in allowed_claims:
+        errors.append("allowed_claims must contain the controlled-validation safe claim")
+
+    blocked_claims = report.get("blocked_claims")
+    if not isinstance(blocked_claims, list):
+        errors.append("blocked_claims must be a list")
+        return
+
+    observed: set[str] = set()
+    for index, item in enumerate(blocked_claims):
+        if not isinstance(item, dict):
+            errors.append(f"blocked_claims[{index}] must be an object")
+            continue
+        _validate_exact_keys(item, {"claim", "status", "reason", "required_evidence", "safer_wording"}, f"blocked_claims[{index}]", errors)
+        claim = item.get("claim")
+        if isinstance(claim, str):
+            observed.add(claim)
+        if item.get("status") != "BLOCKED":
+            errors.append(f"blocked claim {claim or index} must have status BLOCKED")
+        for field in ("reason", "safer_wording"):
+            if not isinstance(item.get(field), str) or not item.get(field):
+                errors.append(f"blocked claim {claim or index} field {field} must be a non-empty string")
+        required_evidence = item.get("required_evidence")
+        if not isinstance(required_evidence, list) or not all(isinstance(value, str) for value in required_evidence):
+            errors.append(f"blocked claim {claim or index} required_evidence must be a string list")
+
+    missing = [claim for claim in REQUIRED_BLOCKED_CLAIMS if claim not in observed]
+    if missing:
+        errors.append(f"blocked_claims missing required families: {', '.join(missing)}")
+
+
+def _validate_exact_keys(item: dict[str, Any], allowed_keys: set[str], label: str, errors: list[str]) -> None:
+    missing = sorted(allowed_keys - set(item))
+    unexpected = sorted(set(item) - allowed_keys)
+    if missing:
+        errors.append(f"{label} missing fields: {', '.join(missing)}")
+    if unexpected:
+        errors.append(f"{label} unexpected fields: {', '.join(unexpected)}")
 
 
 def _validate_artifact_ids(artifact_id: str, *records: dict[str, Any]) -> None:

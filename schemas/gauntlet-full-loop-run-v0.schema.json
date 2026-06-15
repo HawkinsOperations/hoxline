@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/gauntlet-full-loop-run-v0.schema.json",
+  "title": "Hoxline Gauntlet Full-Loop Run v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "artifact_id",
+    "product",
+    "proof_ceiling",
+    "public_safe",
+    "human_review_required",
+    "loop_stages",
+    "allowed_claims",
+    "blocked_claims",
+    "missing_evidence",
+    "authority_sources",
+    "reviewer_summary",
+    "non_claims"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_id": {
+      "const": "HO-DET-001"
+    },
+    "product": {
+      "const": "Hoxline by HawkinsOperations"
+    },
+    "proof_ceiling": {
+      "const": "CONTROLLED_TEST_VALIDATED"
+    },
+    "public_safe": {
+      "const": false
+    },
+    "human_review_required": {
+      "const": true
+    },
+    "loop_stages": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "prefixItems": [
+        { "$ref": "#/$defs/stage_ai_assisted" },
+        { "$ref": "#/$defs/stage_artifact_intake" },
+        { "$ref": "#/$defs/stage_evidence_graph" },
+        { "$ref": "#/$defs/stage_telemetry_contract" },
+        { "$ref": "#/$defs/stage_controlled_validation" },
+        { "$ref": "#/$defs/stage_runtime_candidate" },
+        { "$ref": "#/$defs/stage_signal_observation" },
+        { "$ref": "#/$defs/stage_human_review" },
+        { "$ref": "#/$defs/stage_proofcard" },
+        { "$ref": "#/$defs/stage_claim_authority" },
+        { "$ref": "#/$defs/stage_safe_blocked_claim" }
+      ]
+    },
+    "allowed_claims": {
+      "type": "array",
+      "contains": {
+        "const": "HO-DET-001 has controlled validation evidence from controlled positive and negative process-creation fixtures and remains under review."
+      },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "blocked_claims": {
+      "type": "array",
+      "minItems": 17,
+      "allOf": [
+        { "contains": { "$ref": "#/$defs/blocked_runtime_active" } },
+        { "contains": { "$ref": "#/$defs/blocked_runtime_proven" } },
+        { "contains": { "$ref": "#/$defs/blocked_signal_observed" } },
+        { "contains": { "$ref": "#/$defs/blocked_public_safe_proof" } },
+        { "contains": { "$ref": "#/$defs/blocked_production_ready" } },
+        { "contains": { "$ref": "#/$defs/blocked_socaas_ready" } },
+        { "contains": { "$ref": "#/$defs/blocked_socaas_deployed" } },
+        { "contains": { "$ref": "#/$defs/blocked_customer_deployed" } },
+        { "contains": { "$ref": "#/$defs/blocked_ai_approved" } },
+        { "contains": { "$ref": "#/$defs/blocked_analyst_approved" } },
+        { "contains": { "$ref": "#/$defs/blocked_final_human_authorization" } },
+        { "contains": { "$ref": "#/$defs/blocked_case_closed" } },
+        { "contains": { "$ref": "#/$defs/blocked_public_runtime_proof" } },
+        { "contains": { "$ref": "#/$defs/blocked_public_signal_proof" } },
+        { "contains": { "$ref": "#/$defs/blocked_revenue" } },
+        { "contains": { "$ref": "#/$defs/blocked_legal_availability" } },
+        { "contains": { "$ref": "#/$defs/blocked_product_market_fit" } }
+      ],
+      "items": {
+        "$ref": "#/$defs/blocked_claim"
+      }
+    },
+    "missing_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "authority_sources": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "reviewer_summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "PASS",
+        "BLOCKED",
+        "MISSING_EVIDENCE",
+        "HUMAN_REVIEW_REQUIRED",
+        "NOT_PUBLIC_SAFE",
+        "REFERENCE_ONLY"
+      ]
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "status",
+        "reviewer_note",
+        "authority_refs",
+        "missing_evidence"
+      ],
+      "properties": {
+        "stage": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "reviewer_note": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authority_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "stage_ai_assisted": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "AI-assisted security work" } } }
+      ]
+    },
+    "stage_artifact_intake": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Artifact Intake" } } }
+      ]
+    },
+    "stage_evidence_graph": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Evidence Graph" } } }
+      ]
+    },
+    "stage_telemetry_contract": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Telemetry Contract Check" } } }
+      ]
+    },
+    "stage_controlled_validation": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Controlled Validation" } } }
+      ]
+    },
+    "stage_runtime_candidate": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Runtime Candidate Ledger" } } },
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "PASS" }
+            }
+          },
+          "then": {
+            "properties": {
+              "authority_refs": { "minItems": 1 },
+              "missing_evidence": {
+                "not": {
+                  "contains": { "const": "runtime_evidence" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "stage_signal_observation": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Signal Observation" } } },
+        {
+          "if": {
+            "properties": {
+              "status": { "const": "PASS" }
+            }
+          },
+          "then": {
+            "properties": {
+              "authority_refs": { "minItems": 1 },
+              "missing_evidence": {
+                "not": {
+                  "contains": { "const": "signal_observation_evidence" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "stage_human_review": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Human Review Gate" } } }
+      ]
+    },
+    "stage_proofcard": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "ProofCard" } } }
+      ]
+    },
+    "stage_claim_authority": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Claim Authority" } } }
+      ]
+    },
+    "stage_safe_blocked_claim": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        { "properties": { "stage": { "const": "Safe Claim / Blocked Claim" } } }
+      ]
+    },
+    "blocked_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim",
+        "status",
+        "reason",
+        "required_evidence",
+        "safer_wording"
+      ],
+      "properties": {
+        "claim": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "BLOCKED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "safer_wording": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "blocked_runtime_active": { "properties": { "claim": { "const": "runtime-active" } } },
+    "blocked_runtime_proven": { "properties": { "claim": { "const": "runtime proven" } } },
+    "blocked_signal_observed": { "properties": { "claim": { "const": "signal observed" } } },
+    "blocked_public_safe_proof": { "properties": { "claim": { "const": "public-safe proof" } } },
+    "blocked_production_ready": { "properties": { "claim": { "const": "production-ready" } } },
+    "blocked_socaas_ready": { "properties": { "claim": { "const": "SOCaaS-ready" } } },
+    "blocked_socaas_deployed": { "properties": { "claim": { "const": "SOCaaS deployed" } } },
+    "blocked_customer_deployed": { "properties": { "claim": { "const": "customer deployed" } } },
+    "blocked_ai_approved": { "properties": { "claim": { "const": "AI approved" } } },
+    "blocked_analyst_approved": { "properties": { "claim": { "const": "analyst approved" } } },
+    "blocked_final_human_authorization": { "properties": { "claim": { "const": "final human authorization" } } },
+    "blocked_case_closed": { "properties": { "claim": { "const": "case closed" } } },
+    "blocked_public_runtime_proof": { "properties": { "claim": { "const": "public runtime proof" } } },
+    "blocked_public_signal_proof": { "properties": { "claim": { "const": "public signal proof" } } },
+    "blocked_revenue": { "properties": { "claim": { "const": "revenue" } } },
+    "blocked_legal_availability": { "properties": { "claim": { "const": "legal availability" } } },
+    "blocked_product_market_fit": { "properties": { "claim": { "const": "product-market fit" } } }
+  }
+}
