@@ -1,0 +1,51 @@
+{
+  "schema_version": "proofcard-v1",
+  "proofcard_id": "ho-det-001-proofcard-v1",
+  "detection_id": "HO-DET-001",
+  "artifact_id": "HO-DET-001",
+  "source_owner": "hawkinsoperations-detections",
+  "validation_owner": "hawkinsoperations-validation",
+  "platform_owner": "hawkinsoperations-platform",
+  "proof_owner": "hawkinsoperations-proof",
+  "website_boundary": {
+    "mode": "rendering-only",
+    "may_authorize_claims": false
+  },
+  "proof_ceiling": "CONTROLLED_TEST_VALIDATED",
+  "public_safe": false,
+  "public_safe_status": "blocked",
+  "human_review_required": true,
+  "evidence_refs": [
+    "hawkinsoperations-proof/proof/records/HO-DET-001.md",
+    "hawkinsoperations-validation/reports/ho-det-001/validation-result.json",
+    "examples/gauntlet/ho-det-001-evidence-graph-v1.json"
+  ],
+  "allowed_claims": [
+    "HO-DET-001 has controlled validation evidence under stated scope and remains bounded by its proof ceiling."
+  ],
+  "blocked_claims": [
+    "runtime proven",
+    "signal observed",
+    "production ready",
+    "customer deployed",
+    "SOCaaS deployed",
+    "public-safe runtime proof",
+    "AI approved",
+    "analyst approved",
+    "final authorization",
+    "case closure"
+  ],
+  "missing_evidence": [
+    "analyst_review_record",
+    "case_closure_record",
+    "customer_deployment_evidence",
+    "deployment_evidence",
+    "final_authorization_record",
+    "human_review_gate_complete",
+    "public_safe_authorization",
+    "runtime_evidence",
+    "service_deployment_evidence",
+    "signal_observation_evidence"
+  ],
+  "next_gate": "human_review_gate"
+}

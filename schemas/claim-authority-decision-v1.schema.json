@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/claim-authority-decision-v1.schema.json",
+  "title": "Hoxline Claim Authority Decision v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "decision_id", "detection_id", "artifact_id", "proof_ceiling", "public_safe", "public_safe_status", "human_review_required", "allowed_claims", "blocked_claims", "missing_evidence", "next_gate", "safer_wording"],
+  "properties": {
+    "schema_version": { "const": "claim-authority-decision-v1" },
+    "decision_id": { "type": "string" },
+    "detection_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "proof_ceiling": { "const": "CONTROLLED_TEST_VALIDATED" },
+    "public_safe": { "const": false },
+    "public_safe_status": { "const": "blocked" },
+    "human_review_required": { "const": true },
+    "allowed_claims": { "type": "array", "items": { "type": "string" } },
+    "blocked_claims": { "type": "array" },
+    "missing_evidence": { "type": "array", "items": { "type": "string" } },
+    "next_gate": { "type": "string" },
+    "safer_wording": { "type": "string" }
+  }
+}

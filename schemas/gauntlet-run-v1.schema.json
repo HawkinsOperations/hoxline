@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/gauntlet-run-v1.schema.json",
+  "title": "Hoxline Gauntlet Run v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "run_id",
+    "detection_id",
+    "artifact_id",
+    "product",
+    "authority_split",
+    "website_boundary",
+    "proof_ceiling",
+    "public_safe",
+    "public_safe_status",
+    "human_review_required",
+    "artifact_intake",
+    "evidence_graph",
+    "telemetry_contract_check",
+    "controlled_validation",
+    "runtime_candidate_ledger",
+    "signal_observation",
+    "human_review_gate",
+    "proofcard",
+    "claim_authority",
+    "loop_stages",
+    "allowed_claims",
+    "blocked_claims",
+    "missing_evidence",
+    "next_gate"
+  ],
+  "properties": {
+    "schema_version": { "const": "gauntlet-run-v1" },
+    "detection_id": { "const": "HO-DET-001" },
+    "artifact_id": { "const": "HO-DET-001" },
+    "product": { "const": "Hoxline by HawkinsOperations" },
+    "proof_ceiling": { "const": "CONTROLLED_TEST_VALIDATED" },
+    "public_safe": { "const": false },
+    "public_safe_status": { "const": "blocked" },
+    "human_review_required": { "const": true },
+    "loop_stages": { "type": "array", "minItems": 11 },
+    "allowed_claims": {
+      "type": "array",
+      "contains": {
+        "const": "HO-DET-001 has controlled validation evidence under stated scope and remains bounded by its proof ceiling."
+      }
+    },
+    "missing_evidence": { "type": "array", "items": { "type": "string" } },
+    "next_gate": { "const": "human_review_gate" }
+  }
+}

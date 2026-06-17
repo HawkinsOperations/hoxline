@@ -1,0 +1,47 @@
+{
+  "schema_version": "claim-authority-decision-v1",
+  "decision_id": "ho-det-001-claim-decision-v1",
+  "detection_id": "HO-DET-001",
+  "artifact_id": "HO-DET-001",
+  "source_owner": "hawkinsoperations-detections",
+  "validation_owner": "hawkinsoperations-validation",
+  "platform_owner": "hawkinsoperations-platform",
+  "proof_owner": "hawkinsoperations-proof",
+  "website_boundary": {
+    "mode": "rendering-only",
+    "may_authorize_claims": false
+  },
+  "proof_ceiling": "CONTROLLED_TEST_VALIDATED",
+  "public_safe": false,
+  "public_safe_status": "blocked",
+  "human_review_required": true,
+  "allowed_claims": [
+    "HO-DET-001 has controlled validation evidence under stated scope and remains bounded by its proof ceiling."
+  ],
+  "blocked_claims": [
+    {"claim": "runtime proven", "status": "BLOCKED", "missing_evidence": ["runtime_evidence", "human_review_gate_complete"], "safer_wording": "runtime proof is not asserted"},
+    {"claim": "signal observed", "status": "BLOCKED", "missing_evidence": ["signal_observation_evidence", "human_review_gate_complete"], "safer_wording": "signal evidence is not asserted"},
+    {"claim": "production ready", "status": "BLOCKED", "missing_evidence": ["runtime_evidence", "signal_observation_evidence", "deployment_evidence", "human_review_gate_complete"], "safer_wording": "production readiness is not asserted"},
+    {"claim": "customer deployed", "status": "BLOCKED", "missing_evidence": ["customer_deployment_evidence", "public_safe_authorization"], "safer_wording": "customer deployment is not asserted"},
+    {"claim": "SOCaaS deployed", "status": "BLOCKED", "missing_evidence": ["service_deployment_evidence", "public_safe_authorization"], "safer_wording": "SOCaaS deployment is not asserted"},
+    {"claim": "public-safe runtime proof", "status": "BLOCKED", "missing_evidence": ["runtime_evidence", "public_safe_authorization"], "safer_wording": "public-safe runtime proof is not asserted"},
+    {"claim": "AI approved", "status": "BLOCKED", "missing_evidence": ["human_review_gate_complete"], "safer_wording": "AI-approved disposition is not asserted"},
+    {"claim": "analyst approved", "status": "BLOCKED", "missing_evidence": ["analyst_review_record"], "safer_wording": "analyst-approved disposition is not asserted"},
+    {"claim": "final authorization", "status": "BLOCKED", "missing_evidence": ["final_authorization_record"], "safer_wording": "final authorization is not asserted"},
+    {"claim": "case closure", "status": "BLOCKED", "missing_evidence": ["case_closure_record", "human_review_gate_complete"], "safer_wording": "case closure is not asserted"}
+  ],
+  "missing_evidence": [
+    "analyst_review_record",
+    "case_closure_record",
+    "customer_deployment_evidence",
+    "deployment_evidence",
+    "final_authorization_record",
+    "human_review_gate_complete",
+    "public_safe_authorization",
+    "runtime_evidence",
+    "service_deployment_evidence",
+    "signal_observation_evidence"
+  ],
+  "next_gate": "human_review_gate",
+  "safer_wording": "HO-DET-001 has controlled validation evidence under stated scope and remains bounded by its proof ceiling."
+}

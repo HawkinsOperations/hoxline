@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/telemetry-contract-v1.schema.json",
+  "title": "Hoxline Telemetry Contract v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "detection_id", "artifact_id", "platform_owner", "status", "required_fields", "missing_required_fields"],
+  "properties": {
+    "schema_version": { "const": "telemetry-contract-v1" },
+    "detection_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "platform_owner": { "type": "string" },
+    "status": { "enum": ["passed", "blocked", "missing_evidence"] },
+    "required_fields": { "type": "array", "items": { "type": "string" } },
+    "missing_required_fields": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/proofcard-v1.schema.json",
+  "title": "Hoxline ProofCard v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "proofcard_id", "detection_id", "artifact_id", "proof_owner", "proof_ceiling", "public_safe", "human_review_required", "allowed_claims", "blocked_claims", "missing_evidence", "next_gate"],
+  "properties": {
+    "schema_version": { "const": "proofcard-v1" },
+    "proofcard_id": { "type": "string" },
+    "detection_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "proof_owner": { "type": "string" },
+    "proof_ceiling": { "const": "CONTROLLED_TEST_VALIDATED" },
+    "public_safe": { "const": false },
+    "human_review_required": { "const": true },
+    "allowed_claims": { "type": "array", "items": { "type": "string" } },
+    "blocked_claims": { "type": "array" },
+    "missing_evidence": { "type": "array", "items": { "type": "string" } },
+    "next_gate": { "type": "string" }
+  }
+}

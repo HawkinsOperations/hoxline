@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/artifact-intake-v1.schema.json",
+  "title": "Hoxline Artifact Intake v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "detection_id", "artifact_id", "source_owner", "status", "declared_claims", "website_boundary"],
+  "properties": {
+    "schema_version": { "const": "artifact-intake-v1" },
+    "detection_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "source_owner": { "type": "string" },
+    "status": { "enum": ["accepted", "blocked", "needs_changes"] },
+    "declared_claims": { "type": "array", "items": { "type": "string" } },
+    "website_boundary": {
+      "type": "object",
+      "required": ["mode", "may_authorize_claims"],
+      "properties": {
+        "mode": { "const": "rendering-only" },
+        "may_authorize_claims": { "const": false }
+      }
+    }
+  }
+}

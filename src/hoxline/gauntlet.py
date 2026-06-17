@@ -35,6 +35,12 @@ SAFE_CLAIM = (
     "and remains bounded by its proof ceiling."
 )
 
+GAUNTLET_V1_SCHEMA_ID = "https://hawkinsoperations.dev/hoxline/schemas/gauntlet-run-v1.schema.json"
+GAUNTLET_V1_TITLE = "Hoxline Gauntlet Run v1"
+CLAIM_DECISION_V1_SCHEMA_ID = "https://hawkinsoperations.dev/hoxline/schemas/claim-authority-decision-v1.schema.json"
+PROOF_CEILING_V1 = "CONTROLLED_TEST_VALIDATED"
+NEXT_GATE_V1 = "human_review_gate"
+
 REQUIRED_BLOCKED_CLAIMS = [
     "runtime-active",
     "runtime proven",
@@ -105,6 +111,69 @@ ADDITIONAL_BLOCKED_CLAIMS = {
 BLOCKED_MARKDOWN_LABELS = {
     "case closed": "case-closure wording",
     "final human authorization": "final authorization or final human authorization",
+}
+
+CLAIM_AUTHORITY_V1_RULES = {
+    "runtime proven": {
+        "reason": "Runtime proof requires observed runtime evidence, preserved references, and human review.",
+        "required_evidence": ["runtime_evidence", "human_review_gate_complete"],
+        "safer_wording": "runtime proof is not asserted",
+        "facts": ["runtime_observed", "human_review_complete"],
+    },
+    "signal observed": {
+        "reason": "Signal observation requires preserved telemetry, alert, log, or search output evidence.",
+        "required_evidence": ["signal_observation_evidence", "human_review_gate_complete"],
+        "safer_wording": "signal evidence is not asserted",
+        "facts": ["signal_observed", "human_review_complete"],
+    },
+    "production ready": {
+        "reason": "Production readiness requires runtime, signal, deployment, and completed human review evidence.",
+        "required_evidence": ["runtime_evidence", "signal_observation_evidence", "deployment_evidence", "human_review_gate_complete"],
+        "safer_wording": "production readiness is not asserted",
+        "facts": ["runtime_observed", "signal_observed", "deployment_evidence", "human_review_complete"],
+    },
+    "customer deployed": {
+        "reason": "Customer deployment requires customer deployment evidence and approved public wording.",
+        "required_evidence": ["customer_deployment_evidence", "public_safe_authorization"],
+        "safer_wording": "customer deployment is not asserted",
+        "facts": ["customer_deployment_evidence", "public_safe_authorized"],
+    },
+    "SOCaaS deployed": {
+        "reason": "SOCaaS deployment requires service deployment evidence and public-safe authorization.",
+        "required_evidence": ["service_deployment_evidence", "public_safe_authorization"],
+        "safer_wording": "SOCaaS deployment is not asserted",
+        "facts": ["service_deployment_evidence", "public_safe_authorized"],
+    },
+    "public-safe runtime proof": {
+        "reason": "Public-safe runtime proof requires runtime evidence and explicit public-safe authorization.",
+        "required_evidence": ["runtime_evidence", "public_safe_authorization"],
+        "safer_wording": "public-safe runtime proof is not asserted",
+        "facts": ["runtime_observed", "public_safe_authorized"],
+    },
+    "AI approved": {
+        "reason": "AI is not claim or disposition authority.",
+        "required_evidence": ["human_review_gate_complete"],
+        "safer_wording": "AI-approved disposition is not asserted",
+        "facts": ["never"],
+    },
+    "analyst approved": {
+        "reason": "Analyst approval requires explicit analyst review evidence.",
+        "required_evidence": ["analyst_review_record"],
+        "safer_wording": "analyst-approved disposition is not asserted",
+        "facts": ["analyst_review_complete"],
+    },
+    "final authorization": {
+        "reason": "Final authorization requires an explicit final authorization record.",
+        "required_evidence": ["final_authorization_record"],
+        "safer_wording": "final authorization is not asserted",
+        "facts": ["final_authorization_record"],
+    },
+    "case closure": {
+        "reason": "Case closure requires explicit case-closure authority outside this Gauntlet run.",
+        "required_evidence": ["case_closure_record", "human_review_gate_complete"],
+        "safer_wording": "case closure is not asserted",
+        "facts": ["case_closure_record", "human_review_complete"],
+    },
 }
 
 
@@ -241,6 +310,8 @@ def render_markdown(report: dict[str, Any]) -> str:
 def verify_full_loop_run_file(input_path: Path, schema_path: Path) -> list[str]:
     schema = _load_json(schema_path)
     report = _load_json(input_path)
+    if schema.get("$id") == GAUNTLET_V1_SCHEMA_ID:
+        return verify_gauntlet_run_v1(report, schema)
     return verify_full_loop_run(report, schema)
 
 
@@ -252,6 +323,120 @@ def verify_full_loop_run(report: dict[str, Any], schema: dict[str, Any]) -> list
     _validate_loop_contract(report, errors)
     _validate_claim_boundary_contract(report, errors)
     return errors
+
+
+def verify_gauntlet_run_v1(report: dict[str, Any], schema: dict[str, Any] | None = None) -> list[str]:
+    errors: list[str] = []
+    if schema is not None:
+        _validate_gauntlet_v1_schema_identity(schema, errors)
+        _validate_v1_required_output_fields(report, schema, errors)
+
+    _validate_v1_identity(report, errors)
+    _validate_v1_authority_split(report, errors)
+    _validate_v1_loop(report, errors)
+    _validate_v1_runtime_signal_boundaries(report, errors)
+    _validate_v1_claim_decision(report, errors)
+    return errors
+
+
+def summarize_gauntlet_run_v1(report: dict[str, Any]) -> str:
+    decision = decide_claim_authority_v1(report)
+    lines = [
+        "Hoxline Gauntlet v1 summary",
+        f"detection_id: {report.get('detection_id', '')}",
+        f"artifact_id: {report.get('artifact_id', '')}",
+        f"proof_ceiling: {decision['proof_ceiling']}",
+        f"public_safe: {str(report.get('public_safe')).lower()}",
+        f"human_review_required: {str(report.get('human_review_required')).lower()}",
+        f"next_gate: {decision['next_gate']}",
+        "allowed_claims:",
+    ]
+    for claim in decision["allowed_claims"]:
+        lines.append(f"- {claim}")
+    lines.append("blocked_claims:")
+    for claim in decision["blocked_claims"]:
+        lines.append(f"- {claim['claim']}: {claim['safer_wording']}")
+    lines.append("missing_evidence:")
+    for item in decision["missing_evidence"]:
+        lines.append(f"- {item}")
+    return "\n".join(lines) + "\n"
+
+
+def decide_claim_authority_v1(report: dict[str, Any]) -> dict[str, Any]:
+    facts = _evidence_facts_v1(report)
+    requested_claims = _requested_claims_v1(report)
+    blocked: list[dict[str, Any]] = []
+
+    for claim in requested_claims:
+        rule = CLAIM_AUTHORITY_V1_RULES.get(claim)
+        if not rule:
+            continue
+        missing = _missing_for_rule(rule, facts)
+        if missing:
+            blocked.append(
+                {
+                    "claim": claim,
+                    "status": "BLOCKED",
+                    "reason": rule["reason"],
+                    "required_evidence": list(rule["required_evidence"]),
+                    "missing_evidence": missing,
+                    "safer_wording": rule["safer_wording"],
+                }
+            )
+
+    allowed_claims = [SAFE_CLAIM] if _controlled_validation_allowed(facts) else []
+    missing_evidence = sorted({item for claim in blocked for item in claim["missing_evidence"]})
+    configured_missing = report.get("missing_evidence", [])
+    if isinstance(configured_missing, list):
+        missing_evidence = sorted(set(missing_evidence).union(str(item) for item in configured_missing if item))
+
+    return {
+        "schema_version": "claim-authority-decision-v1",
+        "decision_id": "ho-det-001-claim-decision-v1",
+        "detection_id": report.get("detection_id"),
+        "artifact_id": report.get("artifact_id"),
+        "proof_ceiling": report.get("proof_ceiling", PROOF_CEILING_V1),
+        "public_safe": bool(report.get("public_safe")),
+        "public_safe_status": report.get("public_safe_status", "blocked"),
+        "human_review_required": bool(report.get("human_review_required")),
+        "allowed_claims": allowed_claims,
+        "blocked_claims": blocked,
+        "missing_evidence": missing_evidence,
+        "next_gate": report.get("next_gate", NEXT_GATE_V1),
+        "safer_wording": SAFE_CLAIM if allowed_claims else "controlled-validation claim is not allowed until intake, telemetry, and validation evidence pass",
+    }
+
+
+def render_proofcard_v1(report: dict[str, Any]) -> str:
+    proofcard = report.get("proofcard")
+    if not isinstance(proofcard, dict):
+        proofcard = {}
+    authority_split = report.get("authority_split", {})
+    if not isinstance(authority_split, dict):
+        authority_split = {}
+    rendered = {
+        "schema_version": "proofcard-v1",
+        "proofcard_id": proofcard.get("proofcard_id", "ho-det-001-proofcard-v1"),
+        "detection_id": report.get("detection_id"),
+        "artifact_id": report.get("artifact_id"),
+        "source_owner": authority_split.get("source_owner", ""),
+        "validation_owner": authority_split.get("validation_owner", ""),
+        "platform_owner": authority_split.get("platform_owner", ""),
+        "proof_owner": proofcard.get("proof_owner") or authority_split.get("proof_owner", ""),
+        "website_owner": authority_split.get("website_owner", ""),
+        "proof_ceiling": report.get("proof_ceiling", PROOF_CEILING_V1),
+        "public_safe": bool(report.get("public_safe")),
+        "public_safe_status": report.get("public_safe_status", "blocked"),
+        "human_review_required": bool(report.get("human_review_required")),
+        "allowed_claims": decide_claim_authority_v1(report)["allowed_claims"],
+        "blocked_claims": decide_claim_authority_v1(report)["blocked_claims"],
+        "missing_evidence": decide_claim_authority_v1(report)["missing_evidence"],
+        "authority_split": authority_split,
+        "website_boundary": report.get("website_boundary", {}),
+        "evidence_refs": proofcard.get("evidence_refs", []),
+        "next_gate": report.get("next_gate", NEXT_GATE_V1),
+    }
+    return json.dumps(rendered, indent=2, sort_keys=True) + "\n"
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -269,6 +454,13 @@ def _validate_schema_identity(schema: dict[str, Any], errors: list[str]) -> None
         errors.append("schema title must be Hoxline Gauntlet Full-Loop Run v0")
     if schema.get("$id") != "https://hawkinsoperations.dev/hoxline/schemas/gauntlet-full-loop-run-v0.schema.json":
         errors.append("schema id must identify gauntlet-full-loop-run-v0")
+
+
+def _validate_gauntlet_v1_schema_identity(schema: dict[str, Any], errors: list[str]) -> None:
+    if schema.get("title") != GAUNTLET_V1_TITLE:
+        errors.append(f"schema title must be {GAUNTLET_V1_TITLE}")
+    if schema.get("$id") != GAUNTLET_V1_SCHEMA_ID:
+        errors.append("schema id must identify gauntlet-run-v1")
 
 
 def _validate_required_output_fields(report: dict[str, Any], schema: dict[str, Any], errors: list[str]) -> None:
@@ -307,6 +499,211 @@ def _validate_required_output_fields(report: dict[str, Any], schema: dict[str, A
         value = report.get(field)
         if isinstance(value, list) and not all(isinstance(item, str) and item for item in value):
             errors.append(f"field {field} must contain non-empty strings")
+
+
+def _validate_v1_required_output_fields(report: dict[str, Any], schema: dict[str, Any], errors: list[str]) -> None:
+    required = schema.get("required")
+    if not isinstance(required, list) or not all(isinstance(item, str) for item in required):
+        errors.append("schema required field list is missing or invalid")
+        return
+    for field in required:
+        if field not in report:
+            errors.append(f"missing required field: {field}")
+
+
+def _validate_v1_identity(report: dict[str, Any], errors: list[str]) -> None:
+    fixed_values = {
+        "schema_version": "gauntlet-run-v1",
+        "detection_id": "HO-DET-001",
+        "artifact_id": "HO-DET-001",
+        "product": "Hoxline by HawkinsOperations",
+        "proof_ceiling": PROOF_CEILING_V1,
+        "public_safe": False,
+        "public_safe_status": "blocked",
+        "human_review_required": True,
+        "next_gate": NEXT_GATE_V1,
+    }
+    for field, expected in fixed_values.items():
+        if report.get(field) != expected:
+            errors.append(f"field {field} must be {expected!r}")
+
+
+def _validate_v1_authority_split(report: dict[str, Any], errors: list[str]) -> None:
+    authority = report.get("authority_split")
+    if not isinstance(authority, dict):
+        errors.append("authority_split must be an object")
+        return
+    for field in ("source_owner", "validation_owner", "platform_owner", "proof_owner", "website_owner"):
+        if not isinstance(authority.get(field), str) or not authority.get(field):
+            errors.append(f"authority_split.{field} must be a non-empty string")
+    website = report.get("website_boundary")
+    if not isinstance(website, dict):
+        errors.append("website_boundary must be an object")
+        return
+    if website.get("mode") != "rendering-only":
+        errors.append("website_boundary.mode must be 'rendering-only'")
+    if website.get("may_authorize_claims") is not False:
+        errors.append("website_boundary.may_authorize_claims must be false")
+
+
+def _validate_v1_loop(report: dict[str, Any], errors: list[str]) -> None:
+    stages = report.get("loop_stages")
+    if not isinstance(stages, list):
+        errors.append("loop_stages must be a list")
+        return
+    observed = [stage.get("stage") if isinstance(stage, dict) else None for stage in stages]
+    if observed != CANONICAL_LOOP:
+        errors.append("loop_stages order must match the canonical Hoxline loop")
+    for index, stage in enumerate(stages):
+        if not isinstance(stage, dict):
+            errors.append(f"loop_stages[{index}] must be an object")
+            continue
+        _validate_exact_keys(stage, {"stage", "status", "owner", "evidence_refs", "missing_evidence", "reviewer_note"}, f"loop_stages[{index}]", errors)
+        if stage.get("status") not in VALID_STAGE_STATUSES:
+            errors.append(f"loop stage {stage.get('stage') or index} has invalid status: {stage.get('status')}")
+        for field in ("owner", "reviewer_note"):
+            if not isinstance(stage.get(field), str) or not stage.get(field):
+                errors.append(f"loop stage {stage.get('stage') or index} field {field} must be a non-empty string")
+        for field in ("evidence_refs", "missing_evidence"):
+            value = stage.get(field)
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                errors.append(f"loop stage {stage.get('stage') or index} field {field} must be a string list")
+
+
+def _validate_v1_runtime_signal_boundaries(report: dict[str, Any], errors: list[str]) -> None:
+    runtime = report.get("runtime_candidate_ledger")
+    signal = report.get("signal_observation")
+    if isinstance(runtime, dict) and runtime.get("observed") is True and not runtime.get("evidence_refs"):
+        errors.append("runtime_candidate_ledger cannot be observed without evidence_refs")
+    if isinstance(signal, dict) and signal.get("observed") is True and not signal.get("evidence_refs"):
+        errors.append("signal_observation cannot be observed without evidence_refs")
+    if report.get("public_safe") is True and not _evidence_facts_v1(report)["public_safe_authorized"]:
+        errors.append("public_safe cannot be true without public_safe_authorization")
+
+
+def _validate_v1_claim_decision(report: dict[str, Any], errors: list[str]) -> None:
+    decision = decide_claim_authority_v1(report)
+    claim_authority = report.get("claim_authority")
+    if not isinstance(claim_authority, dict):
+        errors.append("claim_authority must be an object")
+        return
+    for claim in decision["allowed_claims"]:
+        if _claim_text_overstates_v1(claim):
+            errors.append(f"allowed claim overstates proof boundary: {claim}")
+    configured_allowed = report.get("allowed_claims")
+    if isinstance(configured_allowed, list):
+        for claim in configured_allowed:
+            if isinstance(claim, str) and _claim_text_overstates_v1(claim):
+                errors.append(f"allowed claim overstates proof boundary: {claim}")
+        if SAFE_CLAIM not in configured_allowed:
+            errors.append("allowed_claims must contain the controlled-validation safe claim")
+    configured_blocked = report.get("blocked_claims")
+    if not isinstance(configured_blocked, list):
+        errors.append("blocked_claims must be a list")
+    else:
+        configured_names = {item.get("claim") for item in configured_blocked if isinstance(item, dict)}
+        missing_claims = [claim for claim in CLAIM_AUTHORITY_V1_RULES if claim not in configured_names]
+        if missing_claims:
+            errors.append(f"blocked_claims missing required v1 claims: {', '.join(missing_claims)}")
+    for claim in decision["blocked_claims"]:
+        if claim["claim"] not in {item.get("claim") for item in configured_blocked or [] if isinstance(item, dict)}:
+            errors.append(f"claim_authority decision missing blocked claim: {claim['claim']}")
+
+
+def _requested_claims_v1(report: dict[str, Any]) -> list[str]:
+    claims: list[str] = []
+    configured = report.get("claim_authority", {})
+    if isinstance(configured, dict):
+        raw = configured.get("requested_claims", [])
+        if isinstance(raw, list):
+            claims.extend(str(item) for item in raw if item)
+    for claim in CLAIM_AUTHORITY_V1_RULES:
+        if claim not in claims:
+            claims.append(claim)
+    return claims
+
+
+def _evidence_facts_v1(report: dict[str, Any]) -> dict[str, bool]:
+    artifact_intake = report.get("artifact_intake", {})
+    telemetry = report.get("telemetry_contract_check", {})
+    validation = report.get("controlled_validation", {})
+    runtime = report.get("runtime_candidate_ledger", {})
+    signal = report.get("signal_observation", {})
+    human_review = report.get("human_review_gate", {})
+    public_safe = report.get("public_safe_authorization", {})
+    deployment = report.get("deployment_state", {})
+    return {
+        "never": False,
+        "artifact_intake_accepted": isinstance(artifact_intake, dict) and artifact_intake.get("status") == "accepted",
+        "telemetry_contract_passed": isinstance(telemetry, dict)
+        and telemetry.get("status") == "passed"
+        and telemetry.get("missing_required_fields") == [],
+        "controlled_validation_passed": isinstance(validation, dict)
+        and validation.get("status") == "passed"
+        and bool(validation.get("evidence_refs")),
+        "runtime_observed": isinstance(runtime, dict) and runtime.get("observed") is True and bool(runtime.get("evidence_refs")),
+        "signal_observed": isinstance(signal, dict) and signal.get("observed") is True and bool(signal.get("evidence_refs")),
+        "human_review_complete": isinstance(human_review, dict) and human_review.get("status") in {"approved", "complete"},
+        "public_safe_authorized": report.get("public_safe") is True
+        and isinstance(public_safe, dict)
+        and public_safe.get("status") == "authorized"
+        and bool(public_safe.get("evidence_refs")),
+        "deployment_evidence": isinstance(deployment, dict) and bool(deployment.get("deployment_evidence_refs")),
+        "customer_deployment_evidence": isinstance(deployment, dict) and bool(deployment.get("customer_deployment_evidence_refs")),
+        "service_deployment_evidence": isinstance(deployment, dict) and bool(deployment.get("service_deployment_evidence_refs")),
+        "analyst_review_complete": isinstance(human_review, dict) and bool(human_review.get("analyst_review_refs")),
+        "final_authorization_record": isinstance(human_review, dict) and bool(human_review.get("final_authorization_refs")),
+        "case_closure_record": isinstance(human_review, dict) and bool(human_review.get("case_closure_refs")),
+    }
+
+
+def _controlled_validation_allowed(facts: dict[str, bool]) -> bool:
+    return facts["artifact_intake_accepted"] and facts["telemetry_contract_passed"] and facts["controlled_validation_passed"]
+
+
+def _missing_for_rule(rule: dict[str, Any], facts: dict[str, bool]) -> list[str]:
+    required_facts = list(rule["facts"])
+    if all(facts.get(fact, False) for fact in required_facts):
+        return []
+    missing: list[str] = []
+    for evidence_id in rule["required_evidence"]:
+        if _evidence_id_missing(evidence_id, facts):
+            missing.append(evidence_id)
+    return missing or list(rule["required_evidence"])
+
+
+def _evidence_id_missing(evidence_id: str, facts: dict[str, bool]) -> bool:
+    evidence_to_fact = {
+        "runtime_evidence": "runtime_observed",
+        "signal_observation_evidence": "signal_observed",
+        "deployment_evidence": "deployment_evidence",
+        "customer_deployment_evidence": "customer_deployment_evidence",
+        "service_deployment_evidence": "service_deployment_evidence",
+        "human_review_gate_complete": "human_review_complete",
+        "public_safe_authorization": "public_safe_authorized",
+        "analyst_review_record": "analyst_review_complete",
+        "final_authorization_record": "final_authorization_record",
+        "case_closure_record": "case_closure_record",
+    }
+    return not facts.get(evidence_to_fact.get(evidence_id, evidence_id), False)
+
+
+def _claim_text_overstates_v1(text: str) -> bool:
+    lowered = text.lower()
+    blocked_terms = (
+        "runtime proof",
+        "runtime proven",
+        "signal observed",
+        "production ready",
+        "customer deployed",
+        "socaas deployed",
+        "public-safe runtime proof",
+        "ai approved",
+        "analyst approved",
+        "final authorization",
+        "case closure",
+    )
+    return any(term in lowered for term in blocked_terms)
 
 
 def _validate_fixed_invariants(report: dict[str, Any], errors: list[str]) -> None:
