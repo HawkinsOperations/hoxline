@@ -1,12 +1,12 @@
 # Hoxline by HawkinsOperations
 
-Hoxline is a proof-bound claim control system for AI-assisted security work.
+Hoxline is ProofOps control for the AI security era.
 
 Hoxline by HawkinsOperations is the product name for the current product/front-door repo.
 
 Current repo: HawkinsOperations/hoxline. Product name: Hoxline by HawkinsOperations.
 
-AevumGuard/aevumguard remains compatibility naming until separate migration approval. It does not define current product/front-door identity.
+AevumGuard was a prior working name. Hoxline is the current product name.
 
 Hoxline governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
 
@@ -91,11 +91,11 @@ No eighth repository is part of this product spine. Hoxline modules are internal
 
 * `PRODUCT_BOUNDARY.md` defines what Hoxline owns and does not own.
 * `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md` is the default HO-DET-001 reviewer/demo path.
-* `docs/product/AEVUMGUARD_BLUEPRINT.md` remains a compatibility-named product-spine document.
+* `docs/product/HOXLINE_BLUEPRINT.md` defines the Hoxline product-spine blueprint.
 * `docs/product/MODULE_MAP.md` maps every loop stage to an internal module responsibility.
 * `docs/product/SEVEN_REPO_SYSTEM_MAP.md` preserves the seven-repo system boundary.
 * `docs/product/PROOFOPS_DOCTRINE.md` states the evidence-first doctrine.
-* `docs/gauntlet/AEVUMGUARD_GAUNTLET_V0.md` remains a compatibility-named sample; it is not the default demo path.
+* `docs/gauntlet/HOXLINE_GAUNTLET_V0.md` remains a non-default sample path.
 * `schemas/` contains v0 JSON shapes for promotion state and evidence graph records.
 * `examples/gauntlet/` contains sample JSON records with runtime observation, signal observation, and public safety status unset.
 

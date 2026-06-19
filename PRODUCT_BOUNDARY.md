@@ -1,12 +1,12 @@
 # Product Boundary
 
-Hoxline is a proof-bound claim control system for AI-assisted security work.
+Hoxline is ProofOps control for the AI security era.
 
 Hoxline by HawkinsOperations is the product name for the current product/front-door repo.
 
 Current repo: HawkinsOperations/hoxline. Product name: Hoxline by HawkinsOperations.
 
-AevumGuard/aevumguard remains compatibility naming until separate migration approval. It does not define current product/front-door identity.
+AevumGuard was a prior working name. Hoxline is the current product name.
 
 Hoxline governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
 

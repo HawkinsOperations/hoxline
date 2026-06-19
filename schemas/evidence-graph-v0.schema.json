@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hawkinsoperations.dev/aevumguard/schemas/evidence-graph-v0.schema.json",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/evidence-graph-v0.schema.json",
   "title": "Hoxline Evidence Graph v0",
   "type": "object",
   "additionalProperties": false,

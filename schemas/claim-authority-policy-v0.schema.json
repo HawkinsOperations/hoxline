@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hawkinsoperations.dev/aevumguard/schemas/claim-authority-policy-v0.schema.json",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/claim-authority-policy-v0.schema.json",
   "title": "Hoxline Claim Authority Policy v0",
   "type": "object",
   "required": [

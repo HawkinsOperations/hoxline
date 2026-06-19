@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aevumguard"
+name = "hoxline"
 version = "0.1.0"
 description = "Hoxline ProofOps control plane with Claim Firewall wording enforcement."
 readme = "README.md"

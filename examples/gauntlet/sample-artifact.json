@@ -5,7 +5,7 @@
   "title": "Hoxline gauntlet sample artifact",
   "source": {
     "type": "example",
-    "repository": "aevumguard"
+    "repository": "hoxline"
   },
   "scope": "Product-spine sample for Hoxline gauntlet v0.",
   "proposed_claim": "This artifact is ready for Hoxline claim review.",

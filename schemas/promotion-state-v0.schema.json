@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://hawkinsoperations.dev/aevumguard/schemas/promotion-state-v0.schema.json",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/promotion-state-v0.schema.json",
   "title": "Hoxline Promotion State v0",
   "type": "object",
   "additionalProperties": false,

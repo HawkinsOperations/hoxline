@@ -12,7 +12,7 @@ The HawkinsOperations product system contains exactly seven repositories:
 
 No eighth repository is introduced or implied by Hoxline.
 
-AevumGuard/aevumguard remains compatibility naming until separate migration approval. It does not define current product/front-door identity.
+AevumGuard was a prior working name. Hoxline is the current product name.
 
 ## Repository Roles
 

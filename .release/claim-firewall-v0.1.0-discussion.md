@@ -1,20 +1,21 @@
-# AevumGuard v0.1.0: Claim Authority enforcement
+# Hoxline v0.1.0: Claim Authority enforcement
 
 ProofOps control for the AI security era.
 
-AevumGuard is the ProofOps control plane for AI-assisted security work.
+Hoxline is ProofOps control for AI-assisted security work.
 
-AevumGuard governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
+Hoxline governs how AI-assisted security work becomes tested, reviewed, blocked, or safe to claim.
 
-Claim Firewall is AevumGuard's first Claim Authority module. It is the wording enforcement edge for configured security claims and proof ceiling enforcement. It is not proof authority, and it is not the product identity.
+Claim Firewall is the first Claim Authority enforcement capability inside Hoxline. It is the wording enforcement edge for configured security claims and proof ceiling enforcement. It is not proof authority, and it is not the product identity.
 
-Current repo reference: `HawkinsOperations/claim-firewall`
-Future repo target: `HawkinsOperations/aevumguard`
+AevumGuard was a prior working name. Hoxline is the current product name.
+
+Current repo reference: `HawkinsOperations/hoxline`
 Proof ceiling: `TOOL_FUNCTION_ONLY`
 
 ## What it does
 
-AevumGuard's Claim Firewall module scans security docs, PR text, README files, YAML files, and public-facing Markdown for unsupported security claims.
+Claim Firewall scans security docs, PR text, README files, YAML files, and public-facing Markdown for unsupported security claims.
 
 It reports:
 
@@ -28,7 +29,7 @@ It exits non-zero when configured blocked wording is found.
 
 ## Who it is for
 
-AevumGuard Claim Authority enforcement is built for:
+Hoxline Claim Authority enforcement is built for:
 
 * detection engineers
 * SOC automation builders
@@ -45,11 +46,11 @@ That speed creates a predictable failure mode:
 
 > Security claims can publish faster than evidence can authorize them.
 
-AevumGuard uses Claim Firewall to catch that failure mode before unsupported wording becomes public truth.
+Hoxline uses Claim Firewall to catch that failure mode before unsupported wording becomes public truth.
 
 ## Example policy areas
 
-AevumGuard's Claim Firewall module can flag configured wording around:
+The Claim Firewall capability can flag configured wording around:
 
 * maturity claims
 * runtime proof
@@ -66,11 +67,11 @@ It can also suppress safe negative-context wording when policy allows it.
 
 ## How it fits HawkinsOperations
 
-Claim Firewall is the first Claim Authority enforcement capability inside AevumGuard.
+Claim Firewall is the first Claim Authority enforcement capability inside Hoxline.
 
 It is not the full product identity.
 
-AevumGuard's planned module map is:
+Hoxline's module map is:
 
 * Artifact Intake
 * Evidence Graph
@@ -83,11 +84,11 @@ AevumGuard's planned module map is:
 
 Claim Firewall supports claim hygiene and claim blocking, but it does not approve claims.
 
-Compatibility note: Existing Claim Firewall behavior remains available as AevumGuard's first Claim Authority enforcement capability. Repository rename may require updating GitHub Action references after the GitHub repo settings rename.
+Compatibility note: Existing Claim Firewall behavior remains available as Hoxline's first Claim Authority enforcement capability.
 
 ## What it does not prove
 
-AevumGuard's Claim Firewall module does not prove:
+Claim Firewall does not prove:
 
 * detection behavior
 * runtime telemetry
@@ -126,4 +127,4 @@ A rendered website is not proof authority.
 
 An AI-generated summary is not a security disposition.
 
-AevumGuard includes Claim Firewall because security claims should compile before they ship.
+Hoxline includes Claim Firewall because security claims should compile before they ship.

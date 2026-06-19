@@ -2,9 +2,9 @@
 
 This gauntlet shows one artifact moving through the full Hoxline loop without asserting proof beyond the sample records.
 
-AevumGuard/aevumguard remains compatibility naming until separate migration approval. It does not define current product/front-door identity.
+AevumGuard was a prior working name. Hoxline is the current product name.
 
-This compatibility-named sample is not the default reviewer/demo path. Use `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md` for the default HO-DET-001 Gauntlet.
+This sample is not the default reviewer/demo path. Use `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md` for the default HO-DET-001 Gauntlet.
 
 Proof ceiling: PRODUCT_SPINE_ONLY.
 
