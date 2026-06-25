@@ -14,13 +14,13 @@ Doctrine: AI is not the authority. Evidence is.
 
 ## 30-Second Reviewer Demo
 
-Run the deterministic local reviewer demo from a fresh clone:
+Run the deterministic local reviewer demo from a fresh clone. Requirements: Python 3.10 or newer, from the Hoxline repo root. No private services, lab hosts, Wazuh, Splunk, Cribl, VM, endpoint, or network runtime dependency is required:
 
 ```powershell
 python -B -m hoxline demo quickstart
 ```
 
-For an explicit repeatable output path:
+If your Python environment cannot import the package directly from the clone, run `python -m pip install -e ".[test]"` once, then rerun the command. For an explicit repeatable output path:
 
 ```powershell
 python -B -m hoxline demo quickstart --output .hoxline/demo-runs/self-test --force
@@ -52,9 +52,9 @@ AI-assisted security work
 
 The product spine in this repository defines the boundary, module map, doctrine, gauntlet, schemas, and examples for that loop. It does not create runtime proof, signal proof, final authorization, or external claims.
 
-## Default Reviewer/Demo Path
+## Deeper HO-DET-001 Gauntlet Path
 
-The default reviewer and demo path is the HO-DET-001 Gauntlet:
+After the 30-second fixture demo, the deeper historical reviewer path is the HO-DET-001 Gauntlet:
 
 1. `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md`
 2. `examples/gauntlet/ho-det-001-full-loop-run-v0.json`
@@ -62,7 +62,7 @@ The default reviewer and demo path is the HO-DET-001 Gauntlet:
 4. `examples/gauntlet/ho-det-001-proofcard-v0.json`
 5. `docs/proofcards/HO-DET-001_PROOFCARD_V0.md`
 
-This path shows one artifact, the full Hoxline loop, one ProofCard reference, one safe claim, blocked stronger claims, the missing evidence list, proof ceiling, runtime boundary, signal boundary, and human review boundary.
+This deeper path shows one artifact, the full Hoxline loop, one ProofCard reference, one safe claim, blocked stronger claims, the missing evidence list, proof ceiling, runtime boundary, signal boundary, and human review boundary.
 
 Safe claim:
 
@@ -90,7 +90,7 @@ References are carried from `hawkinsoperations-platform#64` and `hawkinsoperatio
 
 Hoxline also supports private runtime candidate review for artifacts whose source, telemetry contract, validation, private signal, packet verification, and scheduled collector inclusion have been established internally but are not public-safe proof.
 
-HO-DET-010 is the current bounded example: it has private VM108-scoped runtime signal evidence, a verified private packet, and standing private collector inclusion. It remains `NOT_PUBLIC_SAFE`; human review is required; AI has no disposition authority; no public proof, ledger append, website proof promotion, production, customer, SOCaaS, fleet, analyst-approved, AI-approved, or case-closure claim is made.
+Separate from the one-command fixture demo, HO-DET-010 also has private runtime-candidate context that is not published here. The public demo uses only synthetic fixture records and must not be confused with private runtime candidate evidence. HO-DET-010 remains `NOT_PUBLIC_SAFE`; human review is required; AI has no disposition authority; no public proof, ledger append, website proof promotion, production, customer, SOCaaS, fleet, analyst-approved, AI-approved, or case-closure claim is made.
 ## Claim Firewall
 
 Claim Firewall is the first Claim Authority enforcement capability inside Hoxline.

@@ -12,7 +12,7 @@ ai_disposition_authority: false
 
 ## Purpose
 
-This demo lets a reviewer clone Hoxline, run one command, and see the governed ProofOps loop in about 30 seconds. It uses a bundled synthetic HO-DET-010 fixture for a local Administrators membership-change pattern. It does not create users, change groups, touch endpoints, connect to Wazuh, publish private evidence, or claim live runtime proof.
+This demo lets a reviewer clone Hoxline, run one command from the repo root, and see the governed ProofOps loop in about 30 seconds. It uses a bundled synthetic HO-DET-010 fixture for a local Administrators membership-change pattern. It does not create users, change groups, touch endpoints, connect to Wazuh, publish private evidence, or claim live runtime proof.
 
 ## Command
 
@@ -27,7 +27,7 @@ python -B -m hoxline demo quickstart --output .hoxline/demo-runs/self-test --for
 python -B -m hoxline demo verify --input .hoxline/demo-runs/self-test/run-summary.json
 ```
 
-Expected runtime under normal machine conditions: under 5 seconds after Python dependencies are available.
+Expected runtime under normal machine conditions: under 5 seconds from the repo root with Python 3.10 or newer. The command normally runs directly from the clone through the checked-in package shim. If a local Python environment cannot import the package, run `python -m pip install -e ".[test]"` once and rerun the command.
 
 ## Expected Output Files
 
