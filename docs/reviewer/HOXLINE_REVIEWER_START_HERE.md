@@ -16,10 +16,10 @@ From a clone of Hoxline, run:
 python -B -m hoxline demo quickstart
 ```
 
-The demo is deterministic, local, and fixture-based. It writes a reviewer pack under `.hoxline/demo-runs/`, keeps `public_safe_status=NOT_PUBLIC_SAFE`, keeps `human_review_required=true`, keeps `ai_disposition_authority=false`, and does not claim live runtime proof or public proof promotion.
-## Inspect First
+The demo is deterministic, local, and fixture-based. It writes a reviewer pack under `.hoxline/demo-runs/`, keeps `public_safe_status=NOT_PUBLIC_SAFE`, keeps `human_review_required=true`, keeps `ai_disposition_authority=false`, and does not claim live runtime proof or public proof promotion. Stop there for the 30-second path; the longer file list below is for deeper review.
+## Deeper Review Files
 
-Start with these files:
+After the 30-second demo, inspect these files only if you want the deeper reviewer path:
 
 1. `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md`
 2. `examples/gauntlet/ho-det-001-full-loop-run-v0.json`
@@ -101,7 +101,7 @@ Current private scheduled collector scope:
 - HO-DET-011
 - HO-DET-012
 
-HO-DET-010 may be described internally as having private VM108-scoped runtime signal evidence, a verified private packet, and standing private collector inclusion. It remains `NOT_PUBLIC_SAFE`, `human_review_required=true`, and `ai_disposition_authority=false` pending governed review.
+HO-DET-010 has private runtime-candidate context outside this public fixture demo. Do not confuse the one-command synthetic fixture output with private runtime candidate evidence. HO-DET-010 remains `NOT_PUBLIC_SAFE`, `human_review_required=true`, and `ai_disposition_authority=false` pending governed review.
 
 Do not copy private packet contents, raw Wazuh alerts, endpoint logs, command lines, generated credentials, private payloads, execution identifiers, or private telemetry into public documentation.
 ## Website Route
