@@ -1,0 +1,83 @@
+{
+  "manifest_version": "artifact-manifest-v1",
+  "artifact_id": "HO-DET-010",
+  "artifact_name": "Windows local Administrators group membership change detection",
+  "artifact_type": "detection-review-artifact",
+  "artifact_family": "synthetic-review-only",
+  "source_owner": "hawkinsoperations-detections",
+  "validation_owner": "hawkinsoperations-validation",
+  "platform_owner": "hawkinsoperations-platform",
+  "proof_owner": "hawkinsoperations-proof",
+  "product_owner": "hoxline",
+  "telemetry_contract": {
+    "source": "Windows Security EventChannel",
+    "event_ids": [
+      4720,
+      4725,
+      4726,
+      4732,
+      4733,
+      4738
+    ],
+    "wazuh_rule_ids": [
+      910101,
+      910102,
+      910103
+    ],
+    "required_fields": [
+      "event_id",
+      "channel",
+      "target_account",
+      "group_name",
+      "action",
+      "actor"
+    ],
+    "scope": "fixture-only metadata contract"
+  },
+  "fixture_paths": {
+    "positive": "examples/demo/ho-det-010-safe-fixture.json",
+    "negative": "examples/demo/ho-det-010-safe-negative-fixture.json"
+  },
+  "expected_event_ids": [
+    4720,
+    4725,
+    4726,
+    4732,
+    4733,
+    4738
+  ],
+  "expected_rule_ids": [
+    910101,
+    910102,
+    910103
+  ],
+  "allowed_claim_class": "controlled local fixture review only",
+  "requested_claims": [
+    "HO-DET-010 can be reviewed locally through deterministic Hoxline Review Engine v1 using public-safe synthetic fixtures only."
+  ],
+  "blocked_claim_classes": [
+    "production ready",
+    "public-safe runtime proof",
+    "SOCaaS deployed",
+    "customer deployed",
+    "autonomous SOC",
+    "AI-approved disposition",
+    "analyst-approved disposition",
+    "final authorization",
+    "case closure",
+    "website rendering as proof",
+    "green CI as approval"
+  ],
+  "public_safe_status": "NOT_PUBLIC_SAFE",
+  "human_review_required": true,
+  "ai_disposition_authority": false,
+  "endpoint_mutation": false,
+  "wazuh_mutation": false,
+  "runtime_proof": false,
+  "public_proof_promoted": false,
+  "lifetime_ledger_changed": false,
+  "proof_boundary": "Fixture-only local review output; not public proof and not proof authority.",
+  "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
+  "signal_boundary": "Synthetic fixture signal only; not public signal observation.",
+  "next_gate": "human_review_gate"
+}

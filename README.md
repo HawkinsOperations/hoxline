@@ -34,6 +34,25 @@ What it proves: Hoxline can carry a synthetic HO-DET-010 fixture through intake,
 What it does not prove: live runtime behavior, public signal observation, public-safe status, production readiness, SOCaaS deployment, customer deployment, autonomous SOC operation, AI approval, analyst approval, final authorization, or case closure. The demo does not touch endpoints, users, groups, Wazuh, Splunk, Cribl, private infrastructure, ledgers, or website proof state.
 
 See `docs/demo/HOXLINE_ONE_COMMAND_REVIEWER_DEMO_V0.md` for the design contract and 30-second talk track.
+
+## Reusable Review Engine
+
+Use the reusable manifest-driven engine when you want the same deterministic ProofOps loop behind a machine-checkable artifact manifest:
+
+```powershell
+python -B -m hoxline review run --artifact examples/review/ho-det-010-artifact-manifest-v1.json
+python -B -m hoxline review verify --run .hoxline/runs/<run-id>/machine-state.json
+```
+
+The command writes `.hoxline/runs/<run-id>/` with `artifact-manifest.json`, stage outputs, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, `machine-state.json`, and `run-summary.json`.
+
+What it proves: Hoxline can take a public sanitized synthetic artifact manifest, run deterministic local review stages, write replayable machine state, generate reviewer artifacts, and block unsupported claims.
+
+What it does not prove: live runtime behavior, public signal observation, public-safe status, production readiness, SOCaaS deployment, customer deployment, autonomous SOC operation, AI approval, analyst approval, final authorization, or case closure.
+
+How it differs from demo quickstart: `python -B -m hoxline demo quickstart` is the fastest fixed walkthrough. `python -B -m hoxline review run --artifact ...` is the reusable artifact-manifest path for future detections.
+
+See `docs/review-engine/HOXLINE_REVIEW_ENGINE_V1.md` for the Review Engine v1 contract, fail-closed gates, hostile fixtures, and 3-minute deep review path.
 ## Product Spine
 
 Hoxline governs the product loop:
