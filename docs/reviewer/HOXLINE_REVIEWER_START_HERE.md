@@ -28,6 +28,17 @@ python -B -m hoxline review verify --run .hoxline/runs/<run-id>/machine-state.js
 ```
 
 The demo quickstart is the fastest fixed walkthrough. The review engine is the reusable path for artifact manifests. Both are deterministic, local, fixture-based, `NOT_PUBLIC_SAFE`, human-review-required, AI-disposition-authority false, and not runtime proof.
+
+## Multi-Artifact Review Set Path
+
+Use the batch path when you want to review the current governed set in one command:
+
+```powershell
+python -B -m hoxline review batch run --index examples/review/multi-artifact-review-index-v1.json
+python -B -m hoxline review batch verify --run .hoxline/batch-runs/<batch-id>/batch-machine-state.json
+```
+
+The batch writes one machine-state per artifact and an aggregate `batch-machine-state.json`. The batch remains fixture-based, deterministic, local, `NOT_PUBLIC_SAFE`, human-review-required, AI-disposition-authority false, and not runtime proof. Website rendering is not proof.
 ## Deeper Review Files
 
 After the 30-second demo, inspect these files only if you want the deeper reviewer path:

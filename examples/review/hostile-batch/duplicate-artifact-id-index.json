@@ -1,0 +1,36 @@
+{
+  "ai_disposition_authority": false,
+  "artifacts": [
+    {
+      "artifact_id": "HO-DET-009",
+      "manifest_path": "examples/review/ho-det-009-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "HO-DET-009",
+      "manifest_path": "examples/review/ho-det-009-artifact-manifest-v1.json"
+    }
+  ],
+  "batch_claim_boundary": "Local fixture review set only; not runtime proof and not proof authority.",
+  "description": "Governed local fixture review set for HO-DET-009, HO-DET-010, HO-DET-011, and HO-DET-012.",
+  "expected_blocked_artifacts": [],
+  "expected_pass_artifacts": [
+    "HO-DET-009",
+    "HO-DET-010",
+    "HO-DET-011",
+    "HO-DET-012"
+  ],
+  "generated_outputs": [
+    "batch-machine-state.json",
+    "batch-summary.md",
+    "batch-reviewer-pack.md",
+    "batch-run-summary.json"
+  ],
+  "human_review_required": true,
+  "index_id": "hoxline-multi-artifact-review-index-v1",
+  "index_version": "multi-artifact-review-index-v1",
+  "next_gate": "human_review_gate",
+  "proof_boundary": "Batch output is local reviewer evidence of engine behavior only; it is not public proof.",
+  "public_safe_status": "NOT_PUBLIC_SAFE",
+  "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
+  "signal_boundary": "Synthetic fixture signals only; not public signal observation."
+}

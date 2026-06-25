@@ -1,0 +1,93 @@
+{
+  "ai_disposition_authority": false,
+  "allowed_claim_class": "controlled local fixture review only",
+  "artifact_family": "synthetic-review-only",
+  "artifact_id": "HO-DET-009",
+  "artifact_name": "Windows local user account creation detection",
+  "artifact_type": "detection-review-artifact",
+  "attack_mapping": [
+    {
+      "scope": "review mapping only",
+      "technique": "Local Account",
+      "technique_id": "T1136.001"
+    }
+  ],
+  "blocked_claim_classes": [
+    "production ready",
+    "public-safe runtime proof",
+    "SOCaaS deployed",
+    "customer deployed",
+    "autonomous SOC",
+    "AI-approved disposition",
+    "analyst-approved disposition",
+    "final authorization",
+    "case closure",
+    "website rendering as proof",
+    "green CI as approval"
+  ],
+  "confidence": "bounded-demo-high",
+  "detection_family": "windows-account-lifecycle-review",
+  "endpoint_mutation": false,
+  "expected_event_ids": [
+    4720,
+    4738
+  ],
+  "expected_rule_ids": [
+    910091,
+    910092,
+    910093
+  ],
+  "field_mapping": {
+    "action": "account lifecycle action",
+    "actor": "synthetic actor label",
+    "event_id": "event identifier",
+    "target_account": "local account under review"
+  },
+  "fixture_paths": {
+    "negative": "examples/review/fixtures/ho-det-009-safe-negative-fixture.json",
+    "positive": "examples/review/fixtures/ho-det-009-safe-fixture.json"
+  },
+  "human_review_required": true,
+  "lifetime_ledger_changed": false,
+  "manifest_version": "artifact-manifest-v1",
+  "next_gate": "human_review_gate",
+  "platform_owner": "hawkinsoperations-platform",
+  "product_owner": "hoxline",
+  "proof_boundary": "Fixture-only local review output; not public proof and not proof authority.",
+  "proof_owner": "hawkinsoperations-proof",
+  "public_proof_promoted": false,
+  "public_safe_status": "NOT_PUBLIC_SAFE",
+  "requested_claims": [
+    "HO-DET-009 can be reviewed locally through deterministic Hoxline Review Engine v1 using bundled synthetic fixtures only."
+  ],
+  "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
+  "runtime_proof": false,
+  "severity": "medium",
+  "signal_boundary": "Synthetic fixture signal only; not public signal observation.",
+  "source_owner": "hawkinsoperations-detections",
+  "telemetry_contract": {
+    "event_ids": [
+      4720,
+      4738
+    ],
+    "required_fields": [
+      "event_id",
+      "channel",
+      "target_account",
+      "action",
+      "actor"
+    ],
+    "scope": "fixture-only metadata contract",
+    "source": "Windows Security EventChannel",
+    "source_control_note": "Source-controlled detection and validation metadata exists outside Hoxline; this manifest carries only synthetic fixture metadata.",
+    "wazuh_rule_ids": [
+      910091,
+      910092,
+      910093
+    ]
+  },
+  "triage_what_happened": "A synthetic fixture represented a local user account creation pattern.",
+  "triage_why_it_matters": "Unexpected local account creation can indicate account lifecycle abuse when backed by governed evidence.",
+  "validation_owner": "hawkinsoperations-validation",
+  "wazuh_mutation": false
+}

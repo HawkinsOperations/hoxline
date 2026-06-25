@@ -1,0 +1,23 @@
+{
+  "artifact_id": "HO-DET-011",
+  "description": "Synthetic negative fixture for HO-DET-011; local review only and not runtime evidence.",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "action": "benign_service_context",
+      "actor": "demo-operator",
+      "channel": "Windows Security",
+      "event_id": 4697,
+      "service_image_path": "demo-safe-updater-path",
+      "service_name": "KnownUpdater011"
+    }
+  ],
+  "expected_detection": false,
+  "fixture_id": "ho-det-011-safe-negative-fixture-v1",
+  "fixture_kind": "synthetic-demo-only",
+  "host": "demo-host-011",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

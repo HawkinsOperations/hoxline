@@ -53,6 +53,23 @@ What it does not prove: live runtime behavior, public signal observation, public
 How it differs from demo quickstart: `python -B -m hoxline demo quickstart` is the fastest fixed walkthrough. `python -B -m hoxline review run --artifact ...` is the reusable artifact-manifest path for future detections.
 
 See `docs/review-engine/HOXLINE_REVIEW_ENGINE_V1.md` for the Review Engine v1 contract, fail-closed gates, hostile fixtures, and 3-minute deep review path.
+
+## Multi-Artifact Review Set
+
+Use the batch path when you want the same engine to review the governed HO-DET-009/010/011/012 artifact set from one index:
+
+```powershell
+python -B -m hoxline review batch run --index examples/review/multi-artifact-review-index-v1.json
+python -B -m hoxline review batch verify --run .hoxline/batch-runs/<batch-id>/batch-machine-state.json
+```
+
+The index contains HO-DET-009, HO-DET-010, HO-DET-011, and HO-DET-012. It writes `.hoxline/batch-runs/<batch-id>/` with `batch-machine-state.json`, `batch-summary.md`, `batch-reviewer-pack.md`, `batch-run-summary.json`, and one artifact subdirectory per manifest.
+
+Batch status is `PASS` when every artifact outcome matches the index expectations. `MIXED` is reserved for expected PASS/BLOCKED mixes. `BLOCKED` means the index, one artifact, or the expectation matrix failed closed.
+
+What it proves: Hoxline can run deterministic local fixture review across a governed artifact set, emit per-artifact machine state, emit an aggregate batch state, and enforce blocked claims at both levels.
+
+What it does not prove: live runtime behavior, public signal observation, public-safe status, production readiness, SOCaaS deployment, customer deployment, autonomous SOC operation, AI approval, analyst approval, final authorization, case closure, or website proof authority.
 ## Product Spine
 
 Hoxline governs the product loop:

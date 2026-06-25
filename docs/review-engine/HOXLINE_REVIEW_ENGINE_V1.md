@@ -26,6 +26,18 @@ Summarize a run:
 python -B -m hoxline review summarize --run .hoxline/runs/<run-id>/machine-state.json
 ```
 
+Run the governed multi-artifact review set:
+
+```powershell
+python -B -m hoxline review batch run --index examples/review/multi-artifact-review-index-v1.json
+```
+
+Verify a batch run:
+
+```powershell
+python -B -m hoxline review batch verify --run .hoxline/batch-runs/<batch-id>/batch-machine-state.json
+```
+
 ## Artifact Manifest Schema
 
 The manifest schema is `schemas/artifact-manifest-v1.schema.json`. A manifest must define ownership, telemetry assumptions, fixture paths, requested claims, blocked claim classes, and boundaries. The HO-DET-010 example is `examples/review/ho-det-010-artifact-manifest-v1.json`.
@@ -81,6 +93,28 @@ A reviewer should be able to clone Hoxline, run the exact review command, inspec
 `python -B -m hoxline demo quickstart` is the fastest fixed walkthrough. `python -B -m hoxline review run --artifact ...` is the reusable manifest-driven engine path for future detections.
 
 Both are deterministic, local, fixture-based, `NOT_PUBLIC_SAFE`, human-review-required, and not runtime proof.
+
+## Multi-Artifact Index
+
+`examples/review/multi-artifact-review-index-v1.json` declares the governed review set for HO-DET-009, HO-DET-010, HO-DET-011, and HO-DET-012. The schema is `schemas/multi-artifact-review-index-v1.schema.json`.
+
+The index records artifact manifest paths, expected PASS artifacts, expected BLOCKED artifacts, batch boundaries, generated outputs, and the next gate. Batch run output is written under `.hoxline/batch-runs/<batch-id>/`. Each artifact gets its own subdirectory under `artifacts/<artifact-id>/` with the same machine-state and reviewer-pack contract as a single-artifact run.
+
+## Batch Machine-State Contract
+
+`batch-machine-state.json` records the index ID, index path, artifact result table, expected outcome sets, final status, batch claim boundary, proof/runtime/signal boundaries, generated outputs, and the same governance flags used by single-artifact machine state. It must keep `public_safe_status=NOT_PUBLIC_SAFE`, `human_review_required=true`, `ai_disposition_authority=false`, endpoint mutation false, Wazuh mutation false, runtime proof false, public proof promotion false, ledger change false, and website change false.
+
+## Expected PASS/BLOCKED Semantics
+
+A batch exits zero only when actual artifact outcomes match `expected_pass_artifacts` and `expected_blocked_artifacts`. A PASS artifact that blocks, or a BLOCKED artifact that passes, makes the batch `BLOCKED` and exits nonzero. This prevents unsupported artifacts from being treated as success.
+
+## Hostile Batch Behavior
+
+Synthetic hostile indexes under `examples/review/hostile-batch/` cover duplicate artifact IDs, missing manifests, expectation mismatches, unsafe batch status, private-marker attempts, and production wording. They are expected to block fail-closed.
+
+## Adding The Next Artifact Safely
+
+Add a manifest only when source-controlled metadata exists or when the manifest is explicitly synthetic and fixture-only. Add positive and negative synthetic fixtures under `examples/review/fixtures/`, list every blocked claim class, keep all governance flags bounded, add the artifact to the index, and add a hostile case for the most likely unsafe claim. If the artifact cannot satisfy telemetry or fixture gates, list it as expected BLOCKED instead of pretending it is review-passable.
 
 ## Future Detection Plug-In Path
 
