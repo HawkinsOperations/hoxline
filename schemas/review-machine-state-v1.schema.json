@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.example/schemas/review-machine-state-v1.schema.json",
+  "title": "Hoxline Review Machine State v1",
+  "type": "object",
+  "required": ["schema_version", "engine_version", "run_id", "artifact_id", "manifest_path", "stages", "outputs", "final_status", "requested_claims", "blocked_claims", "proof_boundary", "runtime_boundary", "signal_boundary", "public_safe_status", "human_review_required", "ai_disposition_authority", "endpoint_mutation", "wazuh_mutation", "private_evidence_committed", "public_proof_promoted", "lifetime_ledger_changed", "next_gate", "created_at"],
+  "properties": {
+    "schema_version": { "const": "review-machine-state-v1" },
+    "engine_version": { "const": "hoxline-review-engine-v1" },
+    "final_status": { "enum": ["PASS", "BLOCKED"] },
+    "public_safe_status": { "const": "NOT_PUBLIC_SAFE" },
+    "human_review_required": { "const": true },
+    "ai_disposition_authority": { "const": false },
+    "endpoint_mutation": { "const": false },
+    "wazuh_mutation": { "const": false },
+    "public_proof_promoted": { "const": false },
+    "lifetime_ledger_changed": { "const": false }
+  },
+  "additionalProperties": true
+}

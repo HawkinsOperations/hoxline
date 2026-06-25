@@ -8,6 +8,13 @@ import sys
 from .gauntlet import GauntletError, build_full_loop_run, render_markdown, verify_full_loop_run_file
 from .gauntlet import decide_claim_authority_v1, render_proofcard_v1, summarize_gauntlet_run_v1
 from .demo import DemoError, build_demo_run, default_output_dir, render_quickstart_console, verify_demo_run_dir, write_demo_run
+from .review_engine import (
+    ReviewEngineError,
+    render_run_console,
+    run_review,
+    summarize_review_run,
+    verify_review_run,
+)
 from .reviewer import ReviewerPacketError, verify_public_reviewer_packet_file
 
 
@@ -31,6 +38,12 @@ def main(argv: list[str] | None = None) -> int:
         return _run_demo(args)
     if args.command == "demo" and args.demo_command == "verify":
         return _verify_demo(args)
+    if args.command == "review" and args.review_command == "run":
+        return _run_review(args)
+    if args.command == "review" and args.review_command == "verify":
+        return _verify_review(args)
+    if args.command == "review" and args.review_command == "summarize":
+        return _summarize_review(args)
 
     parser.print_help()
     return 2
@@ -87,6 +100,18 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_demo_run_args(run_demo_parser)
     demo_verify_parser = demo_subparsers.add_parser("verify", help="verify a generated demo run")
     demo_verify_parser.add_argument("--input", required=True, help="demo run directory or run-summary.json path")
+
+    review_parser = subparsers.add_parser("review", help="run reusable Hoxline Review Engine workflows")
+    review_subparsers = review_parser.add_subparsers(dest="review_command")
+    review_run_parser = review_subparsers.add_parser("run", help="run Review Engine v1 from an artifact manifest")
+    review_run_parser.add_argument("--artifact", required=True, help="artifact manifest JSON path")
+    review_run_parser.add_argument("--output", help="output directory; defaults to .hoxline/runs/<timestamp>")
+    review_run_parser.add_argument("--force", action="store_true", help="replace the output directory if it already exists")
+    review_run_parser.add_argument("--format", choices=("text", "json"), default="text", help="console output format")
+    review_verify_parser = review_subparsers.add_parser("verify", help="verify a Review Engine machine-state.json")
+    review_verify_parser.add_argument("--run", required=True, help="machine-state.json path")
+    review_summary_parser = review_subparsers.add_parser("summarize", help="summarize a Review Engine machine-state.json")
+    review_summary_parser.add_argument("--run", required=True, help="machine-state.json path")
     return parser
 
 def _add_demo_run_args(parser: argparse.ArgumentParser) -> None:
@@ -217,6 +242,38 @@ def _verify_demo(args: argparse.Namespace) -> int:
     print("Hoxline demo verify: PASS")
     return 0
 
+
+def _run_review(args: argparse.Namespace) -> int:
+    try:
+        run = run_review(Path(args.artifact), Path(args.output) if args.output else None, force=args.force)
+    except (ReviewEngineError, OSError) as exc:
+        print(f"Hoxline review: FAIL: {exc}", file=sys.stderr)
+        return 2
+    if args.format == "json":
+        print(json.dumps(run["machine_state"], indent=2, sort_keys=True))
+    else:
+        print(render_run_console(run), end="")
+    return 0 if run["machine_state"]["final_status"] == "PASS" else 1
+
+
+def _verify_review(args: argparse.Namespace) -> int:
+    errors = verify_review_run(Path(args.run))
+    if errors:
+        print(f"Hoxline review verify: FAIL: {len(errors)} error(s)")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    print("Hoxline review verify: PASS")
+    return 0
+
+
+def _summarize_review(args: argparse.Namespace) -> int:
+    try:
+        print(summarize_review_run(Path(args.run)), end="")
+    except (ReviewEngineError, OSError) as exc:
+        print(f"Hoxline review summarize: FAIL: {exc}", file=sys.stderr)
+        return 2
+    return 0
 def _load_json(path: Path) -> dict[str, object]:
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)

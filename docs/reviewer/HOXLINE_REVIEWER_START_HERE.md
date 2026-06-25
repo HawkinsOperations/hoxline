@@ -17,6 +17,17 @@ python -B -m hoxline demo quickstart
 ```
 
 The demo is deterministic, local, and fixture-based. It writes a reviewer pack under `.hoxline/demo-runs/`, keeps `public_safe_status=NOT_PUBLIC_SAFE`, keeps `human_review_required=true`, keeps `ai_disposition_authority=false`, and does not claim live runtime proof or public proof promotion. Stop there for the 30-second path; the longer file list below is for deeper review.
+
+## Reusable Review Engine Path
+
+After the fixed 30-second demo, use the reusable artifact-manifest engine when you want the same local ProofOps machine behind a manifest:
+
+```powershell
+python -B -m hoxline review run --artifact examples/review/ho-det-010-artifact-manifest-v1.json
+python -B -m hoxline review verify --run .hoxline/runs/<run-id>/machine-state.json
+```
+
+The demo quickstart is the fastest fixed walkthrough. The review engine is the reusable path for artifact manifests. Both are deterministic, local, fixture-based, `NOT_PUBLIC_SAFE`, human-review-required, AI-disposition-authority false, and not runtime proof.
 ## Deeper Review Files
 
 After the 30-second demo, inspect these files only if you want the deeper reviewer path:

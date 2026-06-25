@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.example/schemas/artifact-manifest-v1.schema.json",
+  "title": "Hoxline Artifact Manifest v1",
+  "type": "object",
+  "required": ["manifest_version", "artifact_id", "artifact_name", "artifact_type", "artifact_family", "source_owner", "validation_owner", "platform_owner", "proof_owner", "product_owner", "telemetry_contract", "fixture_paths", "expected_event_ids", "expected_rule_ids", "allowed_claim_class", "requested_claims", "blocked_claim_classes", "public_safe_status", "human_review_required", "ai_disposition_authority", "proof_boundary", "runtime_boundary", "signal_boundary", "next_gate"],
+  "properties": {
+    "manifest_version": { "const": "artifact-manifest-v1" },
+    "artifact_id": { "type": "string" },
+    "artifact_name": { "type": "string" },
+    "artifact_type": { "type": "string" },
+    "artifact_family": { "type": "string" },
+    "telemetry_contract": {
+      "type": "object",
+      "required": ["source", "event_ids", "wazuh_rule_ids"],
+      "properties": {
+        "source": { "type": "string" },
+        "event_ids": { "type": "array", "items": { "type": "integer" } },
+        "wazuh_rule_ids": { "type": "array", "items": { "type": "integer" } }
+      }
+    },
+    "fixture_paths": {
+      "type": "object",
+      "required": ["positive", "negative"],
+      "properties": {
+        "positive": { "type": "string" },
+        "negative": { "type": "string" }
+      }
+    },
+    "public_safe_status": { "const": "NOT_PUBLIC_SAFE" },
+    "human_review_required": { "const": true },
+    "ai_disposition_authority": { "const": false }
+  },
+  "additionalProperties": true
+}
