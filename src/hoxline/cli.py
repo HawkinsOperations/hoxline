@@ -7,6 +7,7 @@ import sys
 
 from .gauntlet import GauntletError, build_full_loop_run, render_markdown, verify_full_loop_run_file
 from .gauntlet import decide_claim_authority_v1, render_proofcard_v1, summarize_gauntlet_run_v1
+from .demo import DemoError, build_demo_run, default_output_dir, render_quickstart_console, verify_demo_run_dir, write_demo_run
 from .reviewer import ReviewerPacketError, verify_public_reviewer_packet_file
 
 
@@ -26,6 +27,10 @@ def main(argv: list[str] | None = None) -> int:
         return _render_proofcard(args)
     if args.command == "reviewer" and args.reviewer_command == "verify":
         return _verify_reviewer(args)
+    if args.command == "demo" and args.demo_command in {"quickstart", "run"}:
+        return _run_demo(args)
+    if args.command == "demo" and args.demo_command == "verify":
+        return _verify_demo(args)
 
     parser.print_help()
     return 2
@@ -74,8 +79,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="public reviewer packet schema path",
     )
 
+    demo_parser = subparsers.add_parser("demo", help="run deterministic Hoxline reviewer demos")
+    demo_subparsers = demo_parser.add_subparsers(dest="demo_command")
+    quickstart_parser = demo_subparsers.add_parser("quickstart", help="run the one-command reviewer demo")
+    _add_demo_run_args(quickstart_parser)
+    run_demo_parser = demo_subparsers.add_parser("run", help="run the one-command reviewer demo")
+    _add_demo_run_args(run_demo_parser)
+    demo_verify_parser = demo_subparsers.add_parser("verify", help="verify a generated demo run")
+    demo_verify_parser.add_argument("--input", required=True, help="demo run directory or run-summary.json path")
     return parser
 
+def _add_demo_run_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--artifact", default="HO-DET-010", help="artifact id to demonstrate")
+    parser.add_argument("--mode", default="safe-fixture", choices=("safe-fixture",), help="demo execution mode")
+    parser.add_argument("--fixture", help="optional positive fixture JSON path")
+    parser.add_argument("--negative-fixture", help="optional negative fixture JSON path")
+    parser.add_argument("--output", help="output directory; defaults to .hoxline/demo-runs/<timestamp>")
+    parser.add_argument("--force", action="store_true", help="replace the output directory if it already exists")
+    parser.add_argument("--stdout-only", action="store_true", help="print the walkthrough without writing files")
 
 def _run_gauntlet(args: argparse.Namespace) -> int:
     try:
@@ -166,6 +187,35 @@ def _verify_reviewer(args: argparse.Namespace) -> int:
     print("Hoxline Reviewer verify: PASS")
     return 0
 
+def _run_demo(args: argparse.Namespace) -> int:
+    if args.artifact != "HO-DET-010":
+        print(f"Hoxline demo: error: unsupported artifact for demo: {args.artifact}", file=sys.stderr)
+        return 2
+    try:
+        run = build_demo_run(
+            fixture_path=Path(args.fixture) if args.fixture else None,
+            negative_fixture_path=Path(args.negative_fixture) if args.negative_fixture else None,
+        )
+        output_dir = Path(args.output) if args.output else default_output_dir()
+        if not args.stdout_only:
+            write_demo_run(output_dir, run, force=args.force)
+    except (DemoError, OSError) as exc:
+        print(f"Hoxline demo: FAIL: {exc}", file=sys.stderr)
+        return 2
+
+    print(render_quickstart_console(output_dir, run), end="")
+    return 0
+
+
+def _verify_demo(args: argparse.Namespace) -> int:
+    errors = verify_demo_run_dir(Path(args.input))
+    if errors:
+        print(f"Hoxline demo verify: FAIL: {len(errors)} error(s)")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    print("Hoxline demo verify: PASS")
+    return 0
 
 def _load_json(path: Path) -> dict[str, object]:
     with path.open("r", encoding="utf-8") as handle:

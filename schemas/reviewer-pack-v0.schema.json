@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/reviewer-pack-v0.schema.json",
+  "title": "Hoxline Reviewer Pack v0",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "proof_ceiling",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "allowed_claims",
+    "blocked_claims",
+    "missing_evidence",
+    "next_gate"
+  ],
+  "properties": {
+    "schema_version": { "const": "proofcard-v1" },
+    "artifact_id": { "const": "HO-DET-010" },
+    "public_safe_status": { "const": "NOT_PUBLIC_SAFE" },
+    "human_review_required": { "const": true },
+    "ai_disposition_authority": { "const": false }
+  }
+}

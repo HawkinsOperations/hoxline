@@ -8,6 +8,15 @@ public_safe: false
 
 human_review_required: true
 
+## 30-Second Path
+
+From a clone of Hoxline, run:
+
+```powershell
+python -B -m hoxline demo quickstart
+```
+
+The demo is deterministic, local, and fixture-based. It writes a reviewer pack under `.hoxline/demo-runs/`, keeps `public_safe_status=NOT_PUBLIC_SAFE`, keeps `human_review_required=true`, keeps `ai_disposition_authority=false`, and does not claim live runtime proof or public proof promotion.
 ## Inspect First
 
 Start with these files:

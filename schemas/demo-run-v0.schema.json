@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/demo-run-v0.schema.json",
+  "title": "Hoxline One-Command Demo Run v0",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "demo_id",
+    "artifact_id",
+    "artifact_type",
+    "product",
+    "doctrine",
+    "product_loop",
+    "outputs",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "endpoint_mutation",
+    "runtime_rerun",
+    "wazuh_mutation",
+    "private_evidence_committed",
+    "public_proof_promoted",
+    "lifetime_ledger_changed",
+    "website_rendering_is_proof",
+    "stage_results"
+  ],
+  "properties": {
+    "schema_version": { "const": "hoxline-demo-run-v0" },
+    "demo_id": { "const": "hoxline-one-command-reviewer-demo-v0" },
+    "artifact_id": { "const": "HO-DET-010" },
+    "public_safe_status": { "const": "NOT_PUBLIC_SAFE" },
+    "human_review_required": { "const": true },
+    "ai_disposition_authority": { "const": false },
+    "endpoint_mutation": { "const": false },
+    "runtime_rerun": { "const": false },
+    "wazuh_mutation": { "const": false },
+    "private_evidence_committed": { "const": false },
+    "public_proof_promoted": { "const": false },
+    "lifetime_ledger_changed": { "const": false },
+    "website_rendering_is_proof": { "const": false }
+  }
+}

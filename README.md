@@ -12,6 +12,28 @@ Hoxline governs how AI-assisted security work becomes tested, reviewed, blocked,
 
 Doctrine: AI is not the authority. Evidence is.
 
+## 30-Second Reviewer Demo
+
+Run the deterministic local reviewer demo from a fresh clone:
+
+```powershell
+python -B -m hoxline demo quickstart
+```
+
+For an explicit repeatable output path:
+
+```powershell
+python -B -m hoxline demo quickstart --output .hoxline/demo-runs/self-test --force
+python -B -m hoxline demo verify --input .hoxline/demo-runs/self-test/run-summary.json
+```
+
+The command writes `.hoxline/demo-runs/<timestamp-or-demo-id>/` with `intake.json`, `evidence-graph.json`, `telemetry-contract-check.json`, `validation-result.json`, `synthetic-signal.json`, `enrichment.json`, `triage-summary.md`, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, and `run-summary.json`.
+
+What it proves: Hoxline can carry a synthetic HO-DET-010 fixture through intake, evidence graph, telemetry contract check, controlled validation, fixture-only signal simulation, enrichment, triage, ProofCard, Claim Authority, blocked claims, and reviewer packaging.
+
+What it does not prove: live runtime behavior, public signal observation, public-safe status, production readiness, SOCaaS deployment, customer deployment, autonomous SOC operation, AI approval, analyst approval, final authorization, or case closure. The demo does not touch endpoints, users, groups, Wazuh, Splunk, Cribl, private infrastructure, ledgers, or website proof state.
+
+See `docs/demo/HOXLINE_ONE_COMMAND_REVIEWER_DEMO_V0.md` for the design contract and 30-second talk track.
 ## Product Spine
 
 Hoxline governs the product loop:

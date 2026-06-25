@@ -1,0 +1,31 @@
+{
+  "schema_version": "hoxline-demo-fixture-v0",
+  "fixture_id": "ho-det-010-safe-positive-fixture-v0",
+  "artifact_id": "HO-DET-010",
+  "fixture_kind": "synthetic-demo-only",
+  "safe_fixture": true,
+  "expected_detection": true,
+  "endpoint_mutation": false,
+  "runtime_required": false,
+  "network_required": false,
+  "host": "demo-host-010",
+  "description": "Synthetic local Administrators membership change fixture for the one-command reviewer demo.",
+  "events": [
+    {
+      "event_id": 4732,
+      "channel": "Windows Security",
+      "target_account": "demo-user-010",
+      "group_name": "Administrators",
+      "action": "member_added",
+      "actor": "demo-operator"
+    },
+    {
+      "event_id": 4738,
+      "channel": "Windows Security",
+      "target_account": "demo-user-010",
+      "group_name": "Administrators",
+      "action": "account_changed",
+      "actor": "demo-operator"
+    }
+  ]
+}

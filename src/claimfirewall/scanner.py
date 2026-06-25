@@ -9,7 +9,7 @@ from .policy import BlockedClaim
 
 
 SUPPORTED_EXTENSIONS = {".md", ".markdown", ".txt", ".yaml", ".yml"}
-DEFAULT_EXCLUDES = (".git/**", ".venv/**", "**/__pycache__/**", ".pytest_cache/**", "*.egg-info/**", "**/*.egg-info/**")
+DEFAULT_EXCLUDES = (".git/**", ".venv/**", ".hoxline/**", "**/__pycache__/**", ".pytest_cache/**", "*.egg-info/**", "**/*.egg-info/**")
 SAFE_CANDIDATE_REVIEW_CONTEXTS = (
     "public-safe candidate review",
     "public-safe candidate-review",
@@ -101,7 +101,7 @@ def _is_excluded(path: Path, exclude_patterns: Iterable[str]) -> bool:
         relative = normalized
     name = path.name
     parts = set(path.parts)
-    if ".git" in parts or ".venv" in parts or "__pycache__" in parts or ".pytest_cache" in parts:
+    if ".git" in parts or ".venv" in parts or ".hoxline" in parts or "__pycache__" in parts or ".pytest_cache" in parts:
         return True
     if any(part.endswith(".egg-info") for part in path.parts):
         return True

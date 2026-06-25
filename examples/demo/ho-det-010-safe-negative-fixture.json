@@ -1,0 +1,23 @@
+{
+  "schema_version": "hoxline-demo-fixture-v0",
+  "fixture_id": "ho-det-010-safe-negative-fixture-v0",
+  "artifact_id": "HO-DET-010",
+  "fixture_kind": "synthetic-demo-only",
+  "safe_fixture": true,
+  "expected_detection": false,
+  "endpoint_mutation": false,
+  "runtime_required": false,
+  "network_required": false,
+  "host": "demo-host-010",
+  "description": "Synthetic non-admin group membership fixture that must not fire the demo detection.",
+  "events": [
+    {
+      "event_id": 4732,
+      "channel": "Windows Security",
+      "target_account": "demo-user-011",
+      "group_name": "Remote Desktop Users",
+      "action": "member_added",
+      "actor": "demo-operator"
+    }
+  ]
+}
