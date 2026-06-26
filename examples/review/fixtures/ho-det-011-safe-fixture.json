@@ -1,0 +1,23 @@
+{
+  "artifact_id": "HO-DET-011",
+  "description": "Synthetic fixture for HO-DET-011; local review only and not runtime evidence.",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "action": "service_created",
+      "actor": "demo-operator",
+      "channel": "Windows Security",
+      "event_id": 4697,
+      "service_image_path": "demo-safe-service-path",
+      "service_name": "DemoService011"
+    }
+  ],
+  "expected_detection": true,
+  "fixture_id": "ho-det-011-safe-positive-fixture-v1",
+  "fixture_kind": "synthetic-demo-only",
+  "host": "demo-host-011",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

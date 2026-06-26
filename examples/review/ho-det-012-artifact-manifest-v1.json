@@ -1,0 +1,98 @@
+{
+  "additional_telemetry_sources": [
+    "TaskScheduler Operational Event IDs 106 and 140 exist as source-controlled metadata but this local review fixture uses Windows Security EventChannel metadata only."
+  ],
+  "ai_disposition_authority": false,
+  "allowed_claim_class": "controlled local fixture review only",
+  "artifact_family": "synthetic-review-only",
+  "artifact_id": "HO-DET-012",
+  "artifact_name": "Suspicious scheduled task creation or update detection",
+  "artifact_type": "detection-review-artifact",
+  "attack_mapping": [
+    {
+      "scope": "review mapping only",
+      "technique": "Scheduled Task",
+      "technique_id": "T1053.005"
+    }
+  ],
+  "blocked_claim_classes": [
+    "production ready",
+    "public-safe runtime proof",
+    "SOCaaS deployed",
+    "customer deployed",
+    "autonomous SOC",
+    "AI-approved disposition",
+    "analyst-approved disposition",
+    "final authorization",
+    "case closure",
+    "website rendering as proof",
+    "green CI as approval"
+  ],
+  "confidence": "bounded-demo-high",
+  "detection_family": "windows-scheduled-task-review",
+  "endpoint_mutation": false,
+  "expected_event_ids": [
+    4698,
+    4702
+  ],
+  "expected_rule_ids": [
+    910021,
+    910022,
+    910023
+  ],
+  "field_mapping": {
+    "action": "task lifecycle action",
+    "actor": "synthetic actor label",
+    "event_id": "event identifier",
+    "task_action": "task action label",
+    "task_name": "scheduled task under review"
+  },
+  "fixture_paths": {
+    "negative": "examples/review/fixtures/ho-det-012-safe-negative-fixture.json",
+    "positive": "examples/review/fixtures/ho-det-012-safe-fixture.json"
+  },
+  "human_review_required": true,
+  "lifetime_ledger_changed": false,
+  "manifest_version": "artifact-manifest-v1",
+  "next_gate": "human_review_gate",
+  "platform_owner": "hawkinsoperations-platform",
+  "product_owner": "hoxline",
+  "proof_boundary": "Fixture-only local review output; not public proof and not proof authority.",
+  "proof_owner": "hawkinsoperations-proof",
+  "public_proof_promoted": false,
+  "public_safe_status": "NOT_PUBLIC_SAFE",
+  "requested_claims": [
+    "HO-DET-012 can be reviewed locally through deterministic Hoxline Review Engine v1 using bundled synthetic fixtures only."
+  ],
+  "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
+  "runtime_proof": false,
+  "severity": "medium",
+  "signal_boundary": "Synthetic fixture signal only; not public signal observation.",
+  "source_owner": "hawkinsoperations-detections",
+  "telemetry_contract": {
+    "event_ids": [
+      4698,
+      4702
+    ],
+    "required_fields": [
+      "event_id",
+      "channel",
+      "task_name",
+      "task_action",
+      "action",
+      "actor"
+    ],
+    "scope": "fixture-only metadata contract",
+    "source": "Windows Security EventChannel",
+    "source_control_note": "Source-controlled detection and validation metadata exists outside Hoxline; this manifest carries only synthetic fixture metadata.",
+    "wazuh_rule_ids": [
+      910021,
+      910022,
+      910023
+    ]
+  },
+  "triage_what_happened": "A synthetic fixture represented a scheduled task creation pattern.",
+  "triage_why_it_matters": "Unexpected scheduled tasks can indicate persistence when backed by governed evidence.",
+  "validation_owner": "hawkinsoperations-validation",
+  "wazuh_mutation": false
+}

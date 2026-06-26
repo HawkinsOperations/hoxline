@@ -1,0 +1,71 @@
+{
+  "$id": "https://hawkinsoperations.example/schemas/multi-artifact-review-index-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "ai_disposition_authority": {
+      "const": false
+    },
+    "artifacts": {
+      "items": {
+        "properties": {
+          "artifact_id": {
+            "type": "string"
+          },
+          "manifest_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "manifest_path"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "expected_blocked_artifacts": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "expected_pass_artifacts": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "human_review_required": {
+      "const": true
+    },
+    "index_id": {
+      "type": "string"
+    },
+    "index_version": {
+      "const": "multi-artifact-review-index-v1"
+    },
+    "public_safe_status": {
+      "const": "NOT_PUBLIC_SAFE"
+    }
+  },
+  "required": [
+    "index_version",
+    "index_id",
+    "description",
+    "artifacts",
+    "expected_pass_artifacts",
+    "expected_blocked_artifacts",
+    "batch_claim_boundary",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "runtime_boundary",
+    "signal_boundary",
+    "proof_boundary",
+    "generated_outputs",
+    "next_gate"
+  ],
+  "title": "Hoxline Multi-Artifact Review Index v1",
+  "type": "object"
+}

@@ -10,9 +10,12 @@ from .gauntlet import decide_claim_authority_v1, render_proofcard_v1, summarize_
 from .demo import DemoError, build_demo_run, default_output_dir, render_quickstart_console, verify_demo_run_dir, write_demo_run
 from .review_engine import (
     ReviewEngineError,
+    render_batch_console,
     render_run_console,
+    run_batch_review,
     run_review,
     summarize_review_run,
+    verify_batch_run,
     verify_review_run,
 )
 from .reviewer import ReviewerPacketError, verify_public_reviewer_packet_file
@@ -44,6 +47,10 @@ def main(argv: list[str] | None = None) -> int:
         return _verify_review(args)
     if args.command == "review" and args.review_command == "summarize":
         return _summarize_review(args)
+    if args.command == "review" and args.review_command == "batch" and args.review_batch_command == "run":
+        return _run_review_batch(args)
+    if args.command == "review" and args.review_command == "batch" and args.review_batch_command == "verify":
+        return _verify_review_batch(args)
 
     parser.print_help()
     return 2
@@ -112,6 +119,15 @@ def _build_parser() -> argparse.ArgumentParser:
     review_verify_parser.add_argument("--run", required=True, help="machine-state.json path")
     review_summary_parser = review_subparsers.add_parser("summarize", help="summarize a Review Engine machine-state.json")
     review_summary_parser.add_argument("--run", required=True, help="machine-state.json path")
+    review_batch_parser = review_subparsers.add_parser("batch", help="run multi-artifact Review Engine workflows")
+    review_batch_subparsers = review_batch_parser.add_subparsers(dest="review_batch_command")
+    review_batch_run_parser = review_batch_subparsers.add_parser("run", help="run a batch from a multi-artifact review index")
+    review_batch_run_parser.add_argument("--index", required=True, help="multi-artifact review index JSON path")
+    review_batch_run_parser.add_argument("--output", help="output directory; defaults to .hoxline/batch-runs/<timestamp>")
+    review_batch_run_parser.add_argument("--force", action="store_true", help="replace the output directory if it already exists")
+    review_batch_run_parser.add_argument("--format", choices=("text", "json"), default="text", help="console output format")
+    review_batch_verify_parser = review_batch_subparsers.add_parser("verify", help="verify a batch-machine-state.json")
+    review_batch_verify_parser.add_argument("--run", required=True, help="batch-machine-state.json path")
     return parser
 
 def _add_demo_run_args(parser: argparse.ArgumentParser) -> None:
@@ -254,6 +270,31 @@ def _run_review(args: argparse.Namespace) -> int:
     else:
         print(render_run_console(run), end="")
     return 0 if run["machine_state"]["final_status"] == "PASS" else 1
+
+
+def _run_review_batch(args: argparse.Namespace) -> int:
+    try:
+        batch = run_batch_review(Path(args.index), Path(args.output) if args.output else None, force=args.force)
+    except (ReviewEngineError, OSError) as exc:
+        print(f"Hoxline review batch: FAIL: {exc}", file=sys.stderr)
+        return 2
+    state = batch["batch_machine_state"]
+    if args.format == "json":
+        print(json.dumps(state, indent=2, sort_keys=True))
+    else:
+        print(render_batch_console(batch), end="")
+    return 0 if state["final_status"] in {"PASS", "MIXED"} else 1
+
+
+def _verify_review_batch(args: argparse.Namespace) -> int:
+    errors = verify_batch_run(Path(args.run))
+    if errors:
+        print(f"Hoxline review batch verify: FAIL: {len(errors)} error(s)")
+        for error in errors:
+            print(f"- {error}")
+        return 1
+    print("Hoxline review batch verify: PASS")
+    return 0
 
 
 def _verify_review(args: argparse.Namespace) -> int:
