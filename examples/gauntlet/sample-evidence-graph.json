@@ -1,118 +1,156 @@
 {
   "schema_version": "evidence-graph-v0",
-  "graph_id": "evidence-graph-example-v0",
-  "artifact_id": "artifact-ai-security-work-v0",
+  "graph_id": "HOX-GAUNTLET-001-EVIDENCE-GRAPH",
+  "artifact_id": "HOX-GAUNTLET-001",
   "nodes": [
     {
-      "id": "artifact-ai-security-work-v0",
+      "id": "HOX-GAUNTLET-001",
       "type": "artifact",
       "label": "AI-assisted security work",
-      "status": "intake accepted"
+      "status": "SOURCE_CONTROLLED_SAMPLE"
     },
     {
-      "id": "telemetry-contract-check-example-v0",
+      "id": "HOX-GAUNTLET-001-INTAKE",
+      "type": "artifact_intake",
+      "label": "Artifact Intake",
+      "status": "ACCEPTED"
+    },
+    {
+      "id": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
       "type": "telemetry_contract_check",
       "label": "Telemetry Contract Check",
-      "status": "not_checked"
+      "status": "PASSED_SYNTHETIC_CONTRACT"
     },
     {
-      "id": "controlled-validation-example-v0",
+      "id": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
       "type": "controlled_validation",
       "label": "Controlled Validation",
-      "status": "not_started"
+      "status": "PASSED_CONTROLLED_FIXTURES"
     },
     {
-      "id": "runtime-candidate-example-v0",
+      "id": "HOX-GAUNTLET-001-RUNTIME-CANDIDATE",
       "type": "runtime_candidate",
       "label": "Runtime Candidate Ledger",
-      "status": "observed=false"
+      "status": "NOT_PROMOTED"
     },
     {
-      "id": "signal-observation-example-v0",
+      "id": "HOX-GAUNTLET-001-SIGNAL-OBSERVATION",
       "type": "signal_observation",
       "label": "Signal Observation",
-      "status": "observed=false"
+      "status": "NOT_OBSERVED"
     },
     {
-      "id": "human-review-gate-example-v0",
+      "id": "HOX-GAUNTLET-001-HUMAN-REVIEW-GATE",
       "type": "human_review_gate",
       "label": "Human Review Gate",
-      "status": "pending"
+      "status": "PENDING"
     },
     {
-      "id": "proofcard-example-v0",
+      "id": "HOX-GAUNTLET-001-PROOFCARD-V0",
       "type": "proofcard",
       "label": "ProofCard",
-      "status": "draft"
+      "status": "READY_FOR_REVIEW"
     },
     {
-      "id": "claim-decision-example-v0",
+      "id": "HOX-GAUNTLET-001-CLAIM-AUTHORITY",
       "type": "claim_decision",
       "label": "Claim Authority",
-      "status": "blocked_claim"
+      "status": "SAFE_CLAIM_WITH_BLOCKED_CLAIMS"
     }
   ],
   "edges": [
     {
-      "from": "artifact-ai-security-work-v0",
-      "to": "telemetry-contract-check-example-v0",
+      "from": "HOX-GAUNTLET-001",
+      "to": "HOX-GAUNTLET-001-INTAKE",
       "relationship": "feeds"
     },
     {
-      "from": "telemetry-contract-check-example-v0",
-      "to": "controlled-validation-example-v0",
+      "from": "HOX-GAUNTLET-001-INTAKE",
+      "to": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
+      "relationship": "feeds"
+    },
+    {
+      "from": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
+      "to": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
       "relationship": "checks"
     },
     {
-      "from": "controlled-validation-example-v0",
-      "to": "runtime-candidate-example-v0",
+      "from": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
+      "to": "HOX-GAUNTLET-001-RUNTIME-CANDIDATE",
       "relationship": "feeds"
     },
     {
-      "from": "runtime-candidate-example-v0",
-      "to": "signal-observation-example-v0",
+      "from": "HOX-GAUNTLET-001-RUNTIME-CANDIDATE",
+      "to": "HOX-GAUNTLET-001-SIGNAL-OBSERVATION",
       "relationship": "feeds"
     },
     {
-      "from": "signal-observation-example-v0",
-      "to": "human-review-gate-example-v0",
+      "from": "HOX-GAUNTLET-001-SIGNAL-OBSERVATION",
+      "to": "HOX-GAUNTLET-001-HUMAN-REVIEW-GATE",
       "relationship": "feeds"
     },
     {
-      "from": "human-review-gate-example-v0",
-      "to": "proofcard-example-v0",
+      "from": "HOX-GAUNTLET-001-HUMAN-REVIEW-GATE",
+      "to": "HOX-GAUNTLET-001-PROOFCARD-V0",
       "relationship": "feeds"
     },
     {
-      "from": "proofcard-example-v0",
-      "to": "claim-decision-example-v0",
+      "from": "HOX-GAUNTLET-001-PROOFCARD-V0",
+      "to": "HOX-GAUNTLET-001-CLAIM-AUTHORITY",
       "relationship": "summarizes"
     },
     {
-      "from": "claim-decision-example-v0",
-      "to": "artifact-ai-security-work-v0",
-      "relationship": "blocks"
+      "from": "HOX-GAUNTLET-001-CLAIM-AUTHORITY",
+      "to": "HOX-GAUNTLET-001",
+      "relationship": "decides"
     }
   ],
+  "telemetry_contract": {
+    "contract_id": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
+    "status": "PASSED_SYNTHETIC_CONTRACT",
+    "required_fields": [
+      "event_time",
+      "host",
+      "user",
+      "parent_process_name",
+      "process_name",
+      "process_command_line",
+      "file_path",
+      "event_id"
+    ]
+  },
+  "controlled_validation": {
+    "result_id": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
+    "status": "PASSED_CONTROLLED_FIXTURES",
+    "deterministic": true
+  },
   "runtime": {
-    "candidate_id": "runtime-candidate-example-v0",
+    "candidate_id": "HOX-GAUNTLET-001-RUNTIME-CANDIDATE",
+    "state": "NOT_PROMOTED",
     "observed": false,
     "evidence_refs": []
   },
   "signal": {
+    "state": "NOT_OBSERVED",
     "observed": false,
     "evidence_refs": []
   },
+  "human_review_gate": {
+    "status": "PENDING",
+    "review_refs": []
+  },
   "claim_authority": {
     "capability": "Claim Firewall",
-    "disposition": "blocked_claim",
+    "disposition": "safe_claim_with_blocked_claims",
     "public_safe": false,
+    "safe_claim": "This artifact demonstrates Hoxline's controlled validation and claim-boundary workflow for an AI-assisted security draft.",
     "blocked_reasons": [
-      "Telemetry contract check is not checked.",
-      "Controlled validation has not started.",
-      "Runtime candidate is not observed.",
-      "Signal observation is not observed.",
-      "Human Review Gate is pending."
+      "Runtime evidence is not present.",
+      "Signal observation evidence is not present.",
+      "Customer deployment evidence is not present.",
+      "Human review remains pending.",
+      "Public proof authorization is not present."
     ]
-  }
+  },
+  "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY"
 }

@@ -1,13 +1,72 @@
 {
-  "artifact_id": "artifact-ai-security-work-v0",
   "schema_version": "sample-artifact-v0",
+  "artifact_id": "HOX-GAUNTLET-001",
+  "title": "Synthetic Splunk SOC detection review for browser-cache payload extraction",
   "ai_assisted": true,
-  "title": "Hoxline gauntlet sample artifact",
-  "source": {
-    "type": "example",
-    "repository": "hoxline"
+  "scenario": "An AI assistant drafts a Splunk/SOC-style detection idea and release note for browser-cache / ClickFix-style payload extraction review.",
+  "public_safety": {
+    "synthetic_only": true,
+    "contains_malware_code": false,
+    "contains_exploit_instructions": false,
+    "contains_customer_data": false,
+    "contains_private_runtime_evidence": false
   },
-  "scope": "Product-spine sample for Hoxline gauntlet v0.",
-  "proposed_claim": "This artifact is ready for Hoxline claim review.",
-  "proof_ceiling": "PRODUCT_SPINE_ONLY"
+  "source_truth": {
+    "repository": "HawkinsOperations/hoxline",
+    "path": "examples/gauntlet/sample-artifact.json",
+    "status": "SOURCE_CONTROLLED_SAMPLE"
+  },
+  "detection_artifact": {
+    "type": "synthetic_splunk_detection_review",
+    "platform": "Splunk",
+    "soc_queue": "detection-engineering-review",
+    "name": "Browser cache extraction followed by script interpreter staging",
+    "description": "Synthetic review object for suspicious browser cache file access followed by script interpreter staging. The object is a detection-review fixture, not deployable detection logic.",
+    "risk_hypothesis": "A user interaction lure may lead to cached payload extraction and local interpreter staging.",
+    "splunk_search_pseudocode": "index=synthetic_endpoint sourcetype=synthetic_process (parent_process_name IN (browser.exe, synthetic_browser.exe)) AND (process_name IN (powershell.exe, cmd.exe, wscript.exe)) AND file_path=\"*\\\\Browser\\\\Cache\\\\*\"",
+    "required_fields": [
+      "event_time",
+      "host",
+      "user",
+      "parent_process_name",
+      "process_name",
+      "process_command_line",
+      "file_path",
+      "event_id"
+    ],
+    "known_limitations": [
+      "No live endpoint telemetry is included.",
+      "No preserved alert evidence is included.",
+      "Pseudocode is not a production deployment artifact.",
+      "Human review remains pending."
+    ]
+  },
+  "telemetry_contract": {
+    "contract_id": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
+    "status": "PASSED_SYNTHETIC_CONTRACT",
+    "fixture_scope": "synthetic Splunk-style events only",
+    "required_fields_present": true,
+    "runtime_source_required_for_stronger_claims": true
+  },
+  "controlled_validation": {
+    "result_id": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
+    "status": "PASSED_CONTROLLED_FIXTURES",
+    "positive_fixture_expected_matches": 1,
+    "positive_fixture_actual_matches": 1,
+    "negative_fixture_expected_matches": 0,
+    "negative_fixture_actual_matches": 0,
+    "deterministic": true
+  },
+  "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY",
+  "safe_claim": "This artifact demonstrates Hoxline's controlled validation and claim-boundary workflow for an AI-assisted security draft.",
+  "blocked_claims": [
+    "production ready",
+    "runtime proven",
+    "signal observed",
+    "customer deployed",
+    "AI approved",
+    "analyst approved",
+    "enterprise SOC deployment",
+    "public-safe runtime proof"
+  ]
 }

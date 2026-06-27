@@ -1,0 +1,99 @@
+{
+  "schema_version": "proofcard-v0",
+  "proofcard_id": "HOX-GAUNTLET-001-PROOFCARD-V0",
+  "artifact_id": "HOX-GAUNTLET-001",
+  "title": "Hoxline Gauntlet v0 Splunk ProofOps lab ProofCard",
+  "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY",
+  "what_exists": [
+    "Synthetic Splunk/SOC-style detection-review artifact in source control.",
+    "Bad AI-assisted release note with unsupported claims.",
+    "Safe release note constrained to controlled validation and claim-boundary workflow.",
+    "Evidence graph, promotion state, telemetry contract, controlled validation result, and Claim Authority output."
+  ],
+  "what_was_tested": [
+    "Required synthetic telemetry fields are declared.",
+    "Positive fixture expectation equals one match.",
+    "Negative fixture expectation equals zero matches.",
+    "Bad release note is blocked by Claim Authority policy.",
+    "Safe release note passes Claim Authority policy."
+  ],
+  "validation_result": {
+    "status": "PASSED_CONTROLLED_FIXTURES",
+    "deterministic": true,
+    "scope": "local synthetic fixture validation only",
+    "positive_fixture_expected_matches": 1,
+    "positive_fixture_actual_matches": 1,
+    "negative_fixture_expected_matches": 0,
+    "negative_fixture_actual_matches": 0
+  },
+  "failed_or_blocked": [
+    "Runtime proof is not present.",
+    "Signal observation evidence is not present.",
+    "Customer deployment evidence is not present.",
+    "Human review remains pending.",
+    "Public proof authorization is not present."
+  ],
+  "required_telemetry": [
+    "event_time",
+    "host",
+    "user",
+    "parent_process_name",
+    "process_name",
+    "process_command_line",
+    "file_path",
+    "event_id"
+  ],
+  "runtime_state": {
+    "state": "NOT_PROMOTED",
+    "observed": false,
+    "evidence_refs": []
+  },
+  "signal_state": {
+    "state": "NOT_OBSERVED",
+    "observed": false,
+    "evidence_refs": []
+  },
+  "human_review_state": {
+    "status": "PENDING",
+    "final_authorization": false,
+    "review_refs": []
+  },
+  "allowed_claims": [
+    "This artifact demonstrates Hoxline's controlled validation and claim-boundary workflow for an AI-assisted security draft."
+  ],
+  "blocked_claims": [
+    {
+      "claim": "production ready",
+      "reason": "Production wording requires runtime, signal, deployment, and completed review evidence."
+    },
+    {
+      "claim": "runtime proven",
+      "reason": "Runtime evidence is not present."
+    },
+    {
+      "claim": "signal observed",
+      "reason": "Preserved telemetry or alert evidence is not present."
+    },
+    {
+      "claim": "customer deployed",
+      "reason": "Customer deployment evidence is not present."
+    },
+    {
+      "claim": "AI approved",
+      "reason": "AI is not approval authority."
+    },
+    {
+      "claim": "analyst approved",
+      "reason": "Explicit analyst review record is not present."
+    },
+    {
+      "claim": "enterprise SOC deployment",
+      "reason": "Deployment evidence is not present."
+    },
+    {
+      "claim": "public-safe runtime proof",
+      "reason": "Public runtime proof authorization is not present."
+    }
+  ],
+  "public_safe": false
+}

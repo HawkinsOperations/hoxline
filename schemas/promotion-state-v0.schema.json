@@ -106,6 +106,9 @@
         "candidate_id": {
           "type": "string"
         },
+        "state": {
+          "type": "string"
+        },
         "observed": {
           "type": "boolean"
         },
@@ -127,6 +130,9 @@
       "properties": {
         "observed": {
           "type": "boolean"
+        },
+        "state": {
+          "type": "string"
         },
         "evidence_refs": {
           "type": "array",
@@ -157,6 +163,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "required_before_public_proof": {
+          "type": "boolean"
         }
       }
     },
@@ -205,7 +214,8 @@
           "enum": [
             "not_evaluated",
             "safe_claim",
-            "blocked_claim"
+            "blocked_claim",
+            "safe_claim_with_blocked_claims"
           ]
         },
         "public_safe": {
@@ -216,8 +226,14 @@
           "items": {
             "type": "string"
           }
+        },
+        "safe_claim": {
+          "type": "string"
         }
       }
+    },
+    "proof_ceiling": {
+      "type": "string"
     },
     "candidate_review": {
       "type": "object",

@@ -1,6 +1,6 @@
 {
   "schema_version": "promotion-state-v0",
-  "artifact_id": "artifact-ai-security-work-v0",
+  "artifact_id": "HOX-GAUNTLET-001",
   "loop": [
     "AI-assisted security work",
     "Artifact Intake",
@@ -14,40 +14,48 @@
     "Claim Authority",
     "Safe Claim / Blocked Claim"
   ],
-  "current_stage": "Claim Authority",
+  "current_stage": "Safe Claim / Blocked Claim",
   "gates": {
     "artifact_intake": "accepted",
-    "telemetry_contract_check": "not_checked",
-    "controlled_validation": "not_started"
+    "telemetry_contract_check": "passed",
+    "controlled_validation": "passed"
   },
   "runtime": {
-    "candidate_id": "runtime-candidate-example-v0",
+    "candidate_id": "HOX-GAUNTLET-001-RUNTIME-CANDIDATE",
+    "state": "NOT_PROMOTED",
     "observed": false,
     "evidence_refs": []
   },
   "signal": {
+    "state": "NOT_OBSERVED",
     "observed": false,
     "evidence_refs": []
   },
   "human_review_gate": {
     "status": "pending",
-    "review_refs": []
+    "review_refs": [],
+    "required_before_public_proof": true
   },
   "proofcard": {
-    "status": "draft",
-    "proofcard_id": "proofcard-example-v0",
-    "evidence_refs": []
+    "status": "ready_for_review",
+    "proofcard_id": "HOX-GAUNTLET-001-PROOFCARD-V0",
+    "evidence_refs": [
+      "examples/gauntlet/sample-artifact.json",
+      "examples/gauntlet/sample-evidence-graph.json"
+    ]
   },
   "claim_authority": {
     "capability": "Claim Firewall",
-    "disposition": "blocked_claim",
+    "disposition": "safe_claim_with_blocked_claims",
     "public_safe": false,
+    "safe_claim": "This artifact demonstrates Hoxline's controlled validation and claim-boundary workflow for an AI-assisted security draft.",
     "blocked_reasons": [
-      "Telemetry contract check is not checked.",
-      "Controlled validation has not started.",
-      "Runtime candidate is not observed.",
-      "Signal observation is not observed.",
-      "Human Review Gate is pending."
+      "Runtime evidence is not present.",
+      "Signal observation evidence is not present.",
+      "Customer deployment evidence is not present.",
+      "Human review remains pending.",
+      "Public proof authorization is not present."
     ]
-  }
+  },
+  "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY"
 }

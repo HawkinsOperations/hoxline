@@ -1,12 +1,18 @@
-# Hoxline Gauntlet v0
+# Hoxline Gauntlet v0: Splunk ProofOps Lab
 
-This gauntlet shows one artifact moving through the full Hoxline loop without asserting proof beyond the sample records.
+This gauntlet is a controlled product demo artifact for Hoxline. It shows how an AI-assisted security draft moves from source-controlled artifact to evidence-bound claim decision.
 
-AevumGuard was a prior working name. Hoxline is the current product name.
+Artifact ID: `HOX-GAUNTLET-001`
 
-This sample is not the default reviewer/demo path. Use `docs/gauntlet/HO_DET_001_GAUNTLET_RUN.md` for the default HO-DET-001 Gauntlet.
+Scenario: an AI assistant drafts a synthetic Splunk/SOC detection-review artifact and release note for a browser-cache / ClickFix-style payload extraction detection idea. The fixture is sanitized, contains no malware code, contains no exploit instructions, and does not depend on live telemetry.
 
-Proof ceiling: PRODUCT_SPINE_ONLY.
+Proof ceiling: `CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY`.
+
+Safe claim:
+
+> This artifact demonstrates Hoxline's controlled validation and claim-boundary workflow for an AI-assisted security draft.
+
+This artifact does not claim production readiness, runtime proof, signal observation, customer deployment, AI approval, analyst approval, enterprise SOC deployment, or public runtime proof.
 
 ## Loop
 
@@ -22,39 +28,64 @@ AI-assisted security work
 → Claim Authority
 → Safe Claim / Blocked Claim
 
+## Three-Minute Reviewer Path
+
+1. Read this page for the boundary and stage map.
+2. Open `examples/gauntlet/sample-artifact.json` for the synthetic detection artifact and telemetry contract.
+3. Compare `examples/gauntlet/bad-release-note.md` with `examples/gauntlet/safe-release-note.md`.
+4. Open `examples/gauntlet/sample-evidence-graph.json`, `examples/gauntlet/sample-promotion-state.json`, `examples/gauntlet/sample-proofcard.json`, and `examples/gauntlet/sample-claim-authority-output.json`.
+5. Run `python -B -m unittest discover -s tests` to verify the sample remains deterministic.
+
+## Truth Boundaries
+
+* Source truth: the artifact exists in source control.
+* Validation truth: deterministic controlled checks passed under the stated fixture scope.
+* Runtime truth: not proven.
+* Signal truth: not observed.
+* Evidence truth: each claim must match the evidence graph and ProofCard.
+* External proof publication: not authorized by this artifact.
+* Rendering truth: website or GitHub display is not proof.
+
 ## Sample Artifact
 
-Artifact: `artifact-ai-security-work-v0`
+Artifact: `HOX-GAUNTLET-001`
 
-Purpose: demonstrate how Hoxline records an AI-assisted security artifact through the control plane.
+Purpose: demonstrate how Hoxline governs an AI-assisted Splunk/SOC detection draft through the control plane.
 
 The sample artifact has:
 
-* No runtime observation.
-* No signal observation.
-* No external safety status.
-* No final authorization claim.
+* A synthetic Splunk-style detection review object.
+* A telemetry contract describing required fields and fixture-only scope.
+* Controlled validation with deterministic positive and negative fixture expectations.
+* Runtime candidate state recorded as `NOT_PROMOTED`.
+* Signal observation state recorded as `NOT_OBSERVED`.
+* Human Review Gate state recorded as `PENDING`.
+* One ProofCard and one Claim Authority output.
 
 ## Gauntlet Walkthrough
 
 | Step | Stage | Sample state | Result |
 | --- | --- | --- | --- |
 | 1 | AI-assisted security work | Work is marked `ai_assisted=true`. | Intake required. |
-| 2 | Artifact Intake | Artifact identity, source, scope, and proposed claim are recorded. | Evidence graph node created. |
-| 3 | Evidence Graph | Artifact, contract check, validation, runtime candidate, signal observation, review, ProofCard, and claim decision nodes are linked. | Traceable state exists. |
-| 4 | Telemetry Contract Check | Status is `not_checked`. | Promotion cannot claim telemetry support. |
-| 5 | Controlled Validation | Status is `not_started`. | Promotion cannot claim validation support. |
-| 6 | Runtime Candidate Ledger | Candidate exists with `observed=false`. | Candidate is recorded without observation. |
-| 7 | Signal Observation | Signal status is `observed=false`. | Claim cannot rely on signal observation. |
-| 8 | Human Review Gate | Status is `pending`. | Claim Authority cannot treat review as complete. |
-| 9 | ProofCard | Status is `draft`. | ProofCard is not final authority. |
-| 10 | Claim Authority | Disposition is `blocked_claim`. | Unsupported wording is blocked. |
-| 11 | Safe Claim / Blocked Claim | Final sample disposition is blocked. | No safe claim is emitted. |
+| 2 | Artifact Intake | Artifact identity, source-control path, scope, and proposed claims are recorded. | Evidence graph node created. |
+| 3 | Evidence Graph | Artifact, telemetry contract, validation, runtime candidate, signal observation, review, ProofCard, and claim decision nodes are linked. | Traceable state exists. |
+| 4 | Telemetry Contract Check | Status is `PASSED_SYNTHETIC_CONTRACT`. | Required synthetic fields are declared. |
+| 5 | Controlled Validation | Status is `PASSED_CONTROLLED_FIXTURES`. | Fixture-only validation supports the safe claim. |
+| 6 | Runtime Candidate Ledger | Candidate state is `NOT_PROMOTED`. | Runtime proof remains unavailable. |
+| 7 | Signal Observation | Signal state is `NOT_OBSERVED`. | Signal proof remains unavailable. |
+| 8 | Human Review Gate | Status is `PENDING`. | No approval or final authorization is claimed. |
+| 9 | ProofCard | Status is `READY_FOR_REVIEW`. | Reviewer can see tested scope and blockers. |
+| 10 | Claim Authority | Bad note is blocked; safe note passes. | Unsupported wording is constrained. |
+| 11 | Safe Claim / Blocked Claim | One safe claim is allowed and stronger claims are blocked. | Public wording remains evidence-bound. |
 
 ## Required Files
 
 * `examples/gauntlet/sample-artifact.json`
 * `examples/gauntlet/sample-promotion-state.json`
 * `examples/gauntlet/sample-evidence-graph.json`
+* `examples/gauntlet/sample-proofcard.json`
+* `examples/gauntlet/sample-claim-authority-output.json`
+* `examples/gauntlet/bad-release-note.md`
+* `examples/gauntlet/safe-release-note.md`
 
-The sample JSON files keep `runtime.observed=false`, `signal.observed=false`, and `claim_authority.public_safe=false` because no exact proof is included in this product-spine sample.
+The sample JSON files keep runtime observation, signal observation, external proof publication, deployment, customer, and final human authorization states unset because no exact release evidence is included in this controlled product demo.

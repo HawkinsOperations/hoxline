@@ -1,0 +1,70 @@
+{
+  "schema_version": "claim-authority-output-v0",
+  "artifact_id": "HOX-GAUNTLET-001",
+  "policy": "examples/policies/default-claim-authority-policy.yml",
+  "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY",
+  "public_safe": false,
+  "safe_release_note": {
+    "path": "examples/gauntlet/safe-release-note.md",
+    "allowed": true,
+    "safe_claim": "This artifact demonstrates Hoxline's controlled validation and claim-boundary workflow for an AI-assisted security draft."
+  },
+  "bad_release_note": {
+    "path": "examples/gauntlet/bad-release-note.md",
+    "allowed": false,
+    "blocked_claims": [
+      {
+        "claim": "production ready",
+        "reason": "Production wording requires runtime, signal, and completed review evidence outside this tool.",
+        "missing_evidence": [
+          "runtime_signal_observed",
+          "human_review_gate_complete"
+        ],
+        "safer_replacement": "controlled-validation candidate"
+      },
+      {
+        "claim": "runtime proof",
+        "reason": "Runtime wording requires runtime evidence and signal observation.",
+        "missing_evidence": [
+          "runtime_signal_observed"
+        ],
+        "safer_replacement": "controlled-validation evidence recorded"
+      },
+      {
+        "claim": "signal observation confirmed",
+        "reason": "Signal wording requires observed telemetry evidence.",
+        "missing_evidence": [
+          "runtime_signal_observed"
+        ],
+        "safer_replacement": "signal observation pending"
+      },
+      {
+        "claim": "public release safe",
+        "reason": "Public release safety requires separate authorization.",
+        "missing_evidence": [
+          "public_safe_authorization"
+        ],
+        "safer_replacement": "public release status not asserted"
+      },
+      {
+        "claim": "customer deployed service",
+        "reason": "Service availability and deployment claims require release and deployment evidence.",
+        "missing_evidence": [
+          "runtime_signal_observed",
+          "human_review_gate_complete",
+          "public_safe_authorization"
+        ],
+        "safer_replacement": "local wording policy scanner"
+      },
+      {
+        "claim": "final authorization",
+        "reason": "Final disposition and approval authority must come from explicit human process, not this tool.",
+        "missing_evidence": [
+          "human_review_gate_complete"
+        ],
+        "safer_replacement": "requires human review gate disposition"
+      }
+    ]
+  },
+  "decision": "SAFE_CLAIM_ALLOWED_STRONGER_CLAIMS_BLOCKED"
+}
