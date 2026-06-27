@@ -1,0 +1,12 @@
+name: Fixture Schedule
+on:
+  schedule:
+    - cron: '17 * * * *'
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          python scripts/ho_factory.py hoxline-scheduled-private-collection \
+            --detection-id HO-DET-900 \
+            --format json

@@ -1,0 +1,3 @@
+# HO-DET-900 Validation Result
+
+CONTROLLED_TEST_VALIDATED.

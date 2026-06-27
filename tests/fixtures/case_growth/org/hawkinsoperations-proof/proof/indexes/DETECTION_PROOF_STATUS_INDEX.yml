@@ -1,0 +1,17 @@
+schema_version: fixture-proof-status-index-v1
+entries:
+  - detection_id: HO-DET-900
+    source_status: SOURCE_EXISTS
+    validation_status: CONTROLLED_TEST_VALIDATED
+    proof_record_path: proof/records/HO-DET-900.md
+    proof_card_path: proof/cards/HO-DET-900.md
+    proof_ceiling: CONTROLLED_TEST_VALIDATED
+    runtime_status: PRIVATE_RUNTIME_CANDIDATE
+    signal_status: NOT_PROVEN
+    public_safe_status: NOT_PUBLIC_SAFE
+    blocked_claims:
+      - runtime-active public proof
+      - does not claim signal-observed public proof
+      - does not claim public safety proof
+    next_gate: human review before public wording
+    notes: Fixture proof record supports controlled validation only.

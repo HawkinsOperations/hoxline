@@ -38,6 +38,7 @@ AI-assisted security work
 * `proofcard`: summarizes evidence state for review.
 * `claim_authority`: applies claim rules and emits claim decisions.
 * `claim_firewall`: first Claim Authority enforcement capability, implemented as part of `claim_authority`.
+* `case_growth`: aggregates seven-repo case-growth evidence into numeric JSON and Markdown without promoting proof beyond repo authority.
 
 Internal modules are not separate repositories.
 

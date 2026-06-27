@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.example/schemas/case-growth-index-v0.schema.json",
+  "title": "Hoxline Case Growth Index v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "repo_root",
+    "proof_ceiling",
+    "repos_scanned",
+    "source_files_scanned_count",
+    "case_ids_discovered_count",
+    "summary",
+    "cases",
+    "data_quality_notes",
+    "boundary"
+  ],
+  "properties": {
+    "schema_version": { "const": "case-growth-index-v0" },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "repo_root": { "type": "string", "minLength": 1 },
+    "proof_ceiling": { "const": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY" },
+    "repos_scanned": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "source_files_scanned_count": { "type": "integer", "minimum": 0 },
+    "case_ids_discovered_count": { "type": "integer", "minimum": 0 },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases_total",
+        "source_packages_count",
+        "controlled_validations_count",
+        "runtime_candidate_lanes_count",
+        "private_runtime_evidence_captured_count",
+        "scheduled_collector_lanes_count",
+        "proof_records_count",
+        "proofcards_count",
+        "claim_authority_cases_count",
+        "metrics_available_count",
+        "public_safe_cases_count",
+        "closed_cases_count",
+        "blocked_claims_count",
+        "cases_with_next_gate_count",
+        "cases_missing_proof_record_count",
+        "cases_missing_proofcard_count",
+        "cases_not_public_safe_count",
+        "unknown_state_count"
+      ],
+      "properties": {
+        "cases_total": { "type": "integer", "minimum": 0 },
+        "source_packages_count": { "type": "integer", "minimum": 0 },
+        "controlled_validations_count": { "type": "integer", "minimum": 0 },
+        "runtime_candidate_lanes_count": { "type": "integer", "minimum": 0 },
+        "private_runtime_evidence_captured_count": { "type": "integer", "minimum": 0 },
+        "scheduled_collector_lanes_count": { "type": "integer", "minimum": 0 },
+        "proof_records_count": { "type": "integer", "minimum": 0 },
+        "proofcards_count": { "type": "integer", "minimum": 0 },
+        "claim_authority_cases_count": { "type": "integer", "minimum": 0 },
+        "metrics_available_count": { "type": "integer", "minimum": 0 },
+        "public_safe_cases_count": { "type": "integer", "minimum": 0 },
+        "closed_cases_count": { "type": "integer", "minimum": 0 },
+        "blocked_claims_count": { "type": "integer", "minimum": 0 },
+        "cases_with_next_gate_count": { "type": "integer", "minimum": 0 },
+        "cases_missing_proof_record_count": { "type": "integer", "minimum": 0 },
+        "cases_missing_proofcard_count": { "type": "integer", "minimum": 0 },
+        "cases_not_public_safe_count": { "type": "integer", "minimum": 0 },
+        "unknown_state_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case_row" }
+    },
+    "data_quality_notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_public_proof_claimed",
+        "signal_public_proof_claimed",
+        "customer_deployment_claimed",
+        "production_readiness_claimed",
+        "public_safe_runtime_proof_claimed",
+        "ai_approval_claimed",
+        "analyst_approval_claimed",
+        "final_authorization_claimed",
+        "website_rendering_treated_as_proof",
+        "green_ci_treated_as_approval"
+      ],
+      "properties": {
+        "runtime_public_proof_claimed": { "const": false },
+        "signal_public_proof_claimed": { "const": false },
+        "customer_deployment_claimed": { "const": false },
+        "production_readiness_claimed": { "const": false },
+        "public_safe_runtime_proof_claimed": { "const": false },
+        "ai_approval_claimed": { "const": false },
+        "analyst_approval_claimed": { "const": false },
+        "final_authorization_claimed": { "const": false },
+        "website_rendering_treated_as_proof": { "const": false },
+        "green_ci_treated_as_approval": { "const": false }
+      }
+    }
+  },
+  "$defs": {
+    "string_array": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "case_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "detection_id",
+        "case_kind",
+        "source_status",
+        "source_evidence_refs",
+        "validation_status",
+        "validation_evidence_refs",
+        "runtime_candidate_status",
+        "runtime_evidence_refs",
+        "scheduled_collector_status",
+        "scheduled_collector_evidence_refs",
+        "signal_status",
+        "signal_evidence_refs",
+        "proof_record_status",
+        "proof_record_path",
+        "proofcard_status",
+        "proofcard_path",
+        "claim_authority_status",
+        "blocked_claim_count",
+        "blocked_claims",
+        "public_safe_status",
+        "case_state",
+        "metrics_available",
+        "metrics_refs",
+        "last_updated",
+        "next_gate",
+        "evidence_confidence",
+        "notes"
+      ],
+      "properties": {
+        "case_id": { "type": "string", "minLength": 1 },
+        "detection_id": { "type": ["string", "null"] },
+        "case_kind": { "type": "string", "minLength": 1 },
+        "source_status": { "type": "string", "minLength": 1 },
+        "source_evidence_refs": { "$ref": "#/$defs/string_array" },
+        "validation_status": { "type": "string", "minLength": 1 },
+        "validation_evidence_refs": { "$ref": "#/$defs/string_array" },
+        "runtime_candidate_status": { "type": "string", "minLength": 1 },
+        "runtime_evidence_refs": { "$ref": "#/$defs/string_array" },
+        "scheduled_collector_status": { "type": "string", "minLength": 1 },
+        "scheduled_collector_evidence_refs": { "$ref": "#/$defs/string_array" },
+        "signal_status": { "type": "string", "minLength": 1 },
+        "signal_evidence_refs": { "$ref": "#/$defs/string_array" },
+        "proof_record_status": { "type": "string", "minLength": 1 },
+        "proof_record_path": { "type": ["string", "null"] },
+        "proofcard_status": { "type": "string", "minLength": 1 },
+        "proofcard_path": { "type": ["string", "null"] },
+        "claim_authority_status": { "type": "string", "minLength": 1 },
+        "blocked_claim_count": { "type": "integer", "minimum": 0 },
+        "blocked_claims": { "$ref": "#/$defs/string_array" },
+        "public_safe_status": { "type": "string", "minLength": 1 },
+        "case_state": {
+          "enum": [
+            "SOURCE_ONLY",
+            "CONTROLLED_VALIDATION",
+            "PRIVATE_RUNTIME_CANDIDATE",
+            "PRIVATE_RUNTIME_EVIDENCE_CAPTURED",
+            "METRICS_AVAILABLE",
+            "PUBLIC_SAFE_CANDIDATE_REVIEW",
+            "PUBLIC_SAFE",
+            "CLOSED",
+            "BLOCKED_WAITING_NEXT_GATE",
+            "UNKNOWN_WITH_REASON"
+          ]
+        },
+        "metrics_available": { "type": "boolean" },
+        "metrics_refs": { "$ref": "#/$defs/string_array" },
+        "last_updated": { "type": "string", "minLength": 1 },
+        "next_gate": { "type": "string", "minLength": 1 },
+        "evidence_confidence": { "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "notes": { "$ref": "#/$defs/string_array" }
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 
+from .case_growth import build_case_growth_index, render_case_growth_markdown
 from .gauntlet import GauntletError, build_full_loop_run, render_markdown, verify_full_loop_run_file
 from .gauntlet import decide_claim_authority_v1, render_proofcard_v1, summarize_gauntlet_run_v1
 from .demo import DemoError, build_demo_run, default_output_dir, render_quickstart_console, verify_demo_run_dir, write_demo_run
@@ -54,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
         return _run_review_batch(args)
     if args.command == "review" and args.review_command == "batch" and args.review_batch_command == "verify":
         return _verify_review_batch(args)
+    if args.command == "case-growth" and args.case_growth_command == "index":
+        return _run_case_growth_index(args)
 
     parser.print_help()
     return 2
@@ -139,6 +142,13 @@ def _build_parser() -> argparse.ArgumentParser:
     review_batch_run_parser.add_argument("--format", choices=("text", "json"), default="text", help="console output format")
     review_batch_verify_parser = review_batch_subparsers.add_parser("verify", help="verify a batch-machine-state.json")
     review_batch_verify_parser.add_argument("--run", required=True, help="batch-machine-state.json path")
+
+    case_growth_parser = subparsers.add_parser("case-growth", help="aggregate seven-repo case growth metrics")
+    case_growth_subparsers = case_growth_parser.add_subparsers(dest="case_growth_command")
+    case_growth_index_parser = case_growth_subparsers.add_parser("index", help="emit the Hoxline Case Growth Index v0")
+    case_growth_index_parser.add_argument("--repo-root", required=True, help="HawkinsOperations local org repo root")
+    case_growth_index_parser.add_argument("--format", choices=("json", "markdown"), default="json", help="output format")
+    case_growth_index_parser.add_argument("--output", help="optional output path")
     return parser
 
 def _add_demo_run_args(parser: argparse.ArgumentParser) -> None:
@@ -203,6 +213,27 @@ def _run_gauntlet_metrics(args: argparse.Namespace) -> int:
     output = json.dumps(report, indent=2) + "\n"
     if args.output:
         Path(args.output).write_text(output, encoding="utf-8")
+    else:
+        print(output, end="")
+    return 0
+
+
+def _run_case_growth_index(args: argparse.Namespace) -> int:
+    try:
+        index = build_case_growth_index(Path(args.repo_root))
+    except (OSError, ValueError) as exc:
+        print(f"Hoxline Case Growth Index: error: {exc}", file=sys.stderr)
+        return 2
+
+    if args.format == "json":
+        output = json.dumps(index, indent=2) + "\n"
+    else:
+        output = render_case_growth_markdown(index)
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(output, encoding="utf-8")
     else:
         print(output, end="")
     return 0

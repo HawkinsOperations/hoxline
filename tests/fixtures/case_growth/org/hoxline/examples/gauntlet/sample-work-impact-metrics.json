@@ -1,0 +1,37 @@
+{
+  "schema_version": "work-impact-metrics-v0",
+  "artifact_id": "HOX-GAUNTLET-001",
+  "metrics_generated_at": "2026-06-27T00:00:00Z",
+  "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY",
+  "dataset": {
+    "events_total": 2,
+    "expected_positive": 1,
+    "expected_negative": 1
+  },
+  "detection_quality": {
+    "true_positive": 1,
+    "true_negative": 1,
+    "false_positive": 0,
+    "false_negative": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "false_positive_rate": 0.0
+  },
+  "evidence_gaps": {
+    "missing_runtime_evidence": true,
+    "missing_signal_evidence": true,
+    "missing_customer_deployment_evidence": true,
+    "missing_human_final_authorization": true,
+    "missing_public_runtime_authorization": true
+  },
+  "boundary": {
+    "runtime_proof_claimed": false,
+    "signal_proof_claimed": false,
+    "customer_deployment_claimed": false,
+    "production_readiness_claimed": false,
+    "ai_approval_claimed": false,
+    "analyst_approval_claimed": false,
+    "final_authorization_claimed": false
+  }
+}

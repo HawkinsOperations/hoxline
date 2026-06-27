@@ -88,6 +88,19 @@ AI-assisted security work
 
 The product spine in this repository defines the boundary, module map, doctrine, gauntlet, schemas, and examples for that loop. It does not create runtime proof, signal proof, final authorization, or external claims.
 
+## Case Growth Index
+
+The Case Growth Index v0 aggregates the seven-repo HawkinsOperations system into numeric, reviewable case-growth JSON and Markdown:
+
+```powershell
+python -B -m hoxline.cli case-growth index --repo-root C:\Raylee\Repo\HawkinsOperations --format json
+python -B -m hoxline.cli case-growth index --repo-root C:\Raylee\Repo\HawkinsOperations --format markdown
+```
+
+Generated examples live in `examples/case-growth/`. The index counts source packages, controlled validations, runtime-candidate lanes, scheduled collector lanes, proof records, ProofCards, Claim Authority blocked claims, metrics availability, `public_safe` cases, closed cases, and next gates.
+
+Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`. The index does not claim runtime proof, signal proof, customer deployment, production readiness, public-safe runtime proof, AI approval, analyst approval, final authorization, or case closure unless explicit repo evidence supports the specific status.
+
 ## Deeper HO-DET-001 Gauntlet Path
 
 After the 30-second fixture demo, the deeper historical reviewer path is the HO-DET-001 Gauntlet:

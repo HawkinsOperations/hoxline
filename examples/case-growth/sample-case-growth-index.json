@@ -1,0 +1,281 @@
+{
+  "schema_version": "case-growth-index-v0",
+  "generated_at": "2026-06-27T09:25:43Z",
+  "repo_root": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org",
+  "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
+  "repos_scanned": [
+    {
+      "repo": ".github",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\.github",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "org metadata and reviewer routing only; not proof authority",
+      "files_scanned": 1
+    },
+    {
+      "repo": "hawkinsoperations-detections",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\hawkinsoperations-detections",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "source package and source status authority only",
+      "files_scanned": 5
+    },
+    {
+      "repo": "hawkinsoperations-validation",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\hawkinsoperations-validation",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "controlled validation authority only",
+      "files_scanned": 7
+    },
+    {
+      "repo": "hawkinsoperations-platform",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\hawkinsoperations-platform",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "platform runtime-candidate, collector, receipt, and ledger contract authority only",
+      "files_scanned": 4
+    },
+    {
+      "repo": "hawkinsoperations-proof",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\hawkinsoperations-proof",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "proof ceiling, proof record, ProofCard, public-safe, blocked-claim, and next-gate authority",
+      "files_scanned": 4
+    },
+    {
+      "repo": "hawkinsoperations-website",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\hawkinsoperations-website",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "route/rendering surface only; not proof authority",
+      "files_scanned": 1
+    },
+    {
+      "repo": "hoxline",
+      "path": "C:\\Raylee\\Repo\\HawkinsOperations\\hoxline\\tests\\fixtures\\case_growth\\org\\hoxline",
+      "exists": true,
+      "branch": "feature/hoxline-case-growth-index-v0",
+      "dirty": true,
+      "authority_boundary": "product metrics and Hoxline Gauntlet artifact authority only",
+      "files_scanned": 2
+    }
+  ],
+  "source_files_scanned_count": 24,
+  "case_ids_discovered_count": 4,
+  "summary": {
+    "cases_total": 4,
+    "source_packages_count": 3,
+    "controlled_validations_count": 1,
+    "runtime_candidate_lanes_count": 1,
+    "private_runtime_evidence_captured_count": 0,
+    "scheduled_collector_lanes_count": 1,
+    "proof_records_count": 1,
+    "proofcards_count": 1,
+    "claim_authority_cases_count": 3,
+    "metrics_available_count": 1,
+    "public_safe_cases_count": 0,
+    "closed_cases_count": 0,
+    "blocked_claims_count": 4,
+    "cases_with_next_gate_count": 3,
+    "cases_missing_proof_record_count": 3,
+    "cases_missing_proofcard_count": 3,
+    "cases_not_public_safe_count": 4,
+    "unknown_state_count": 1
+  },
+  "cases": [
+    {
+      "case_id": "HO-DET-900",
+      "detection_id": "HO-DET-900",
+      "case_kind": "successor",
+      "source_status": "SOURCE_EXISTS",
+      "source_evidence_refs": [
+        "hawkinsoperations-detections/detections/DETECTION_PROMOTION_MATRIX.yml",
+        "hawkinsoperations-detections/detections/successor/ho-det-900",
+        "hawkinsoperations-detections/detections/successor/ho-det-900/rule.yml",
+        "hawkinsoperations-detections/detections/successor/ho-det-900/status.yml"
+      ],
+      "validation_status": "CONTROLLED_TEST_VALIDATED",
+      "validation_evidence_refs": [
+        "hawkinsoperations-validation/validation/VALIDATION_REGISTRY.yml",
+        "hawkinsoperations-validation/validation/successor/ho-det-900",
+        "hawkinsoperations-validation/validation/successor/ho-det-900/validation-cases.json",
+        "hawkinsoperations-validation/reports/ho-det-900/validation-result.json",
+        "hawkinsoperations-validation/reports/ho-det-900/validation-result.md",
+        "hawkinsoperations-validation/scripts/validate-ho-det-900.py",
+        "hawkinsoperations-validation/scripts/verify-ho-det-900-result-parity.py"
+      ],
+      "runtime_candidate_status": "PRIVATE_RUNTIME_CANDIDATE",
+      "runtime_evidence_refs": [
+        "hawkinsoperations-proof/proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml",
+        "hawkinsoperations-proof/proof/records/HO-DET-900.md",
+        "hawkinsoperations-platform/contracts/examples/runtime-collector-eligibility-v0.sample.json",
+        "hawkinsoperations-platform/.github/workflows/hoxline-schedule-gated-collection.yml",
+        "hawkinsoperations-platform/contracts/lifetime-case-ledger-v1-state-manifest.json"
+      ],
+      "scheduled_collector_status": "SCHEDULED_COLLECTOR_LANE_PRESENT_GATED",
+      "scheduled_collector_evidence_refs": [
+        "hawkinsoperations-platform/.github/workflows/hoxline-schedule-gated-collection.yml"
+      ],
+      "signal_status": "NOT_PROVEN",
+      "signal_evidence_refs": [
+        "hawkinsoperations-proof/proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml"
+      ],
+      "proof_record_status": "PROOF_RECORD_EXISTS",
+      "proof_record_path": "proof/records/HO-DET-900.md",
+      "proofcard_status": "PROOFCARD_EXISTS",
+      "proofcard_path": "proof/cards/HO-DET-900.md",
+      "claim_authority_status": "BLOCKED_CLAIMS_INDEXED",
+      "blocked_claim_count": 3,
+      "blocked_claims": [
+        "runtime-active public proof",
+        "does not claim public safety proof",
+        "does not claim signal-observed public proof"
+      ],
+      "public_safe_status": "NOT_PUBLIC_SAFE",
+      "case_state": "BLOCKED_WAITING_NEXT_GATE",
+      "metrics_available": false,
+      "metrics_refs": [],
+      "last_updated": "UNKNOWN_WITH_REASON: no git history available",
+      "next_gate": "human review before public wording",
+      "evidence_confidence": "HIGH",
+      "notes": [
+        "detections: Fixture source package only.",
+        "validation: Fixture controlled validation only.",
+        "proof: Fixture proof record supports controlled validation only.",
+        "website route/rendering mention observed at hawkinsoperations-website/README.md; not treated as proof"
+      ]
+    },
+    {
+      "case_id": "HO-DET-901",
+      "detection_id": "HO-DET-901",
+      "case_kind": "successor",
+      "source_status": "SOURCE_EXISTS",
+      "source_evidence_refs": [
+        "hawkinsoperations-detections/detections/DETECTION_PROMOTION_MATRIX.yml",
+        "hawkinsoperations-detections/detections/successor/ho-det-901",
+        "hawkinsoperations-detections/detections/successor/ho-det-901/rule.yml"
+      ],
+      "validation_status": "NOT_FOUND",
+      "validation_evidence_refs": [],
+      "runtime_candidate_status": "NOT_INDEXED",
+      "runtime_evidence_refs": [],
+      "scheduled_collector_status": "NOT_INDEXED",
+      "scheduled_collector_evidence_refs": [],
+      "signal_status": "NOT_PROVEN",
+      "signal_evidence_refs": [],
+      "proof_record_status": "NOT_PROVEN",
+      "proof_record_path": null,
+      "proofcard_status": "NOT_PROVEN",
+      "proofcard_path": null,
+      "claim_authority_status": "BLOCKED_CLAIMS_INDEXED",
+      "blocked_claim_count": 1,
+      "blocked_claims": [
+        "does not claim signal-observed public proof"
+      ],
+      "public_safe_status": "NOT_PUBLIC_SAFE",
+      "case_state": "BLOCKED_WAITING_NEXT_GATE",
+      "metrics_available": false,
+      "metrics_refs": [],
+      "last_updated": "UNKNOWN_WITH_REASON: no git history available",
+      "next_gate": "create controlled validation package",
+      "evidence_confidence": "MEDIUM",
+      "notes": [
+        "detections: Fixture source-only case."
+      ]
+    },
+    {
+      "case_id": "HO-DET-999",
+      "detection_id": "HO-DET-999",
+      "case_kind": "detection",
+      "source_status": "NOT_FOUND",
+      "source_evidence_refs": [],
+      "validation_status": "NOT_FOUND",
+      "validation_evidence_refs": [],
+      "runtime_candidate_status": "NOT_INDEXED",
+      "runtime_evidence_refs": [],
+      "scheduled_collector_status": "NOT_INDEXED",
+      "scheduled_collector_evidence_refs": [],
+      "signal_status": "NOT_PROVEN",
+      "signal_evidence_refs": [],
+      "proof_record_status": "NOT_PROVEN",
+      "proof_record_path": null,
+      "proofcard_status": "NOT_PROVEN",
+      "proofcard_path": null,
+      "claim_authority_status": "NOT_INDEXED",
+      "blocked_claim_count": 0,
+      "blocked_claims": [],
+      "public_safe_status": "NOT_PUBLIC_SAFE",
+      "case_state": "UNKNOWN_WITH_REASON",
+      "metrics_available": false,
+      "metrics_refs": [],
+      "last_updated": "UNKNOWN_WITH_REASON: no git history available",
+      "next_gate": "UNKNOWN_WITH_REASON: no next gate indexed",
+      "evidence_confidence": "LOW",
+      "notes": [
+        "website route/rendering mention observed at hawkinsoperations-website/README.md; not treated as proof"
+      ]
+    },
+    {
+      "case_id": "HOX-GAUNTLET-001",
+      "detection_id": null,
+      "case_kind": "gauntlet",
+      "source_status": "SOURCE_EXISTS",
+      "source_evidence_refs": [
+        "hoxline/examples/gauntlet/sample-work-impact-metrics.json"
+      ],
+      "validation_status": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY",
+      "validation_evidence_refs": [
+        "hoxline/examples/gauntlet/sample-work-impact-metrics.json"
+      ],
+      "runtime_candidate_status": "NOT_INDEXED",
+      "runtime_evidence_refs": [],
+      "scheduled_collector_status": "NOT_INDEXED",
+      "scheduled_collector_evidence_refs": [],
+      "signal_status": "NOT_PROVEN",
+      "signal_evidence_refs": [],
+      "proof_record_status": "NOT_PROVEN",
+      "proof_record_path": null,
+      "proofcard_status": "NOT_PROVEN",
+      "proofcard_path": null,
+      "claim_authority_status": "BLOCKED_CLAIMS_INDEXED",
+      "blocked_claim_count": 0,
+      "blocked_claims": [],
+      "public_safe_status": "NOT_PUBLIC_SAFE",
+      "case_state": "BLOCKED_WAITING_NEXT_GATE",
+      "metrics_available": true,
+      "metrics_refs": [
+        "hoxline/examples/gauntlet/sample-work-impact-metrics.json"
+      ],
+      "last_updated": "UNKNOWN_WITH_REASON: no git history available",
+      "next_gate": "human review before runtime, signal, customer, production, public wording, or final human gate promotion",
+      "evidence_confidence": "MEDIUM",
+      "notes": [
+        "hoxline metrics evidence gaps indexed: missing_customer_deployment_evidence, missing_human_final_authorization, missing_public_runtime_authorization, missing_runtime_evidence, missing_signal_evidence"
+      ]
+    }
+  ],
+  "data_quality_notes": [
+    "platform lifetime ledger manifest reports closed_case_count=0",
+    "HO-DET-901 has source evidence without controlled validation evidence"
+  ],
+  "boundary": {
+    "runtime_public_proof_claimed": false,
+    "signal_public_proof_claimed": false,
+    "customer_deployment_claimed": false,
+    "production_readiness_claimed": false,
+    "public_safe_runtime_proof_claimed": false,
+    "ai_approval_claimed": false,
+    "analyst_approval_claimed": false,
+    "final_authorization_claimed": false,
+    "website_rendering_treated_as_proof": false,
+    "green_ci_treated_as_approval": false
+  }
+}
