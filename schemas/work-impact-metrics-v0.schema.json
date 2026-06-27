@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hawkinsoperations.dev/hoxline/schemas/work-impact-metrics-v0.schema.json",
+  "title": "Hoxline Work Impact Metrics v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "metrics_generated_at",
+    "proof_ceiling",
+    "dataset",
+    "detection_quality",
+    "telemetry_coverage",
+    "claim_authority",
+    "proofcard",
+    "evidence_gaps",
+    "work_impact",
+    "boundary"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "work-impact-metrics-v0"
+    },
+    "artifact_id": {
+      "const": "HOX-GAUNTLET-001"
+    },
+    "metrics_generated_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proof_ceiling": {
+      "const": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY"
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events_total",
+        "expected_positive",
+        "expected_negative"
+      ],
+      "properties": {
+        "events_total": {
+          "type": "integer",
+          "minimum": 12
+        },
+        "expected_positive": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "expected_negative": {
+          "type": "integer",
+          "minimum": 6
+        }
+      }
+    },
+    "detection_quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "true_positive",
+        "true_negative",
+        "false_positive",
+        "false_negative",
+        "precision",
+        "recall",
+        "f1",
+        "false_positive_rate"
+      ],
+      "properties": {
+        "true_positive": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "true_negative": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "false_positive": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "false_negative": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "precision": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "recall": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "f1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "false_positive_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "telemetry_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_fields_count",
+        "present_fields_count",
+        "missing_fields_count",
+        "coverage_percent"
+      ],
+      "properties": {
+        "required_fields_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "present_fields_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missing_fields_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "claim_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claims_scanned",
+        "claims_allowed",
+        "claims_blocked",
+        "block_rate_percent"
+      ],
+      "properties": {
+        "claims_scanned": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "claims_allowed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claims_blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "block_rate_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "proofcard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_sections_count",
+        "present_sections_count",
+        "completeness_percent"
+      ],
+      "properties": {
+        "required_sections_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "present_sections_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completeness_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "evidence_gaps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missing_runtime_evidence",
+        "missing_signal_evidence",
+        "missing_customer_deployment_evidence",
+        "missing_human_final_authorization",
+        "missing_public_runtime_authorization"
+      ],
+      "properties": {
+        "missing_runtime_evidence": {
+          "const": true
+        },
+        "missing_signal_evidence": {
+          "const": true
+        },
+        "missing_customer_deployment_evidence": {
+          "const": true
+        },
+        "missing_human_final_authorization": {
+          "const": true
+        },
+        "missing_public_runtime_authorization": {
+          "const": true
+        }
+      }
+    },
+    "work_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files_evaluated_count",
+        "numeric_metrics_emitted_count",
+        "deterministic_checks_count",
+        "validation_commands_count",
+        "measurable_output"
+      ],
+      "properties": {
+        "files_evaluated_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "numeric_metrics_emitted_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "deterministic_checks_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "validation_commands_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "measurable_output": {
+          "const": true
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_proof_claimed",
+        "signal_proof_claimed",
+        "customer_deployment_claimed",
+        "production_readiness_claimed",
+        "ai_approval_claimed",
+        "analyst_approval_claimed",
+        "final_authorization_claimed"
+      ],
+      "properties": {
+        "runtime_proof_claimed": {
+          "const": false
+        },
+        "signal_proof_claimed": {
+          "const": false
+        },
+        "customer_deployment_claimed": {
+          "const": false
+        },
+        "production_readiness_claimed": {
+          "const": false
+        },
+        "ai_approval_claimed": {
+          "const": false
+        },
+        "analyst_approval_claimed": {
+          "const": false
+        },
+        "final_authorization_claimed": {
+          "const": false
+        }
+      }
+    }
+  }
+}

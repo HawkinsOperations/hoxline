@@ -8,6 +8,7 @@ import sys
 from .gauntlet import GauntletError, build_full_loop_run, render_markdown, verify_full_loop_run_file
 from .gauntlet import decide_claim_authority_v1, render_proofcard_v1, summarize_gauntlet_run_v1
 from .demo import DemoError, build_demo_run, default_output_dir, render_quickstart_console, verify_demo_run_dir, write_demo_run
+from .metrics import build_work_impact_report
 from .review_engine import (
     ReviewEngineError,
     render_batch_console,
@@ -27,6 +28,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "gauntlet" and args.gauntlet_command == "run":
         return _run_gauntlet(args)
+    if args.command == "gauntlet" and args.gauntlet_command == "metrics":
+        return _run_gauntlet_metrics(args)
     if args.command == "gauntlet" and args.gauntlet_command == "verify":
         return _verify_gauntlet(args)
     if args.command == "gauntlet" and args.gauntlet_command == "summarize":
@@ -67,6 +70,14 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--artifact", required=True, help="artifact id to evaluate")
     run_parser.add_argument("--format", choices=("json", "markdown"), default="json", help="output format")
     run_parser.add_argument("--output", help="optional output file path")
+
+    metrics_parser = gauntlet_subparsers.add_parser("metrics", help="emit Hoxline Gauntlet work-impact metrics")
+    metrics_parser.add_argument("--events", required=True, help="synthetic events fixture path")
+    metrics_parser.add_argument("--artifact", required=True, help="sample artifact JSON path")
+    metrics_parser.add_argument("--proofcard", required=True, help="sample ProofCard JSON path")
+    metrics_parser.add_argument("--claim-output", required=True, help="sample Claim Authority output JSON path")
+    metrics_parser.add_argument("--format", choices=("json",), default="json", help="output format")
+    metrics_parser.add_argument("--output", help="optional output file path")
 
     verify_parser = gauntlet_subparsers.add_parser("verify", help="verify a full-loop Gauntlet JSON output")
     verify_parser.add_argument("--input", required=True, help="Gauntlet full-loop JSON output to verify")
@@ -170,6 +181,26 @@ def _run_gauntlet(args: argparse.Namespace) -> int:
     else:
         output = render_markdown(report)
 
+    if args.output:
+        Path(args.output).write_text(output, encoding="utf-8")
+    else:
+        print(output, end="")
+    return 0
+
+
+def _run_gauntlet_metrics(args: argparse.Namespace) -> int:
+    try:
+        report = build_work_impact_report(
+            events_path=Path(args.events),
+            artifact_path=Path(args.artifact),
+            proofcard_path=Path(args.proofcard),
+            claim_output_path=Path(args.claim_output),
+        )
+    except (OSError, ValueError) as exc:
+        print(f"Hoxline Gauntlet metrics: error: {exc}", file=sys.stderr)
+        return 2
+
+    output = json.dumps(report, indent=2) + "\n"
     if args.output:
         Path(args.output).write_text(output, encoding="utf-8")
     else:

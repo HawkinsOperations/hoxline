@@ -51,10 +51,10 @@
   "controlled_validation": {
     "result_id": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
     "status": "PASSED_CONTROLLED_FIXTURES",
-    "positive_fixture_expected_matches": 1,
-    "positive_fixture_actual_matches": 1,
-    "negative_fixture_expected_matches": 0,
-    "negative_fixture_actual_matches": 0,
+    "positive_fixture_expected_matches": 4,
+    "positive_fixture_actual_matches": 4,
+    "negative_fixture_expected_matches": 8,
+    "negative_fixture_actual_matches": 8,
     "deterministic": true
   },
   "proof_ceiling": "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY",

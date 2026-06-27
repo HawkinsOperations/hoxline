@@ -1,0 +1,17 @@
+{
+  "schema_version": "expected-detection-results-v0",
+  "artifact_id": "HOX-GAUNTLET-001",
+  "fixture_scope": "controlled synthetic fixture only",
+  "detector_note": "Controlled fixture perfect means the deterministic review rule matches this synthetic dataset exactly; it does not claim production perfection.",
+  "events_total": 12,
+  "expected_positive": 4,
+  "expected_negative": 8,
+  "expected_true_positive": 4,
+  "expected_true_negative": 8,
+  "expected_false_positive": 0,
+  "expected_false_negative": 0,
+  "expected_precision": 1.0,
+  "expected_recall": 1.0,
+  "expected_f1": 1.0,
+  "expected_false_positive_rate": 0.0
+}

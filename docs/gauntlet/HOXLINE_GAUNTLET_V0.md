@@ -34,7 +34,8 @@ AI-assisted security work
 2. Open `examples/gauntlet/sample-artifact.json` for the synthetic detection artifact and telemetry contract.
 3. Compare `examples/gauntlet/bad-release-note.md` with `examples/gauntlet/safe-release-note.md`.
 4. Open `examples/gauntlet/sample-evidence-graph.json`, `examples/gauntlet/sample-promotion-state.json`, `examples/gauntlet/sample-proofcard.json`, and `examples/gauntlet/sample-claim-authority-output.json`.
-5. Run `python -B -m unittest discover -s tests` to verify the sample remains deterministic.
+5. Open `docs/gauntlet/HOXLINE_GAUNTLET_METRICS_V0.md` for the numeric Work Impact Metrics v0 output.
+6. Run `python -B -m unittest discover -s tests` to verify the sample remains deterministic.
 
 ## Truth Boundaries
 
@@ -85,7 +86,20 @@ The sample artifact has:
 * `examples/gauntlet/sample-evidence-graph.json`
 * `examples/gauntlet/sample-proofcard.json`
 * `examples/gauntlet/sample-claim-authority-output.json`
+* `examples/gauntlet/synthetic-events.json`
+* `examples/gauntlet/expected-detection-results.json`
+* `examples/gauntlet/sample-work-impact-metrics.json`
 * `examples/gauntlet/bad-release-note.md`
 * `examples/gauntlet/safe-release-note.md`
 
 The sample JSON files keep runtime observation, signal observation, external proof publication, deployment, customer, and final human authorization states unset because no exact release evidence is included in this controlled product demo.
+
+## Work Impact Metrics
+
+`HOX-GAUNTLET-001` now emits numeric Work Impact Metrics v0 for the controlled fixture: 12 synthetic events, 4 expected positives, 8 expected negatives, 4 true positives, 8 true negatives, 0 false positives, 0 false negatives, 1.0 precision, 1.0 recall, 1.0 F1, 0.0 false-positive rate, 100.0% telemetry coverage, 7 claims scanned, 1 claim allowed, 6 claims blocked, and 100.0% ProofCard completeness.
+
+Run:
+
+```powershell
+python -B -m hoxline.cli gauntlet metrics --events examples/gauntlet/synthetic-events.json --artifact examples/gauntlet/sample-artifact.json --proofcard examples/gauntlet/sample-proofcard.json --claim-output examples/gauntlet/sample-claim-authority-output.json --format json
+```
