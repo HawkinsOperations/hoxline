@@ -1,6 +1,6 @@
 {
   "schema_version": "case-growth-index-v1",
-  "generated_at": "2026-07-22T23:48:12Z",
+  "generated_at": "2026-07-22T23:55:08Z",
   "repo_root": "HawkinsOperations",
   "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
   "historical_snapshot": false,
@@ -116,12 +116,12 @@
       "repository": "hawkinsoperations-website",
       "authority_role": "rendering-only public status",
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
-      "source_commit_sha": "950691ff0f3ad224964e713b6ec6beec7f6528b4",
+      "source_commit_sha": "05da628443f2be88b9ce9fe5fc2dc9caccab09a7",
       "source_parent_sha": null,
       "self_referential": false,
       "revision_scope": "authoritative_source_at_commit",
       "source_path": "public/data/public-status.json",
-      "source_file_sha256": "90c95bad6cf05382b714aa2426c1d808e722d986dfc550e7a034fbcea53b05a3",
+      "source_file_sha256": "10598dfa4c6a4943692895463f2da313fad2076200ff764947e679d658bbccdd",
       "source_freshness_state": "CURRENT",
       "snapshot_freshness_state": "CURRENT",
       "historical_snapshot": false,
@@ -136,13 +136,13 @@
       "repository": "hoxline",
       "authority_role": "case-growth and fixture-review product truth",
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
-      "source_commit_sha": "46cd4380435fcd40722bab1d32adaca7ae64d1ec",
-      "source_parent_sha": "cff5924ce734ab4abd79307bd4d2a555c2bfc35d",
+      "source_commit_sha": "769622bee18921f7e75d0c0db2532db0c3054579",
+      "source_parent_sha": "680d7130c058f7a96856a247504ea6712e1b5043",
       "self_referential": true,
       "revision_scope": "authoritative_sources_excluding_snapshot",
       "source_path": "src/hoxline/case_growth/collector.py",
-      "source_file_sha256": "06e72b91bdd256277a13e83391e97c6577e68bcc9498bbda5e9d84c061025b3a",
-      "source_freshness_state": "CURRENT_SELF_REFERENTIAL",
+      "source_file_sha256": "035b88b3b78706de32fa3fc2dfb4abc70198271c792791930f06d9e61ee35773",
+      "source_freshness_state": "CURRENT",
       "snapshot_freshness_state": "CURRENT",
       "historical_snapshot": false,
       "current_authority": true,
@@ -150,7 +150,7 @@
       "dangling_reference_state": false,
       "contradictions": [],
       "drift": [],
-      "next_legal_action": "restore hoxline/src/hoxline/case_growth/collector.py from its owning repository"
+      "next_legal_action": "none; preserve source ownership"
     }
   ],
   "contradictions": [],
@@ -216,7 +216,7 @@
       "path": "hoxline",
       "exists": true,
       "branch": "feature/hoxline-case-growth-convergence-v1",
-      "dirty": true,
+      "dirty": false,
       "authority_boundary": "product metrics and Hoxline Gauntlet artifact authority only",
       "files_scanned": 181
     }
@@ -1968,5 +1968,5 @@
     "website_rendering_treated_as_proof": false,
     "green_ci_treated_as_approval": false
   },
-  "reproducibility_sha256": "1fb0f02d22e3b2f6c99f437338953a44ddda212d8e1376598a7a52b726a6f371"
+  "reproducibility_sha256": "b9c189817cb94bc534a3e2ef6c3ba276ae10ce39726d82ba831bf974a0ae31b2"
 }
