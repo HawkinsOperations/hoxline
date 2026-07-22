@@ -395,7 +395,13 @@ def _source_convergence_findings(
             for item in revision_items:
                 if isinstance(item, dict):
                     name = item.get("repository") or item.get("repo") or item.get("name")
-                    sha = item.get("source_commit_sha") or item.get("commit_sha") or item.get("source_revision")
+                    sha = (
+                        item.get("repository_revision")
+                        or item.get("source_repository_revision")
+                        or item.get("source_commit_sha")
+                        or item.get("commit_sha")
+                        or item.get("source_revision")
+                    )
                     if name and sha:
                         refs[str(name).removeprefix("HawkinsOperations/")] = sha
         for owner, stated_sha in refs.items():
@@ -1130,6 +1136,11 @@ def _case_claim_violations(row: dict[str, Any]) -> list[str]:
         violations.append(f"unauthorized claim_authority_status {authority!r}")
     safe_row = {key: value for key, value in row.items() if key != "blocked_claims"}
     text = json.dumps(safe_row, sort_keys=True)
+    text = re.sub(
+        r"(?i)\b(?:missing|blocked|not)(?:_[a-z0-9]+)*_(?:final_authorization|case_closure|ai_approved_disposition|analyst_approved_disposition)\b",
+        "",
+        text,
+    )
     for label, pattern in (
         ("AI-approved disposition", r"(?i)AI[-_ ]approved disposition"),
         ("analyst-approved disposition", r"(?i)analyst[-_ ]approved disposition"),

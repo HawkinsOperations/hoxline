@@ -398,6 +398,13 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertTrue(any("final authorization wording" in error for error in errors))
         self.assertTrue(any("case closure wording" in error for error in errors))
 
+    def test_missing_authorization_metric_token_is_bounded_context(self) -> None:
+        bounded = json.loads(json.dumps(self.index))
+        bounded["cases"][0]["notes"] = ["missing_human_final_authorization"]
+        bounded["reproducibility_sha256"] = _reproducibility_hash(bounded)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, bounded)
+        self.assertFalse(any("final authorization wording" in error for error in errors))
+
     def test_historical_snapshot_sha_must_resolve_in_stated_repository(self) -> None:
         hostile = json.loads(json.dumps(self.index))
         hostile["historical_snapshot"] = True

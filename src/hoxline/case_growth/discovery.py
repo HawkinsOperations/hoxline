@@ -62,12 +62,22 @@ def repo_branch(repo_path: Path) -> str:
     return lines[0] if lines else "UNKNOWN_WITH_REASON: no git branch available"
 
 
+def _is_volatile_generated_path(path: str) -> bool:
+    normalized = path.replace("\\", "/").lstrip("./")
+    return (
+        "/__pycache__/" in f"/{normalized}"
+        or normalized.endswith(".pyc")
+        or normalized.startswith(".hoxline/")
+    )
+
+
 def repo_dirty(repo_path: Path) -> bool:
-    return bool(git_lines(repo_path, ["status", "--short"]))
+    return bool(repo_dirty_paths(repo_path))
 
 
 def repo_dirty_paths(repo_path: Path) -> list[str]:
-    return [line[3:].strip().replace("\\", "/") for line in git_lines(repo_path, ["status", "--short"]) if len(line) > 3]
+    paths = [line[3:].strip().replace("\\", "/") for line in git_lines(repo_path, ["status", "--short"]) if len(line) > 3]
+    return [path for path in paths if not _is_volatile_generated_path(path)]
 
 
 def repo_head_sha(repo_path: Path) -> str:
