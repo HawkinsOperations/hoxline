@@ -389,7 +389,14 @@ def _source_convergence_findings(
         if surface_repo is None or not (surface_repo / relative_path).is_file():
             continue
         surface = load_structured(surface_repo / relative_path) or {}
-        refs = surface.get("source_commit_refs") if isinstance(surface.get("source_commit_refs"), dict) else {}
+        path_refs = surface.get("source_commit_refs") if isinstance(surface.get("source_commit_refs"), dict) else {}
+        repository_refs = (
+            surface.get("source_repository_commit_refs")
+            if isinstance(surface.get("source_repository_commit_refs"), dict)
+            else {}
+        )
+        refs = dict(path_refs)
+        refs.update(repository_refs)
         revision_items = surface.get("source_revisions")
         if isinstance(revision_items, list):
             for item in revision_items:
@@ -407,7 +414,13 @@ def _source_convergence_findings(
         for owner, stated_sha in refs.items():
             normalized_owner = str(owner).removeprefix("HawkinsOperations/")
             current_sha = current_shas.get(normalized_owner)
-            if current_sha and stated_sha != current_sha:
+            direct_parent_cycle = (
+                surface_owner == "hawkinsoperations-website"
+                and normalized_owner in {"hawkinsoperations-website", "hoxline"}
+                and repo_paths.get(normalized_owner) is not None
+                and stated_sha == repo_parent_sha(repo_paths[normalized_owner])
+            )
+            if current_sha and stated_sha != current_sha and not direct_parent_cycle:
                 drift.append(
                     _finding(
                         "SOURCE_REVISION_DRIFT",
