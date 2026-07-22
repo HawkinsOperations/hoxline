@@ -1058,6 +1058,14 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
         current_revision = current_by_repo[repository]
         stated_sha = stated.get("source_commit_sha")
         accepted_shas = {current_revision["source_commit_sha"]}
+        if repository == "hawkinsoperations-website":
+            website_repo = repo_paths.get(repository)
+            website_parent = repo_parent_sha(website_repo) if website_repo is not None else None
+            if (
+                stated_sha == website_parent
+                and stated.get("source_file_sha256") == current_revision.get("source_file_sha256")
+            ):
+                accepted_shas.add(website_parent)
         if repository == "hoxline":
             accepted_shas.add(current_revision.get("source_parent_sha"))
             if stated.get("self_referential") is not True:
@@ -1179,6 +1187,13 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
         before = before_revisions.get(repository, {})
         for field in ("source_commit_sha", "source_file_sha256", "source_path"):
             if before.get(field) != current_revision[field]:
+                expected_self_reference = (
+                    repository == "hoxline"
+                    and field == "source_commit_sha"
+                    and before.get("self_referential") is True
+                    and before.get("revision_scope") == "authoritative_sources_excluding_snapshot"
+                    and before.get(field) == current_revision.get("source_parent_sha")
+                )
                 changes.append(
                     {
                         "field": field,
@@ -1188,8 +1203,20 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
                         "after": current_revision[field],
                         "old_source_revision": before.get("source_commit_sha"),
                         "current_source_revision": current_revision["source_commit_sha"],
-                        "classification": "EXPECTED_HISTORICAL_CONTEXT" if historical else "ACTIONABLE_DRIFT",
-                        "next_remediation": "retain as historical context" if historical else "regenerate the current snapshot from the owning source",
+                        "classification": (
+                            "EXPECTED_HISTORICAL_CONTEXT"
+                            if historical
+                            else "EXPECTED_SELF_REFERENTIAL_CONTEXT"
+                            if expected_self_reference
+                            else "ACTIONABLE_DRIFT"
+                        ),
+                        "next_remediation": (
+                            "retain as historical context"
+                            if historical
+                            else "none; the snapshot commit intentionally follows its cited engine commit"
+                            if expected_self_reference
+                            else "regenerate the current snapshot from the owning source"
+                        ),
                     }
                 )
     before_summary = snapshot.get("summary") if isinstance(snapshot.get("summary"), dict) else {}
@@ -1209,6 +1236,7 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
                     "next_remediation": "retain as historical context" if historical else "regenerate the current snapshot",
                 }
             )
+    actionable_changes = [item for item in changes if item["classification"] == "ACTIONABLE_DRIFT"]
     return {
         "schema_version": "case-growth-diff-v1",
         "historical_snapshot": historical,
@@ -1216,7 +1244,13 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
         "changes": changes,
         "contradictions": current["contradictions"],
         "drift": current["drift"],
-        "next_legal_action": current["next_legal_action"] if changes or current["drift"] else "none; snapshot converges",
+        "next_legal_action": (
+            current["next_legal_action"]
+            if actionable_changes or current["drift"]
+            else "none; snapshot converges with expected self-reference"
+            if changes
+            else "none; snapshot converges"
+        ),
     }
 
 

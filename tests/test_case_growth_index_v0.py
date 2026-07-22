@@ -325,6 +325,19 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         change = next(item for item in report["changes"] if item["field"] == "summary.proof_records_count")
         self.assertEqual(change["classification"], "EXPECTED_HISTORICAL_CONTEXT")
 
+    def test_diff_classifies_snapshot_commit_self_reference_as_expected(self) -> None:
+        snapshot = json.loads(json.dumps(self.index))
+        hoxline_revision = next(item for item in snapshot["source_revisions"] if item["repository"] == "hoxline")
+        hoxline_revision["source_commit_sha"] = hoxline_revision["source_parent_sha"]
+        report = diff_case_growth_snapshot(FIXTURE_ROOT, snapshot)
+        change = next(
+            item
+            for item in report["changes"]
+            if item["source_owner"] == "hoxline" and item["field"] == "source_commit_sha"
+        )
+        self.assertEqual(change["classification"], "EXPECTED_SELF_REFERENTIAL_CONTEXT")
+        self.assertTrue(report["next_legal_action"].startswith("none;"))
+
     def test_cli_verify_fails_closed_on_hostile_snapshot(self) -> None:
         hostile = json.loads(json.dumps(self.index))
         hostile["repo_root"] = r"C:\Users\operator\snapshot.json"
