@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 try:
@@ -14,7 +15,15 @@ try:
 except ImportError:  # pragma: no cover - exercised only when optional test dep is absent
     jsonschema = None
 
-from hoxline.case_growth.collector import BOUNDARY, ROW_FIELDS, build_case_growth_index
+from hoxline.case_growth.collector import (
+    BOUNDARY,
+    ROW_FIELDS,
+    _reproducibility_hash,
+    build_case_growth_index,
+    diff_case_growth_snapshot,
+    verify_case_growth_snapshot,
+)
+from hoxline.case_growth.discovery import REPO_NAMES
 from hoxline.case_growth.render import render_case_growth_markdown
 from hoxline.cli import main
 
@@ -99,13 +108,14 @@ def derived_health(summary: dict[str, int]) -> dict[str, float]:
 
 
 class CaseGrowthIndexV0Tests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.index = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
-        self.rows = self.index["cases"]
-        assert isinstance(self.rows, list)
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.index = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
+        cls.rows = cls.index["cases"]
+        assert isinstance(cls.rows, list)
 
     def test_fixture_repo_root_loads(self) -> None:
-        self.assertEqual(self.index["schema_version"], "case-growth-index-v0")
+        self.assertEqual(self.index["schema_version"], "case-growth-index-v1")
         self.assertGreaterEqual(self.index["summary"]["cases_total"], 1)
 
     def test_cli_prints_json(self) -> None:
@@ -114,7 +124,7 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             status = main(["case-growth", "index", "--repo-root", str(FIXTURE_ROOT), "--format", "json"])
         self.assertEqual(status, 0)
         payload = json.loads(stdout.getvalue())
-        self.assertEqual(payload["schema_version"], "case-growth-index-v0")
+        self.assertEqual(payload["schema_version"], "case-growth-index-v1")
 
     def test_cli_prints_markdown(self) -> None:
         stdout = io.StringIO()
@@ -251,6 +261,8 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
     def test_generated_markdown_includes_table_headers(self) -> None:
         markdown = render_case_growth_markdown(self.index)
         self.assertIn("| Metric | Count |", markdown)
+        self.assertIn("## Source Revisions", markdown)
+        self.assertIn("## Convergence Findings", markdown)
         self.assertIn("## Case Growth Health", markdown)
         self.assertIn("| Health metric | Value |", markdown)
         self.assertIn("| Top bottleneck |", markdown)
@@ -263,6 +275,181 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertIn("repo_slot_accuracy", sample)
         self.assertIn("cases", sample)
         self.assertIn("boundary", sample)
+
+    def test_v1_source_revisions_are_exactly_seven_and_sanitized(self) -> None:
+        revisions = self.index["source_revisions"]
+        self.assertEqual(len(revisions), 7)
+        self.assertEqual({item["repository"] for item in revisions}, set(REPO_NAMES))
+        serialized = json.dumps(self.index)
+        self.assertNotIn("C:\\\\Raylee\\\\", serialized)
+        self.assertNotIn("C:/Raylee/", serialized)
+        for item in revisions:
+            self.assertIn("authority_role", item)
+            self.assertIn("source_commit_sha", item)
+            self.assertIn("source_file_sha256", item)
+            self.assertIn("source_freshness_state", item)
+            self.assertIn("next_legal_action", item)
+
+    def test_reproducibility_hash_ignores_only_generated_at(self) -> None:
+        first = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
+        second = build_case_growth_index(FIXTURE_ROOT, generated_at="2030-01-01T00:00:00Z")
+        self.assertEqual(first["reproducibility_sha256"], second["reproducibility_sha256"])
+
+    def test_verify_rejects_absolute_path_duplicate_and_promotion(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["repo_root"] = r"C:\Raylee\Repo\HawkinsOperations"
+        hostile["cases"].append(json.loads(json.dumps(hostile["cases"][0])))
+        hostile["cases"][0]["public_safe_status"] = "PUBLIC_SAFE"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("absolute local path" in error for error in errors))
+        self.assertTrue(any("duplicate case ID" in error for error in errors))
+        self.assertTrue(any("unauthorized public-safe status" in error for error in errors))
+
+    def test_verify_rejects_forged_counts_and_historical_current_conflict(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["summary"]["proof_records_count"] += 99
+        hostile["historical_snapshot"] = True
+        hostile["current_authority"] = True
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertIn("snapshot cannot be both historical_snapshot=true and current_authority=true", errors)
+        self.assertTrue(any("summary counts disagree" in error for error in errors))
+
+    def test_diff_classifies_explicit_historical_changes_as_context(self) -> None:
+        historical = json.loads(json.dumps(self.index))
+        historical["historical_snapshot"] = True
+        historical["current_authority"] = False
+        historical["summary"]["proof_records_count"] = -1
+        report = diff_case_growth_snapshot(FIXTURE_ROOT, historical)
+        change = next(item for item in report["changes"] if item["field"] == "summary.proof_records_count")
+        self.assertEqual(change["classification"], "EXPECTED_HISTORICAL_CONTEXT")
+
+    def test_cli_verify_fails_closed_on_hostile_snapshot(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["repo_root"] = r"C:\Users\operator\snapshot.json"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            snapshot = Path(temp_dir) / "hostile.json"
+            snapshot.write_text(json.dumps(hostile), encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                status = main(
+                    [
+                        "case-growth",
+                        "verify",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--snapshot",
+                        str(snapshot),
+                        "--format",
+                        "json",
+                    ]
+                )
+        self.assertEqual(status, 1)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["status"], "FAIL")
+        self.assertTrue(any("absolute local path" in error for error in payload["errors"]))
+
+    def test_cli_diff_emits_reviewer_readable_json(self) -> None:
+        historical = json.loads(json.dumps(self.index))
+        historical["historical_snapshot"] = True
+        historical["current_authority"] = False
+        historical["summary"]["proof_records_count"] = -1
+        with tempfile.TemporaryDirectory() as temp_dir:
+            snapshot = Path(temp_dir) / "historical.json"
+            snapshot.write_text(json.dumps(historical), encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                status = main(
+                    [
+                        "case-growth",
+                        "diff",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--snapshot",
+                        str(snapshot),
+                        "--format",
+                        "json",
+                    ]
+                )
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["schema_version"], "case-growth-diff-v1")
+        self.assertTrue(payload["changes"])
+
+    def test_verify_requires_exact_unique_seven_repository_set(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["source_revisions"][-1] = json.loads(json.dumps(hostile["source_revisions"][0]))
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("repository names must be unique" in error for error in errors))
+        self.assertTrue(any("exact seven-repository set" in error for error in errors))
+
+    def test_verify_rejects_forged_runtime_and_claim_authority_fields(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["cases"][0]["runtime_candidate_status"] = "RUNTIME_ACTIVE"
+        hostile["cases"][0]["claim_authority_status"] = "ANALYST_APPROVED"
+        hostile["cases"][0]["next_gate"] = "final authorization and case closure"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("unauthorized runtime_candidate_status" in error for error in errors))
+        self.assertTrue(any("unauthorized claim_authority_status" in error for error in errors))
+        self.assertTrue(any("final authorization wording" in error for error in errors))
+        self.assertTrue(any("case closure wording" in error for error in errors))
+
+    def test_historical_snapshot_sha_must_resolve_in_stated_repository(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["historical_snapshot"] = True
+        hostile["current_authority"] = False
+        hostile["source_revisions"][0]["source_commit_sha"] = "f" * 40
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("not a reachable commit" in error for error in errors))
+
+    def test_historical_snapshot_fingerprint_must_match_stated_commit_blob(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["historical_snapshot"] = True
+        hostile["current_authority"] = False
+        hostile["source_revisions"][0]["source_commit_sha"] = "a" * 40
+        hostile["source_revisions"][0]["source_file_sha256"] = "0" * 64
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        with (
+            mock.patch("hoxline.case_growth.collector.git_commit_exists", return_value=True),
+            mock.patch("hoxline.case_growth.collector.git_blob_sha256", return_value="b" * 64),
+        ):
+            errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("does not match the authoritative blob at the stated commit" in error for error in errors))
+
+    def test_current_snapshot_rejects_worktree_modified_freshness(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["source_revisions"][0]["source_freshness_state"] = "WORKTREE_MODIFIED"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("source_freshness_state must be one of" in error for error in errors))
+
+    def test_current_hoxline_snapshot_requires_self_reference_and_immediate_parent(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hoxline_revision = next(
+            revision for revision in hostile["source_revisions"] if revision["repository"] == "hoxline"
+        )
+        hoxline_revision["self_referential"] = False
+        hoxline_revision["revision_scope"] = "authoritative_source_at_commit"
+        hoxline_revision["source_commit_sha"] = "a" * 40
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("self_referential must be true" in error for error in errors))
+        self.assertTrue(any("revision_scope must be authoritative_sources_excluding_snapshot" in error for error in errors))
+        self.assertTrue(any("must cite the immediate parent engine commit" in error for error in errors))
+
+    def test_verify_rejects_drive_unc_and_posix_absolute_paths(self) -> None:
+        for leaked_path in (r"D:\private\evidence.json", r"\\private-host\share\evidence.json", "/home/reviewer/evidence.json"):
+            with self.subTest(leaked_path=leaked_path):
+                hostile = json.loads(json.dumps(self.index))
+                hostile["cases"][0]["source_evidence_refs"] = [leaked_path]
+                hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+                errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+                self.assertTrue(any("absolute local path" in error for error in errors))
 
     def test_anti_vague_output_has_numeric_counts_and_evidence_refs(self) -> None:
         self.assertGreater(self.index["summary"]["cases_total"], 0)

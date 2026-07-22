@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
+import json
 from pathlib import Path
 import re
 from typing import Any
@@ -10,16 +12,32 @@ from .discovery import (
     REPO_NAMES,
     case_growth_files,
     discover_case_ids,
+    file_sha256,
+    git_blob_sha256,
+    git_commit_exists,
     last_git_update,
     load_structured,
     repo_branch,
     repo_dirty,
+    repo_dirty_paths,
+    repo_head_sha,
+    repo_parent_sha,
     repo_relative,
     resolve_repo_paths,
 )
 
 
 PROOF_CEILING = "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY"
+
+AUTHORITY_SOURCES = {
+    ".github": ("org command-center routing", "scripts/verify-command-center-invariants.py"),
+    "hawkinsoperations-detections": ("detection source truth", "detections/DETECTION_PROMOTION_MATRIX.yml"),
+    "hawkinsoperations-validation": ("controlled validation truth", "validation/VALIDATION_REGISTRY.yml"),
+    "hawkinsoperations-platform": ("platform contract truth", "contracts/public-status-source-contract-v1.json"),
+    "hawkinsoperations-proof": ("proof and claim-boundary truth", "proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml"),
+    "hawkinsoperations-website": ("rendering-only public status", "public/data/public-status.json"),
+    "hoxline": ("case-growth and fixture-review product truth", "src/hoxline/case_growth/collector.py"),
+}
 
 BOUNDARY = {
     "runtime_public_proof_claimed": False,
@@ -85,7 +103,7 @@ def build_case_growth_index(repo_root: Path, generated_at: str | None = None) ->
         repos_scanned.append(
             {
                 "repo": name,
-                "path": str(path) if path is not None else "NOT_FOUND",
+                "path": name if path is not None else "NOT_FOUND",
                 "exists": path is not None,
                 "branch": repo_branch(path) if path is not None else "NOT_FOUND",
                 "dirty": repo_dirty(path) if path is not None else None,
@@ -116,11 +134,25 @@ def build_case_growth_index(repo_root: Path, generated_at: str | None = None) ->
     case_growth_health = _build_case_growth_health(summary)
     _add_cross_repo_quality_notes(ordered_rows, data_quality_notes)
 
-    return {
-        "schema_version": "case-growth-index-v0",
+    source_revisions = _build_source_revisions(repo_paths)
+    contradictions, drift = _source_convergence_findings(repo_paths, source_revisions, summary, ordered_rows)
+    result = {
+        "schema_version": "case-growth-index-v1",
         "generated_at": generated,
-        "repo_root": str(repo_root),
+        "repo_root": "HawkinsOperations",
         "proof_ceiling": PROOF_CEILING,
+        "historical_snapshot": False,
+        "current_authority": True,
+        "snapshot_state": {
+            "freshness": "CURRENT",
+            "historical_snapshot": False,
+            "current_authority": True,
+            "self_source_revision_semantics": "worktree-head-or-snapshot-commit-parent",
+        },
+        "source_revisions": source_revisions,
+        "contradictions": contradictions,
+        "drift": drift,
+        "next_legal_action": _next_legal_action(source_revisions, contradictions, drift),
         "repos_scanned": repos_scanned,
         "repo_slot_accuracy": repo_slot_accuracy,
         "source_files_scanned_count": scanned_count,
@@ -131,6 +163,8 @@ def build_case_growth_index(repo_root: Path, generated_at: str | None = None) ->
         "data_quality_notes": data_quality_notes,
         "boundary": deepcopy(BOUNDARY),
     }
+    result["reproducibility_sha256"] = _reproducibility_hash(result)
+    return result
 
 
 def _repo_boundary(repo_name: str) -> str:
@@ -143,6 +177,275 @@ def _repo_boundary(repo_name: str) -> str:
         "hawkinsoperations-website": "route/rendering surface only; not proof authority",
         "hoxline": "product metrics and Hoxline Gauntlet artifact authority only",
     }[repo_name]
+
+
+def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str, Any]]:
+    revisions: list[dict[str, Any]] = []
+    for repository in REPO_NAMES:
+        repo = repo_paths.get(repository)
+        authority_role, relative_path = AUTHORITY_SOURCES[repository]
+        source = repo / relative_path if repo is not None else None
+        source_exists = source is not None and source.is_file()
+        sha = repo_head_sha(repo) if repo is not None else "UNKNOWN"
+        branch = repo_branch(repo) if repo is not None else "NOT_FOUND"
+        dirty = repo_dirty(repo) if repo is not None else False
+        dirty_paths = repo_dirty_paths(repo) if repo is not None else []
+        if repo is None:
+            freshness = "MISSING_REPOSITORY"
+        elif not source_exists:
+            freshness = "MISSING_AUTHORITY_SOURCE"
+        elif sha == "UNKNOWN":
+            freshness = "UNVERSIONED_SOURCE"
+        elif repository == "hoxline" and dirty and all(path.startswith("examples/case-growth/") for path in dirty_paths):
+            freshness = "CURRENT_SELF_REFERENTIAL"
+        elif dirty:
+            freshness = "WORKTREE_MODIFIED"
+        else:
+            freshness = "CURRENT"
+        committed_fingerprint = git_blob_sha256(repo, sha, relative_path) if repo is not None else None
+        revisions.append(
+            {
+                "repository": repository,
+                "authority_role": authority_role,
+                "resolved_ref": branch,
+                "source_commit_sha": sha,
+                "source_parent_sha": repo_parent_sha(repo) if repo is not None and repository == "hoxline" else None,
+                "self_referential": repository == "hoxline",
+                "revision_scope": (
+                    "authoritative_sources_excluding_snapshot" if repository == "hoxline" else "authoritative_source_at_commit"
+                ),
+                "source_path": relative_path,
+                "source_file_sha256": (
+                    committed_fingerprint
+                    if committed_fingerprint is not None
+                    else file_sha256(source) if source_exists and source is not None else None
+                ),
+                "source_freshness_state": freshness,
+                "snapshot_freshness_state": "CURRENT",
+                "historical_snapshot": False,
+                "current_authority": source_exists and sha != "UNKNOWN",
+                "missing_source_state": not source_exists,
+                "dangling_reference_state": repo is not None and not source_exists,
+                "contradictions": [],
+                "drift": [],
+                "next_legal_action": (
+                    "none; preserve source ownership"
+                    if freshness == "CURRENT"
+                    else "review and commit scoped authority-source changes before regenerating"
+                    if freshness == "WORKTREE_MODIFIED"
+                    else f"restore {repository}/{relative_path} from its owning repository"
+                ),
+            }
+        )
+    return revisions
+
+
+def _finding(
+    code: str,
+    owner: str,
+    path: str,
+    expected: Any,
+    actual: Any,
+    remediation: str,
+    classification: str = "ACTIONABLE_DRIFT",
+) -> dict[str, Any]:
+    return {
+        "code": code,
+        "source_owner": owner,
+        "source_path": path,
+        "expected": expected,
+        "actual": actual,
+        "classification": classification,
+        "next_legal_action": remediation,
+    }
+
+
+def _duplicates(values: list[str]) -> list[str]:
+    return sorted({value for value in values if values.count(value) > 1})
+
+
+def _source_convergence_findings(
+    repo_paths: dict[str, Path | None],
+    source_revisions: list[dict[str, Any]],
+    summary: dict[str, int],
+    rows: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    contradictions: list[dict[str, Any]] = []
+    drift: list[dict[str, Any]] = []
+    for revision in source_revisions:
+        if revision["missing_source_state"]:
+            contradictions.append(
+                _finding(
+                    "MISSING_AUTHORITY_SOURCE",
+                    revision["repository"],
+                    revision["source_path"],
+                    "existing authoritative source",
+                    "missing",
+                    revision["next_legal_action"],
+                )
+            )
+
+    structured_sources = (
+        ("hawkinsoperations-detections", "detections/DETECTION_PROMOTION_MATRIX.yml", "entries"),
+        ("hawkinsoperations-validation", "validation/VALIDATION_REGISTRY.yml", "packages"),
+        ("hawkinsoperations-proof", "proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml", "entries"),
+    )
+    for owner, relative_path, collection in structured_sources:
+        repo = repo_paths.get(owner)
+        if repo is None or not (repo / relative_path).is_file():
+            continue
+        data = load_structured(repo / relative_path) or {}
+        ids = [str(item.get("detection_id")) for item in data.get(collection, []) if isinstance(item, dict) and item.get("detection_id")]
+        for duplicate in _duplicates(ids):
+            contradictions.append(
+                _finding(
+                    "DUPLICATE_CASE_ID",
+                    owner,
+                    relative_path,
+                    "one entry per case ID",
+                    duplicate,
+                    f"remove or reconcile the duplicate {duplicate} entry in the owning source",
+                )
+            )
+
+    proof_repo = repo_paths.get("hawkinsoperations-proof")
+    if proof_repo is not None:
+        proof_path = proof_repo / AUTHORITY_SOURCES["hawkinsoperations-proof"][1]
+        if proof_path.is_file():
+            proof_data = load_structured(proof_path) or {}
+            for entry in proof_data.get("entries", []):
+                if not isinstance(entry, dict):
+                    continue
+                case_id = str(entry.get("detection_id") or "UNKNOWN")
+                for field in ("proof_record_path", "proof_card_path"):
+                    ref = entry.get(field)
+                    if ref and not (proof_repo / str(ref)).is_file():
+                        contradictions.append(
+                            _finding(
+                                "DANGLING_PROOF_PATH",
+                                "hawkinsoperations-proof",
+                                str(ref),
+                                "existing source-controlled file",
+                                f"missing reference for {case_id}",
+                                f"repair or explicitly clear {field} for {case_id} in the proof index",
+                            )
+                        )
+
+    detection_repo = repo_paths.get("hawkinsoperations-detections")
+    if detection_repo is not None and proof_repo is not None:
+        matrix_path = detection_repo / AUTHORITY_SOURCES["hawkinsoperations-detections"][1]
+        proof_path = proof_repo / AUTHORITY_SOURCES["hawkinsoperations-proof"][1]
+        if matrix_path.is_file() and proof_path.is_file():
+            matrix_entries = {
+                str(item.get("detection_id")): item
+                for item in (load_structured(matrix_path) or {}).get("entries", [])
+                if isinstance(item, dict) and item.get("detection_id")
+            }
+            proof_entries = {
+                str(item.get("detection_id")): item
+                for item in (load_structured(proof_path) or {}).get("entries", [])
+                if isinstance(item, dict) and item.get("detection_id")
+            }
+            for case_id, proof_entry in proof_entries.items():
+                matrix_entry = matrix_entries.get(case_id, {})
+                notes = str(matrix_entry.get("notes") or "")
+                if proof_entry.get("proof_record_path") and re.search(r"(?i)\bno\b.*\bproof record\b", notes):
+                    contradictions.append(
+                        _finding(
+                            "DETECTION_PROOF_RECORD_CONTRADICTION",
+                            "hawkinsoperations-detections",
+                            "detections/DETECTION_PROMOTION_MATRIX.yml",
+                            f"proof record exists at {proof_entry['proof_record_path']}",
+                            notes,
+                            f"update the detection matrix note for {case_id} from the proof-owned current index",
+                        )
+                    )
+
+    website_repo = repo_paths.get("hawkinsoperations-website")
+    if website_repo is not None:
+        website_path = website_repo / AUTHORITY_SOURCES["hawkinsoperations-website"][1]
+        if website_path.is_file():
+            website = load_structured(website_path) or {}
+            rendered = ((website.get("metrics") or {}).get("proof_records") or {}).get("value")
+            current = summary["proof_records_count"]
+            if rendered is not None and rendered != current:
+                drift.append(
+                    _finding(
+                        "WEBSITE_PROOF_COUNT_DRIFT",
+                        "hawkinsoperations-proof",
+                        "proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml",
+                        current,
+                        rendered,
+                        "regenerate website public status from the proof-owned current index; website remains rendering-only",
+                    )
+                )
+
+    current_shas = {item["repository"]: item["source_commit_sha"] for item in source_revisions}
+    for surface_owner, relative_path in (
+        ("hawkinsoperations-platform", AUTHORITY_SOURCES["hawkinsoperations-platform"][1]),
+        ("hawkinsoperations-website", AUTHORITY_SOURCES["hawkinsoperations-website"][1]),
+    ):
+        surface_repo = repo_paths.get(surface_owner)
+        if surface_repo is None or not (surface_repo / relative_path).is_file():
+            continue
+        surface = load_structured(surface_repo / relative_path) or {}
+        refs = surface.get("source_commit_refs") if isinstance(surface.get("source_commit_refs"), dict) else {}
+        revision_items = surface.get("source_revisions")
+        if isinstance(revision_items, list):
+            for item in revision_items:
+                if isinstance(item, dict):
+                    name = item.get("repository") or item.get("repo") or item.get("name")
+                    sha = item.get("source_commit_sha") or item.get("commit_sha") or item.get("source_revision")
+                    if name and sha:
+                        refs[str(name).removeprefix("HawkinsOperations/")] = sha
+        for owner, stated_sha in refs.items():
+            normalized_owner = str(owner).removeprefix("HawkinsOperations/")
+            current_sha = current_shas.get(normalized_owner)
+            if current_sha and stated_sha != current_sha:
+                drift.append(
+                    _finding(
+                        "SOURCE_REVISION_DRIFT",
+                        surface_owner,
+                        relative_path,
+                        current_sha,
+                        stated_sha,
+                        f"regenerate {relative_path} from {normalized_owner} at its current source revision",
+                    )
+                )
+
+    case_ids = [str(row.get("case_id")) for row in rows]
+    for duplicate in _duplicates(case_ids):
+        contradictions.append(
+            _finding(
+                "DUPLICATE_GENERATED_CASE_ID",
+                "hoxline",
+                "generated cases",
+                "unique case IDs",
+                duplicate,
+                "reconcile duplicate source entries before regenerating the snapshot",
+            )
+        )
+    return contradictions, drift
+
+
+def _next_legal_action(
+    source_revisions: list[dict[str, Any]], contradictions: list[dict[str, Any]], drift: list[dict[str, Any]]
+) -> str:
+    if contradictions:
+        return str(contradictions[0]["next_legal_action"])
+    if drift:
+        return str(drift[0]["next_legal_action"])
+    if any(item["source_freshness_state"] == "WORKTREE_MODIFIED" for item in source_revisions):
+        return "commit only the validated scoped changes, then regenerate the current snapshot from clean source revisions"
+    return "none; current source-controlled inputs converge"
+
+
+def _reproducibility_hash(index: dict[str, Any]) -> str:
+    stable = deepcopy(index)
+    stable.pop("generated_at", None)
+    stable.pop("reproducibility_sha256", None)
+    encoded = json.dumps(stable, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _base_row(case_id: str) -> dict[str, Any]:
@@ -675,3 +978,226 @@ def _add_cross_repo_quality_notes(rows: list[dict[str, Any]], notes: list[str]) 
             notes.append(f"{row['case_id']} has controlled validation but no proof record")
         if row["proof_record_status"] == "PROOF_RECORD_EXISTS" and row["proofcard_status"] != "PROOFCARD_EXISTS":
             notes.append(f"{row['case_id']} has proof record but no ProofCard")
+
+
+def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tuple[list[str], dict[str, Any]]:
+    errors: list[str] = []
+    current = build_case_growth_index(repo_root, generated_at=str(snapshot.get("generated_at") or "1970-01-01T00:00:00Z"))
+    historical = snapshot.get("historical_snapshot") is True
+    current_authority = snapshot.get("current_authority") is True
+    if historical and current_authority:
+        errors.append("snapshot cannot be both historical_snapshot=true and current_authority=true")
+    if not historical and not current_authority:
+        errors.append("non-historical snapshot must declare current_authority=true")
+    if snapshot.get("schema_version") != "case-growth-index-v1":
+        errors.append("snapshot schema_version must be case-growth-index-v1")
+
+    if _contains_absolute_local_path(snapshot):
+        errors.append("snapshot contains an absolute local path")
+
+    cases = snapshot.get("cases") if isinstance(snapshot.get("cases"), list) else []
+    case_ids = [str(item.get("case_id")) for item in cases if isinstance(item, dict) and item.get("case_id")]
+    for duplicate in _duplicates(case_ids):
+        errors.append(f"duplicate case ID in snapshot: {duplicate}")
+
+    boundary = snapshot.get("boundary") if isinstance(snapshot.get("boundary"), dict) else {}
+    for key, value in boundary.items():
+        if value is not False:
+            errors.append(f"unauthorized boundary promotion: {key}={value!r}")
+    for row in cases:
+        if not isinstance(row, dict):
+            continue
+        case_id = row.get("case_id", "UNKNOWN")
+        if row.get("public_safe_status") not in {None, "NOT_PUBLIC_SAFE"}:
+            errors.append(f"{case_id}: unauthorized public-safe status {row.get('public_safe_status')!r}")
+        if row.get("case_state") == "CLOSED":
+            errors.append(f"{case_id}: unauthorized case closure")
+        if row.get("signal_status") not in {None, "NOT_PROVEN"}:
+            errors.append(f"{case_id}: signal status exceeds checked-source authority")
+        errors.extend(f"{case_id}: {error}" for error in _case_claim_violations(row))
+
+    stated_revisions = snapshot.get("source_revisions") if isinstance(snapshot.get("source_revisions"), list) else []
+    if len(stated_revisions) != len(REPO_NAMES):
+        errors.append(f"source_revisions must contain exactly {len(REPO_NAMES)} repositories")
+    stated_names = [str(item.get("repository") or "") for item in stated_revisions if isinstance(item, dict)]
+    if len(stated_names) != len(set(stated_names)):
+        errors.append("source_revisions repository names must be unique")
+    if set(stated_names) != set(REPO_NAMES):
+        missing = sorted(set(REPO_NAMES) - set(stated_names))
+        extra = sorted(set(stated_names) - set(REPO_NAMES))
+        errors.append(f"source_revisions must match exact seven-repository set; missing={missing}, extra={extra}")
+    current_by_repo = {item["repository"]: item for item in current["source_revisions"]}
+    repo_paths = resolve_repo_paths(Path(repo_root))
+    for stated in stated_revisions:
+        if not isinstance(stated, dict):
+            errors.append("source_revisions entries must be objects")
+            continue
+        repository = str(stated.get("repository") or "")
+        if repository not in current_by_repo:
+            errors.append(f"unknown source repository in snapshot: {repository or 'MISSING'}")
+            continue
+        current_revision = current_by_repo[repository]
+        stated_sha = stated.get("source_commit_sha")
+        accepted_shas = {current_revision["source_commit_sha"]}
+        if repository == "hoxline":
+            accepted_shas.add(current_revision.get("source_parent_sha"))
+            if stated.get("self_referential") is not True:
+                errors.append("hoxline: self_referential must be true")
+            if stated.get("revision_scope") != "authoritative_sources_excluding_snapshot":
+                errors.append("hoxline: revision_scope must be authoritative_sources_excluding_snapshot")
+            if current_authority and stated_sha != current_revision.get("source_parent_sha"):
+                errors.append("hoxline: current checked snapshot must cite the immediate parent engine commit")
+        if not re.fullmatch(r"[0-9a-f]{40}", str(stated_sha or "")):
+            errors.append(f"{repository}: source_commit_sha must be a 40-character Git SHA")
+        elif repo_paths.get(repository) is None or not git_commit_exists(repo_paths[repository], str(stated_sha)):
+            errors.append(f"{repository}: source_commit_sha is not a reachable commit in the stated repository")
+        else:
+            if stated_sha not in accepted_shas and not historical:
+                errors.append(
+                    f"{repository}: stale source revision {stated_sha}; current is {current_revision['source_commit_sha']}; "
+                    "regenerate or explicitly label the snapshot historical"
+                )
+            source_path = str(stated.get("source_path") or "")
+            source_prefix = f"{repository}/"
+            commit_path = source_path[len(source_prefix) :] if source_path.startswith(source_prefix) else source_path
+            commit_fingerprint = git_blob_sha256(repo_paths[repository], str(stated_sha), commit_path)
+            if commit_fingerprint is None:
+                errors.append(f"{repository}: authoritative source path is missing from the stated commit")
+            elif stated.get("source_file_sha256") != commit_fingerprint:
+                errors.append(f"{repository}: source_file_sha256 does not match the authoritative blob at the stated commit")
+        if stated.get("source_path") != current_revision["source_path"]:
+            errors.append(f"{repository}: authoritative source path disagrees with current owner path")
+        if stated.get("source_file_sha256") != current_revision.get("source_file_sha256") and not historical:
+            errors.append(
+                f"{repository}: authoritative source fingerprint drifted; regenerate from {current_revision['source_path']}"
+            )
+        if stated.get("missing_source_state") is True or stated.get("dangling_reference_state") is True:
+            errors.append(f"{repository}: snapshot records missing or dangling authority source")
+        allowed_freshness = {"CURRENT", "CURRENT_SELF_REFERENTIAL"} if repository == "hoxline" else {"CURRENT"}
+        if current_authority and stated.get("source_freshness_state") not in allowed_freshness:
+            errors.append(
+                f"{repository}: current snapshot source_freshness_state must be one of {sorted(allowed_freshness)}, "
+                f"got {stated.get('source_freshness_state')!r}"
+            )
+        if current_authority and current_revision.get("source_freshness_state") not in allowed_freshness:
+            errors.append(
+                f"{repository}: current repository source is not clean/current: "
+                f"{current_revision.get('source_freshness_state')!r}"
+            )
+
+    stated_hash = snapshot.get("reproducibility_sha256")
+    if stated_hash != _reproducibility_hash(snapshot):
+        errors.append("snapshot reproducibility_sha256 does not reproduce from its normalized content")
+
+    if current_authority:
+        if snapshot.get("summary") != current.get("summary"):
+            errors.append("current snapshot summary counts disagree with current authoritative repository state")
+        if snapshot.get("case_ids_discovered_count") != current.get("case_ids_discovered_count"):
+            errors.append("current snapshot case count disagrees with current authoritative repository state")
+        for field in ("cases", "case_growth_health", "repo_slot_accuracy", "boundary"):
+            if snapshot.get(field) != current.get(field):
+                errors.append(f"current snapshot {field} disagrees with normalized current authoritative content")
+    for finding in current.get("contradictions", []):
+        errors.append(f"current contradiction {finding['code']}: {finding['actual']} ({finding['next_legal_action']})")
+    for finding in current.get("drift", []):
+        errors.append(f"current drift {finding['code']}: expected {finding['expected']}, actual {finding['actual']} ({finding['next_legal_action']})")
+    return errors, current
+
+
+ABSOLUTE_LOCAL_PATH = re.compile(
+    r"(?i)(?:[A-Z]:[\\/]|(?<![\\/:])\\{2,}[^\\/\s]+[\\/]"
+    r"|(?<![\\/:])//[^/\s]+/|(?<![A-Za-z0-9_./:-])/(?!/)[^\s\"'<>]+)"
+)
+
+
+def _contains_absolute_local_path(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(_contains_absolute_local_path(key) or _contains_absolute_local_path(item) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_contains_absolute_local_path(item) for item in value)
+    if isinstance(value, str):
+        return ABSOLUTE_LOCAL_PATH.search(value) is not None
+    return False
+
+
+def _case_claim_violations(row: dict[str, Any]) -> list[str]:
+    violations: list[str] = []
+    runtime = str(row.get("runtime_candidate_status") or "")
+    authority = str(row.get("claim_authority_status") or "")
+    if re.search(r"(?i)RUNTIME[_ -]?ACTIVE|PRODUCTION[_ -]?READY", runtime):
+        violations.append(f"unauthorized runtime_candidate_status {runtime!r}")
+    if re.search(r"(?i)(?:AI|ANALYST)[_ -]?APPROVED|FINAL[_ -]?AUTHORIZATION|CASE[_ -]?CLOSED", authority):
+        violations.append(f"unauthorized claim_authority_status {authority!r}")
+    safe_row = {key: value for key, value in row.items() if key != "blocked_claims"}
+    text = json.dumps(safe_row, sort_keys=True)
+    for label, pattern in (
+        ("AI-approved disposition", r"(?i)AI[-_ ]approved disposition"),
+        ("analyst-approved disposition", r"(?i)analyst[-_ ]approved disposition"),
+        ("final authorization", r"(?i)final[-_ ]authorization"),
+        ("case closure", r"(?i)case[-_ ](?:closure|closed)"),
+    ):
+        if re.search(pattern, text):
+            violations.append(f"unauthorized {label} wording outside blocked_claims")
+    return violations
+
+
+def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict[str, Any]:
+    current = build_case_growth_index(repo_root, generated_at=str(snapshot.get("generated_at") or "1970-01-01T00:00:00Z"))
+    historical = snapshot.get("historical_snapshot") is True
+    before_revisions = {
+        item.get("repository"): item
+        for item in snapshot.get("source_revisions", [])
+        if isinstance(item, dict) and item.get("repository")
+    }
+    changes: list[dict[str, Any]] = []
+    for current_revision in current["source_revisions"]:
+        repository = current_revision["repository"]
+        before = before_revisions.get(repository, {})
+        for field in ("source_commit_sha", "source_file_sha256", "source_path"):
+            if before.get(field) != current_revision[field]:
+                changes.append(
+                    {
+                        "field": field,
+                        "source_owner": repository,
+                        "source_path": current_revision["source_path"],
+                        "before": before.get(field),
+                        "after": current_revision[field],
+                        "old_source_revision": before.get("source_commit_sha"),
+                        "current_source_revision": current_revision["source_commit_sha"],
+                        "classification": "EXPECTED_HISTORICAL_CONTEXT" if historical else "ACTIONABLE_DRIFT",
+                        "next_remediation": "retain as historical context" if historical else "regenerate the current snapshot from the owning source",
+                    }
+                )
+    before_summary = snapshot.get("summary") if isinstance(snapshot.get("summary"), dict) else {}
+    for field, after in current["summary"].items():
+        before = before_summary.get(field)
+        if before != after:
+            changes.append(
+                {
+                    "field": f"summary.{field}",
+                    "source_owner": "hoxline",
+                    "source_path": "derived from seven source-owned inputs",
+                    "before": before,
+                    "after": after,
+                    "old_source_revision": None,
+                    "current_source_revision": current_by_repo_sha(current, "hoxline"),
+                    "classification": "EXPECTED_HISTORICAL_CONTEXT" if historical else "ACTIONABLE_DRIFT",
+                    "next_remediation": "retain as historical context" if historical else "regenerate the current snapshot",
+                }
+            )
+    return {
+        "schema_version": "case-growth-diff-v1",
+        "historical_snapshot": historical,
+        "current_authority": snapshot.get("current_authority") is True,
+        "changes": changes,
+        "contradictions": current["contradictions"],
+        "drift": current["drift"],
+        "next_legal_action": current["next_legal_action"] if changes or current["drift"] else "none; snapshot converges",
+    }
+
+
+def current_by_repo_sha(index: dict[str, Any], repository: str) -> str | None:
+    for item in index.get("source_revisions", []):
+        if item.get("repository") == repository:
+            return item.get("source_commit_sha")
+    return None

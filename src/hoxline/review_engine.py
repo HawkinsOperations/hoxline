@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -24,6 +25,7 @@ MACHINE_STATE_VERSION = "review-machine-state-v1"
 BATCH_INDEX_VERSION = "multi-artifact-review-index-v1"
 BATCH_MACHINE_STATE_VERSION = "batch-machine-state-v1"
 ARTIFACT_ID = "HO-DET-010"
+ARTIFACT_ID_PATTERN = re.compile(r"^(?:HO-DET|HO-NDR|ID-DET|AWS-DET)-\d{3}$")
 EXPECTED_PASS_OUTPUTS = [
     "artifact-manifest.json",
     "intake.json",
@@ -97,6 +99,9 @@ PROHIBITED_CLAIM_PATTERNS = {
     "analyst-approved disposition": re.compile(r"\banalyst[- ]approved\b", re.IGNORECASE),
     "final authorization": re.compile(r"\bfinal authorization\b", re.IGNORECASE),
     "case closure": re.compile(r"\bcase closure\b|\bcase[- ]closed\b", re.IGNORECASE),
+    "live cloud claim": re.compile(r"\blive (?:AWS|cloud)(?: runtime| proof| signal)?\b", re.IGNORECASE),
+    "live identity runtime claim": re.compile(r"\blive (?:IdP|identity)(?: runtime| proof| signal)?\b", re.IGNORECASE),
+    "live Security Onion proof": re.compile(r"\blive Security Onion(?: proof| signal| runtime)?\b", re.IGNORECASE),
 }
 PRIVATE_FIELD_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
@@ -126,6 +131,10 @@ PRIVATE_VALUE_PATTERNS = [
         r"\bprivate execution ID\b",
     )
 ]
+ABSOLUTE_LOCAL_PATH = re.compile(
+    r"(?i)(?:[A-Z]:[\\/]|(?<![\\/:])\\{2,}[^\\/\s]+[\\/]"
+    r"|(?<![\\/:])//[^/\s]+/|(?<![A-Za-z0-9_./:-])/(?!/)[^\s\"'<>]+)"
+)
 
 
 class ReviewEngineError(ValueError):
@@ -282,18 +291,21 @@ def run_batch_review(index_path: Path, output_dir: Path | None = None, force: bo
         for artifact_entry in index["artifacts"]:
             artifact_id = artifact_entry["artifact_id"]
             manifest_path = _resolve_path(Path(artifact_entry["manifest_path"]), root)
-            artifact_out = artifacts_root / artifact_id
+            artifact_out = (artifacts_root / artifact_id).resolve()
+            if not _is_relative_to(artifact_out, artifacts_root.resolve()):
+                raise ReviewBlocked(f"artifact output path escapes batch root: {artifact_id}")
             run = run_review(manifest_path, artifact_out, force=True, repo_root=root)
             state = run["machine_state"]
             artifact_runs.append(
                 {
                     "artifact_id": artifact_id,
-                    "manifest_path": str(manifest_path),
-                    "output_dir": str(artifact_out.resolve()),
-                    "machine_state": str((artifact_out / "machine-state.json").resolve()),
-                    "reviewer_pack": str((artifact_out / "reviewer-pack.md").resolve()) if state["final_status"] == "PASS" else None,
-                    "blocked_review": str((artifact_out / "blocked-review.md").resolve()) if state["final_status"] == "BLOCKED" else None,
-                    "run_summary": str((artifact_out / "run-summary.json").resolve()),
+                    "manifest_path": _display_path(manifest_path),
+                    "output_dir": f"artifacts/{artifact_id}",
+                    "machine_state": f"artifacts/{artifact_id}/machine-state.json",
+                    "machine_state_sha256": _sha256_file(artifact_out / "machine-state.json"),
+                    "reviewer_pack": f"artifacts/{artifact_id}/reviewer-pack.md" if state["final_status"] == "PASS" else None,
+                    "blocked_review": f"artifacts/{artifact_id}/blocked-review.md" if state["final_status"] == "BLOCKED" else None,
+                    "run_summary": f"artifacts/{artifact_id}/run-summary.json",
                     "final_status": state["final_status"],
                     "block_reason": state.get("block_reason"),
                     "public_safe_status": state["public_safe_status"],
@@ -366,8 +378,13 @@ def verify_batch_run(batch_machine_state_path: Path) -> list[str]:
         if not state_path.is_file():
             errors.append(f"missing artifact machine-state for {artifact_id}")
             continue
+        if artifact.get("machine_state_sha256") != _sha256_file(state_path):
+            errors.append(f"{artifact_id}: machine-state hash mismatch")
         artifact_errors = verify_review_run(state_path)
         errors.extend(f"{artifact_id}: {error}" for error in artifact_errors)
+        child_state = _load_json(state_path)
+        if child_state.get("artifact_id") != artifact_id:
+            errors.append(f"{artifact_id}: aggregate artifact_id does not match child machine-state artifact_id")
         if artifact.get("public_safe_status") != PUBLIC_SAFE_STATUS:
             errors.append(f"{artifact_id}: public_safe_status must remain NOT_PUBLIC_SAFE")
         for false_field in ("endpoint_mutation", "wazuh_mutation", "runtime_proof", "public_proof_promoted", "lifetime_ledger_changed", "private_evidence_committed"):
@@ -446,6 +463,8 @@ def _validate_batch_index(index: dict[str, Any], index_path: Path, repo_root: Pa
         artifact_id = item.get("artifact_id")
         if not artifact_id:
             raise ReviewBlocked("batch index artifact entry missing artifact_id")
+        if not ARTIFACT_ID_PATTERN.fullmatch(str(artifact_id)):
+            raise ReviewBlocked(f"batch index artifact_id has invalid format: {artifact_id}")
         if artifact_id in seen:
             raise ReviewBlocked(f"duplicate artifact_id in batch index: {artifact_id}")
         seen.add(str(artifact_id))
@@ -458,6 +477,11 @@ def _validate_batch_index(index: dict[str, Any], index_path: Path, repo_root: Pa
         allowed_root = (repo_root / "examples" / "review").resolve()
         if not _is_relative_to(resolved.resolve(), allowed_root):
             raise ReviewBlocked(f"batch index manifest path outside examples/review for {artifact_id}")
+        manifest = _load_json(resolved)
+        if manifest.get("artifact_id") != artifact_id:
+            raise ReviewBlocked(
+                f"batch index artifact_id {artifact_id} does not match manifest artifact_id {manifest.get('artifact_id')}"
+            )
 
 
 def _batch_machine_state(index: dict[str, Any], index_path: Path, output_dir: Path, artifacts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -468,7 +492,7 @@ def _batch_machine_state(index: dict[str, Any], index_path: Path, output_dir: Pa
         "engine_version": BATCH_ENGINE_VERSION,
         "batch_id": output_dir.name,
         "index_id": index.get("index_id"),
-        "index_path": str(index_path),
+        "index_path": _display_path(index_path),
         "artifacts": artifacts,
         "expected_pass_artifacts": list(index.get("expected_pass_artifacts", [])),
         "expected_blocked_artifacts": list(index.get("expected_blocked_artifacts", [])),
@@ -640,7 +664,7 @@ def _batch_run_summary(state: dict[str, Any]) -> dict[str, Any]:
 def _safe_blocked_index(index: dict[str, Any], index_path: Path, block_reason: str) -> dict[str, Any]:
     return {
         "schema_version": "blocked-batch-index-v1",
-        "index_path": str(index_path),
+        "index_path": _display_path(index_path),
         "index_id": index.get("index_id", "UNKNOWN") if index else "UNKNOWN",
         "final_status": "BLOCKED",
         "block_reason": block_reason,
@@ -724,7 +748,7 @@ def _build_blocked_run(manifest: dict[str, Any], manifest_path: Path, output_dir
 def _safe_blocked_manifest(manifest: dict[str, Any], manifest_path: Path, block_reason: str) -> dict[str, Any]:
     return {
         "schema_version": "blocked-artifact-manifest-v1",
-        "manifest_path": str(manifest_path),
+        "manifest_path": _display_path(manifest_path),
         "artifact_id": manifest.get("artifact_id", "UNKNOWN") if manifest else "UNKNOWN",
         "final_status": "BLOCKED",
         "block_reason": block_reason,
@@ -826,15 +850,19 @@ def _artifact_intake(manifest: dict[str, Any]) -> dict[str, Any]:
 
 def _telemetry_contract_check(manifest: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
     contract = manifest["telemetry_contract"]
-    observed_event_ids = sorted({int(event["event_id"]) for event in fixture["events"]})
+    observed_event_ids = sorted({int(event["event_id"]) for event in fixture["events"] if "event_id" in event})
+    event_key_field = str(contract.get("event_key_field") or "event_key")
+    observed_event_keys = sorted({str(event[event_key_field]) for event in fixture["events"] if event_key_field in event})
     return {
         "schema_version": "telemetry-contract-check-v0",
         "artifact_id": manifest["artifact_id"],
         "required_source": contract["source"],
         "event_ids": list(manifest["expected_event_ids"]),
         "fixture_event_ids": observed_event_ids,
+        "event_keys": list(manifest.get("expected_event_keys", [])),
+        "fixture_event_keys": observed_event_keys,
         "wazuh_rule_family": list(manifest["expected_rule_ids"]),
-        "required_fields": list(contract.get("required_fields", ["event_id", "channel", "action", "actor"])),
+        "required_fields": list(contract.get("required_fields", [_manifest_event_selector(manifest), "channel", "action", "actor"])),
         "missing_required_fields": [],
         "result": "pass",
         "scope": "pass for fixture only",
@@ -885,7 +913,8 @@ def _synthetic_signal(manifest: dict[str, Any], fixture: dict[str, Any], validat
 
 
 def _enrichment(manifest: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
-    event_mapping = {str(event_id): f"fixture event metadata for {manifest['artifact_id']}" for event_id in manifest["expected_event_ids"]}
+    selectors = [str(event_id) for event_id in manifest["expected_event_ids"]] + [str(key) for key in manifest.get("expected_event_keys", [])]
+    event_mapping = {selector: f"fixture event metadata for {manifest['artifact_id']}" for selector in selectors}
     return {
         "schema_version": "enrichment-v0",
         "artifact_id": manifest["artifact_id"],
@@ -1089,7 +1118,10 @@ def _validate_review_fixture(fixture: dict[str, Any], manifest: dict[str, Any], 
     for event in events:
         if not isinstance(event, dict):
             raise ReviewBlocked("fixture events must be objects")
-        for field in ("event_id", "channel", "action", "actor"):
+        required_fields = manifest.get("telemetry_contract", {}).get(
+            "required_fields", [_manifest_event_selector(manifest), "channel", "action", "actor"]
+        )
+        for field in required_fields:
             if field not in event:
                 raise ReviewBlocked(f"fixture event missing field: {field}")
     if expected_detection and not _fixture_matches_manifest(fixture, manifest):
@@ -1102,12 +1134,22 @@ def _fixture_matches_manifest(fixture: dict[str, Any], manifest: dict[str, Any])
     if fixture.get("expected_detection") is not True:
         return False
     expected_ids = {int(event_id) for event_id in manifest.get("expected_event_ids", [])}
+    expected_keys = {str(value) for value in manifest.get("expected_event_keys", [])}
+    event_key_field = _manifest_event_selector(manifest)
     for event in fixture.get("events", []):
         if not isinstance(event, dict):
             continue
-        if int(event.get("event_id", 0)) in expected_ids and event.get("channel") in {"Windows Security", "Windows System", "TaskScheduler Operational"}:
+        event_id = event.get("event_id")
+        if event_id is not None and expected_ids and int(event_id) in expected_ids:
+            return True
+        if expected_keys and str(event.get(event_key_field, "")) in expected_keys:
             return True
     return False
+
+
+def _manifest_event_selector(manifest: dict[str, Any]) -> str:
+    contract = manifest.get("telemetry_contract") if isinstance(manifest.get("telemetry_contract"), dict) else {}
+    return "event_id" if manifest.get("expected_event_ids") else str(contract.get("event_key_field") or "event_key")
 
 
 def _allowed_claims_for(manifest: dict[str, Any]) -> list[str]:
@@ -1134,9 +1176,12 @@ def _validate_manifest(manifest: dict[str, Any], manifest_path: Path, repo_root:
     if manifest.get("ai_disposition_authority") is not False:
         raise ReviewBlocked("ai_disposition_authority must be false")
     _validate_manifest_flags(manifest)
-    _validate_telemetry_contract(manifest)
     _validate_claims(manifest)
     _validate_no_private_markers(manifest, "manifest")
+    if manifest.get("expected_review_outcome") == "BLOCKED":
+        reason = str(manifest.get("expected_block_reason") or "source metadata supports a boundary contract only")
+        raise ReviewBlocked(reason)
+    _validate_telemetry_contract(manifest)
     paths = _fixture_paths(manifest, repo_root)
     for label, path in paths.items():
         if not path.is_file():
@@ -1163,18 +1208,24 @@ def _validate_telemetry_contract(manifest: dict[str, Any]) -> None:
     contract = manifest.get("telemetry_contract")
     if not isinstance(contract, dict):
         raise ReviewBlocked("telemetry_contract must be an object")
-    if contract.get("source") != "Windows Security EventChannel":
-        raise ReviewBlocked("telemetry_contract.source must be Windows Security EventChannel")
+    if not isinstance(contract.get("source"), str) or not contract.get("source"):
+        raise ReviewBlocked("telemetry_contract.source must be a non-empty fixture metadata source")
     event_ids = contract.get("event_ids")
     expected_event_ids = manifest.get("expected_event_ids")
-    if not isinstance(event_ids, list) or not event_ids:
-        raise ReviewBlocked("telemetry_contract.event_ids must be a non-empty list")
+    event_keys = contract.get("event_keys", [])
+    expected_event_keys = manifest.get("expected_event_keys", [])
+    if not isinstance(event_ids, list):
+        raise ReviewBlocked("telemetry_contract.event_ids must be a list")
     if sorted(event_ids) != sorted(expected_event_ids or []):
         raise ReviewBlocked("telemetry_contract.event_ids must match expected_event_ids")
+    if not isinstance(event_keys, list) or sorted(event_keys) != sorted(expected_event_keys or []):
+        raise ReviewBlocked("telemetry_contract.event_keys must match expected_event_keys")
+    if not event_ids and not event_keys:
+        raise ReviewBlocked("telemetry contract must declare event_ids or event_keys")
     rule_ids = contract.get("wazuh_rule_ids")
     expected_rule_ids = manifest.get("expected_rule_ids")
-    if not isinstance(rule_ids, list) or not rule_ids:
-        raise ReviewBlocked("telemetry_contract.wazuh_rule_ids must be a non-empty list")
+    if not isinstance(rule_ids, list):
+        raise ReviewBlocked("telemetry_contract.wazuh_rule_ids must be a list")
     if sorted(rule_ids) != sorted(expected_rule_ids or []):
         raise ReviewBlocked("telemetry_contract.wazuh_rule_ids must match expected_rule_ids")
 
@@ -1183,7 +1234,22 @@ def _validate_claims(manifest: dict[str, Any]) -> None:
     requested_claims = manifest.get("requested_claims")
     if not isinstance(requested_claims, list):
         raise ReviewBlocked("requested_claims must be a list")
-    requested_text = "\n".join(str(item) for item in requested_claims)
+    expected_owners = {
+        "source_owner": "hawkinsoperations-detections",
+        "validation_owner": "hawkinsoperations-validation",
+        "platform_owner": "hawkinsoperations-platform",
+        "proof_owner": "hawkinsoperations-proof",
+        "product_owner": "hoxline",
+    }
+    for field, expected in expected_owners.items():
+        if field in manifest and manifest.get(field) != expected:
+            raise ReviewBlocked(f"{field} must be the exact source-owned repository {expected}")
+    scan_manifest = {
+        key: value
+        for key, value in manifest.items()
+        if key != "blocked_claim_classes" and not (key == "expected_block_reason" and manifest.get("expected_review_outcome") == "BLOCKED")
+    }
+    requested_text = json.dumps(scan_manifest, sort_keys=True)
     for label, pattern in PROHIBITED_CLAIM_PATTERNS.items():
         if pattern.search(requested_text):
             raise ReviewBlocked(f"requested claim is unsupported and blocked: {label}")
@@ -1225,6 +1291,8 @@ def _validate_no_private_markers(value: Any, label: str, path: str = "") -> None
         for index, item in enumerate(value):
             _validate_no_private_markers(item, label, f"{path}[{index}]")
     elif isinstance(value, str):
+        if ABSOLUTE_LOCAL_PATH.search(value):
+            raise ReviewBlocked(f"{label} contains an absolute local path")
         for pattern in PRIVATE_VALUE_PATTERNS:
             if pattern.search(value):
                 raise ReviewBlocked(f"{label} contains prohibited private/raw value marker")
@@ -1245,7 +1313,7 @@ def _machine_state(
         "engine_version": ENGINE_VERSION,
         "run_id": run_id,
         "artifact_id": manifest.get("artifact_id", "UNKNOWN") if manifest else "UNKNOWN",
-        "manifest_path": str(manifest_path),
+        "manifest_path": _display_path(manifest_path),
         "stages": stages,
         "outputs": outputs,
         "final_status": final_status,
@@ -1288,7 +1356,7 @@ def _pass_stages(outputs: dict[str, str]) -> list[dict[str, Any]]:
     summaries = {
         "artifact_intake": "manifest accepted and intake created",
         "evidence_graph": "evidence graph linked local fixture review nodes",
-        "telemetry_contract_check": "Windows Security EventChannel event and rule metadata checked",
+        "telemetry_contract_check": "declared fixture selector and source metadata checked",
         "controlled_validation": "positive and negative bundled fixtures validated",
         "synthetic_signal": "safe fixture signal simulated without endpoint mutation",
         "enrichment": "ATT&CK, event, source, and field mapping attached",
@@ -1430,10 +1498,12 @@ def _verify_pass_outputs(run_dir: Path, state: dict[str, Any], errors: list[str]
     proofcard = _load_json(run_dir / "proofcard.json")
     claim_authority = _load_json(run_dir / "claim-authority.json")
     reviewer_pack = (run_dir / "reviewer-pack.md").read_text(encoding="utf-8")
-    if telemetry.get("required_source") != "Windows Security EventChannel":
-        errors.append("telemetry contract must use Windows Security EventChannel")
+    if telemetry.get("required_source") != manifest.get("telemetry_contract", {}).get("source"):
+        errors.append("telemetry contract source must match artifact manifest")
     if sorted(telemetry.get("event_ids", [])) != sorted(manifest.get("expected_event_ids", [])):
         errors.append("telemetry contract event IDs must match artifact manifest")
+    if sorted(telemetry.get("event_keys", [])) != sorted(manifest.get("expected_event_keys", [])):
+        errors.append("telemetry contract event keys must match artifact manifest")
     if sorted(telemetry.get("wazuh_rule_family", [])) != sorted(manifest.get("expected_rule_ids", [])):
         errors.append("telemetry contract Wazuh rule metadata must match artifact manifest")
     if validation.get("result") != "pass" or validation.get("endpoint_mutation") is not False:
@@ -1482,6 +1552,10 @@ def _prepare_output_dir(output_dir: Path, force: bool) -> None:
     output_dir.mkdir(parents=True, exist_ok=False)
 
 
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _write_file_map(output_dir: Path, file_map: dict[str, Any]) -> None:
     for name, value in file_map.items():
         path = output_dir / name
@@ -1497,10 +1571,20 @@ def _private_output_hits(run_dir: Path) -> list[str]:
         if not path.is_file() or path.suffix not in {".json", ".md"}:
             continue
         text = path.read_text(encoding="utf-8")
+        if ABSOLUTE_LOCAL_PATH.search(text):
+            hits.append(f"{path.name}:absolute-local-path")
         for pattern in PRIVATE_VALUE_PATTERNS:
             if pattern.search(text):
                 hits.append(f"{path.name}:{pattern.pattern}")
     return hits
+
+
+def _display_path(path: Path) -> str:
+    resolved = path.resolve()
+    repo_root = Path(__file__).resolve().parents[2]
+    if _is_relative_to(resolved, repo_root):
+        return resolved.relative_to(repo_root).as_posix()
+    return resolved.name
 
 
 def _resolve_path(path: Path, base: Path) -> Path:

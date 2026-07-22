@@ -1,0 +1,20 @@
+{
+  "artifact_id": "HO-DET-013",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "event_id": 1102,
+      "channel": "Windows Security",
+      "action": "security_control_tamper",
+      "actor": "synthetic-review-actor"
+    }
+  ],
+  "expected_detection": true,
+  "fixture_id": "ho-det-013-positive-fixture-v1",
+  "fixture_kind": "synthetic-demo-only",
+  "host": "synthetic-fixture-host",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

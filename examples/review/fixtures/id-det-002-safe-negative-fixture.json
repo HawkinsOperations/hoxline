@@ -1,0 +1,20 @@
+{
+  "artifact_id": "ID-DET-002",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "event_key": "approved_authentication_change",
+      "channel": "Identity fixture",
+      "action": "authentication_control_change",
+      "actor": "synthetic-review-actor"
+    }
+  ],
+  "expected_detection": false,
+  "fixture_id": "id-det-002-negative-fixture-v1",
+  "fixture_kind": "synthetic-demo-only",
+  "host": "synthetic-fixture-host",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

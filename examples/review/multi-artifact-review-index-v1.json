@@ -16,16 +16,52 @@
     {
       "artifact_id": "HO-DET-012",
       "manifest_path": "examples/review/ho-det-012-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "HO-DET-013",
+      "manifest_path": "examples/review/ho-det-013-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "AWS-DET-001",
+      "manifest_path": "examples/review/aws-det-001-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "ID-DET-001",
+      "manifest_path": "examples/review/id-det-001-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "ID-DET-002",
+      "manifest_path": "examples/review/id-det-002-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "ID-DET-003",
+      "manifest_path": "examples/review/id-det-003-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "ID-DET-004",
+      "manifest_path": "examples/review/id-det-004-artifact-manifest-v1.json"
+    },
+    {
+      "artifact_id": "HO-NDR-001",
+      "manifest_path": "examples/review/ho-ndr-001-artifact-manifest-v1.json"
     }
   ],
   "batch_claim_boundary": "Local fixture review set only; not runtime proof and not proof authority.",
-  "description": "Governed local fixture review set for HO-DET-009, HO-DET-010, HO-DET-011, and HO-DET-012.",
-  "expected_blocked_artifacts": [],
+  "description": "Governed local cross-domain fixture review set with an explicit boundary-contract BLOCKED outcome for HO-NDR-001.",
+  "expected_blocked_artifacts": [
+    "HO-NDR-001"
+  ],
   "expected_pass_artifacts": [
     "HO-DET-009",
     "HO-DET-010",
     "HO-DET-011",
-    "HO-DET-012"
+    "HO-DET-012",
+    "HO-DET-013",
+    "AWS-DET-001",
+    "ID-DET-001",
+    "ID-DET-002",
+    "ID-DET-003",
+    "ID-DET-004"
   ],
   "generated_outputs": [
     "batch-machine-state.json",

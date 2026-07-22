@@ -1,0 +1,20 @@
+{
+  "artifact_id": "AWS-DET-001",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "event_key": "ListUsers",
+      "channel": "AWS CloudTrail fixture",
+      "action": "iam_action",
+      "actor": "synthetic-review-actor"
+    }
+  ],
+  "expected_detection": false,
+  "fixture_id": "aws-det-001-negative-fixture-v1",
+  "fixture_kind": "synthetic-demo-only",
+  "host": "synthetic-fixture-host",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import subprocess
 from pathlib import Path
@@ -63,6 +64,61 @@ def repo_branch(repo_path: Path) -> str:
 
 def repo_dirty(repo_path: Path) -> bool:
     return bool(git_lines(repo_path, ["status", "--short"]))
+
+
+def repo_dirty_paths(repo_path: Path) -> list[str]:
+    return [line[3:].strip().replace("\\", "/") for line in git_lines(repo_path, ["status", "--short"]) if len(line) > 3]
+
+
+def repo_head_sha(repo_path: Path) -> str:
+    lines = git_lines(repo_path, ["rev-parse", "HEAD"])
+    return lines[0] if lines and re.fullmatch(r"[0-9a-f]{40}", lines[0]) else "UNKNOWN"
+
+
+def repo_parent_sha(repo_path: Path) -> str:
+    lines = git_lines(repo_path, ["rev-parse", "HEAD^"])
+    return lines[0] if lines and re.fullmatch(r"[0-9a-f]{40}", lines[0]) else "UNKNOWN"
+
+
+def git_commit_exists(repo_path: Path, sha: str) -> bool:
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "cat-file", "-e", f"{sha}^{{commit}}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def git_blob_sha256(repo_path: Path, sha: str, repo_relative_path: str) -> str | None:
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return None
+    normalized_path = repo_relative_path.replace("\\", "/").lstrip("/")
+    if not normalized_path or ".." in Path(normalized_path).parts:
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "show", f"{sha}:{normalized_path}"],
+            check=False,
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return hashlib.sha256(result.stdout).hexdigest()
+
+
+def file_sha256(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
 
 
 def tracked_files(repo_path: Path) -> list[Path]:

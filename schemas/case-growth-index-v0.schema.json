@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hawkinsoperations.example/schemas/case-growth-index-v0.schema.json",
-  "title": "Hoxline Case Growth Index v0",
+  "title": "Hoxline Case Growth Index v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -9,6 +9,14 @@
     "generated_at",
     "repo_root",
     "proof_ceiling",
+    "historical_snapshot",
+    "current_authority",
+    "snapshot_state",
+    "source_revisions",
+    "contradictions",
+    "drift",
+    "next_legal_action",
+    "reproducibility_sha256",
     "repos_scanned",
     "repo_slot_accuracy",
     "source_files_scanned_count",
@@ -20,10 +28,53 @@
     "boundary"
   ],
   "properties": {
-    "schema_version": { "const": "case-growth-index-v0" },
+    "schema_version": { "const": "case-growth-index-v1" },
     "generated_at": { "type": "string", "minLength": 1 },
     "repo_root": { "type": "string", "minLength": 1 },
     "proof_ceiling": { "const": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY" },
+    "historical_snapshot": { "const": false },
+    "current_authority": { "const": true },
+    "snapshot_state": { "type": "object" },
+    "source_revisions": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "required": [
+          "repository",
+          "authority_role",
+          "resolved_ref",
+          "source_commit_sha",
+          "source_path",
+          "source_file_sha256",
+          "source_freshness_state",
+          "snapshot_freshness_state",
+          "historical_snapshot",
+          "current_authority",
+          "missing_source_state",
+          "dangling_reference_state",
+          "contradictions",
+          "drift",
+          "next_legal_action"
+        ],
+        "properties": {
+          "repository": { "type": "string" },
+          "source_commit_sha": { "type": "string" },
+          "source_path": { "type": "string" },
+          "source_file_sha256": { "type": ["string", "null"] },
+          "historical_snapshot": { "type": "boolean" },
+          "current_authority": { "type": "boolean" },
+          "missing_source_state": { "type": "boolean" },
+          "dangling_reference_state": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "contradictions": { "type": "array", "items": { "type": "object" } },
+    "drift": { "type": "array", "items": { "type": "object" } },
+    "next_legal_action": { "type": "string", "minLength": 1 },
+    "reproducibility_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "repos_scanned": {
       "type": "array",
       "items": { "type": "object" }

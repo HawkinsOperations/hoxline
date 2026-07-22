@@ -16,6 +16,8 @@
       "properties": {
         "source": { "type": "string" },
         "event_ids": { "type": "array", "items": { "type": "integer" } },
+        "event_keys": { "type": "array", "items": { "type": "string" } },
+        "event_key_field": { "type": "string" },
         "wazuh_rule_ids": { "type": "array", "items": { "type": "integer" } }
       }
     },

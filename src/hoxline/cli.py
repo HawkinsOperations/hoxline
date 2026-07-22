@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 import sys
 
-from .case_growth import build_case_growth_index, render_case_growth_markdown
+from .case_growth import (
+    build_case_growth_index,
+    diff_case_growth_snapshot,
+    render_case_growth_markdown,
+    verify_case_growth_snapshot,
+)
 from .gauntlet import GauntletError, build_full_loop_run, render_markdown, verify_full_loop_run_file
 from .gauntlet import decide_claim_authority_v1, render_proofcard_v1, summarize_gauntlet_run_v1
 from .demo import DemoError, build_demo_run, default_output_dir, render_quickstart_console, verify_demo_run_dir, write_demo_run
@@ -57,6 +62,10 @@ def main(argv: list[str] | None = None) -> int:
         return _verify_review_batch(args)
     if args.command == "case-growth" and args.case_growth_command == "index":
         return _run_case_growth_index(args)
+    if args.command == "case-growth" and args.case_growth_command == "verify":
+        return _run_case_growth_verify(args)
+    if args.command == "case-growth" and args.case_growth_command == "diff":
+        return _run_case_growth_diff(args)
 
     parser.print_help()
     return 2
@@ -149,6 +158,14 @@ def _build_parser() -> argparse.ArgumentParser:
     case_growth_index_parser.add_argument("--repo-root", required=True, help="HawkinsOperations local org repo root")
     case_growth_index_parser.add_argument("--format", choices=("json", "markdown"), default="json", help="output format")
     case_growth_index_parser.add_argument("--output", help="optional output path")
+    case_growth_verify_parser = case_growth_subparsers.add_parser("verify", help="fail closed when a snapshot drifts from current authority")
+    case_growth_verify_parser.add_argument("--repo-root", required=True, help="HawkinsOperations local org repo root")
+    case_growth_verify_parser.add_argument("--snapshot", required=True, help="checked-in Case Growth snapshot JSON")
+    case_growth_verify_parser.add_argument("--format", choices=("json", "text"), default="json", help="output format")
+    case_growth_diff_parser = case_growth_subparsers.add_parser("diff", help="show source-owned snapshot drift")
+    case_growth_diff_parser.add_argument("--repo-root", required=True, help="HawkinsOperations local org repo root")
+    case_growth_diff_parser.add_argument("--snapshot", required=True, help="checked-in Case Growth snapshot JSON")
+    case_growth_diff_parser.add_argument("--format", choices=("json", "markdown"), default="json", help="output format")
     return parser
 
 def _add_demo_run_args(parser: argparse.ArgumentParser) -> None:
@@ -236,6 +253,50 @@ def _run_case_growth_index(args: argparse.Namespace) -> int:
         output_path.write_text(output, encoding="utf-8")
     else:
         print(output, end="")
+    return 0
+
+
+def _run_case_growth_verify(args: argparse.Namespace) -> int:
+    try:
+        snapshot = _load_json(Path(args.snapshot))
+        errors, current = verify_case_growth_snapshot(Path(args.repo_root), snapshot)
+    except (OSError, ValueError) as exc:
+        print(f"Hoxline Case Growth verify: error: {exc}", file=sys.stderr)
+        return 2
+    payload = {
+        "status": "FAIL" if errors else "PASS",
+        "error_count": len(errors),
+        "errors": errors,
+        "current_reproducibility_sha256": current["reproducibility_sha256"],
+        "next_legal_action": errors[0] if errors else "none; snapshot converges with current authority",
+    }
+    if args.format == "json":
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"Hoxline Case Growth verify: {payload['status']}")
+        for error in errors:
+            print(f"- {error}")
+    return 1 if errors else 0
+
+
+def _run_case_growth_diff(args: argparse.Namespace) -> int:
+    try:
+        snapshot = _load_json(Path(args.snapshot))
+        report = diff_case_growth_snapshot(Path(args.repo_root), snapshot)
+    except (OSError, ValueError) as exc:
+        print(f"Hoxline Case Growth diff: error: {exc}", file=sys.stderr)
+        return 2
+    if args.format == "json":
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        lines = ["# Hoxline Case Growth Diff v1", "", f"Historical snapshot: `{str(report['historical_snapshot']).lower()}`", ""]
+        lines.extend(
+            f"- `{item['field']}`: `{item['before']}` -> `{item['after']}`; owner `{item['source_owner']}`; "
+            f"path `{item['source_path']}`; `{item['classification']}`; next: {item['next_remediation']}"
+            for item in report["changes"]
+        )
+        lines.extend(["", f"Next legal action: {report['next_legal_action']}"])
+        print("\n".join(lines))
     return 0
 
 

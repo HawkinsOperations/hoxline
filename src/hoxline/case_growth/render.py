@@ -8,11 +8,14 @@ def render_case_growth_markdown(index: dict[str, Any]) -> str:
     health = index["case_growth_health"]
     repo_slots = index.get("repo_slot_accuracy", {})
     lines = [
-        "# Hoxline Case Growth Index v0",
+        "# Hoxline Case Growth Index v1",
         "",
         f"Generated: `{index['generated_at']}`",
         f"Proof ceiling: `{index['proof_ceiling']}`",
         f"Repo-slot accuracy: `{repo_slots.get('wording', 'UNKNOWN_WITH_REASON')}`",
+        f"Historical snapshot: `{str(index.get('historical_snapshot')).lower()}`",
+        f"Current authority: `{str(index.get('current_authority')).lower()}`",
+        f"Reproducibility SHA-256: `{index.get('reproducibility_sha256')}`",
         "",
         "## Summary",
         "",
@@ -40,6 +43,33 @@ def render_case_growth_markdown(index: dict[str, Any]) -> str:
         "unknown_state_count",
     ):
         lines.append(f"| `{key}` | {summary[key]} |")
+
+    lines.extend(
+        [
+            "",
+            "## Source Revisions",
+            "",
+            "| Repository | Authority role | Source path | Source revision | Source freshness | Snapshot freshness |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for source in index.get("source_revisions", []):
+        lines.append(
+            f"| {_cell(source['repository'])} | {_cell(source['authority_role'])} | {_cell(source['source_path'])} | "
+            f"`{source['source_commit_sha']}` | `{source['source_freshness_state']}` | `{source['snapshot_freshness_state']}` |"
+        )
+
+    lines.extend(["", "## Convergence Findings", ""])
+    findings = list(index.get("contradictions", [])) + list(index.get("drift", []))
+    if findings:
+        for finding in findings:
+            lines.append(
+                f"- `{finding['code']}` owner `{finding['source_owner']}` path `{finding['source_path']}`: "
+                f"expected `{finding['expected']}`, actual `{finding['actual']}`; next: {finding['next_legal_action']}"
+            )
+    else:
+        lines.append("- No missing, dangling, contradictory, or stale source-owned state detected.")
+    lines.extend(["", f"Next legal action: {index.get('next_legal_action')}"])
 
     lines.extend(
         [
