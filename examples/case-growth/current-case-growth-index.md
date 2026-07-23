@@ -1,11 +1,11 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-23T00:03:58Z`
+Generated: `2026-07-23T00:11:42Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
-Reproducibility SHA-256: `8e4aca644228accca4fd3dcbfd3cfe9c0c53315ab1886c8b61d8f014ea46c668`
+Reproducibility SHA-256: `85b30834147614510b1a1a42f7c5652821adeae05e487811e5d2c52ea41d990b`
 
 ## Summary
 
@@ -39,8 +39,8 @@ Reproducibility SHA-256: `8e4aca644228accca4fd3dcbfd3cfe9c0c53315ab1886c8b61d8f0
 | `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `a3a2f6938412f3012bea1bc447bb084d82ed1936` | `CURRENT` | `CURRENT` |
 | `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `7ed8f08c9c3e4bc07797961ba84292ec96978da6` | `CURRENT` | `CURRENT` |
 | `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `042a918ad4a8473cd5abcfd575072fc094639682` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-website` | `rendering-only public status` | `public/data/public-status.json` | `b08d44dfae587a2e5608a8bfe239118ea78ca58e` | `CURRENT` | `CURRENT` |
-| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `9ca329d0d347bebe3bfd785d467c158a1f4d6aa4` | `CURRENT_SELF_REFERENTIAL` | `CURRENT` |
+| `hawkinsoperations-website` | `rendering-only public status` | `public/data/public-status.json` | `771c90515d687eb0ce86fd438d664a9234912f67` | `CURRENT` | `CURRENT` |
+| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `4c96f52f28a3f0af767a94529cff165fc2042ca2` | `CURRENT_SELF_REFERENTIAL` | `CURRENT` |
 
 ## Convergence Findings
 
