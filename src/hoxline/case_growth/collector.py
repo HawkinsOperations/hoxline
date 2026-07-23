@@ -1077,7 +1077,7 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
                 current_revision.get("source_parent_sha"),
             }:
                 errors.append(
-                    "hoxline: current snapshot must cite the current engine commit or the immediate parent of its checked snapshot commit"
+                    "hoxline: current snapshot must cite the immediate parent engine commit when checked in, or the current engine commit when newly generated"
                 )
         if not re.fullmatch(r"[0-9a-f]{40}", str(stated_sha or "")):
             errors.append(f"{repository}: source_commit_sha must be a 40-character Git SHA")

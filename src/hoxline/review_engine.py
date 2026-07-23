@@ -483,7 +483,7 @@ def _validate_batch_index(index: dict[str, Any], index_path: Path, repo_root: Pa
             raise ReviewBlocked(f"batch index artifact {artifact_id} missing manifest_path")
         resolved = _resolve_path(Path(str(manifest_path)), repo_root)
         if not resolved.is_file():
-            raise ReviewBlocked(f"batch index manifest path missing for {artifact_id}: {resolved}")
+            raise ReviewBlocked(f"batch index manifest path missing for {artifact_id}: {manifest_path}")
         allowed_root = (repo_root / "examples" / "review").resolve()
         if not _is_relative_to(resolved.resolve(), allowed_root):
             raise ReviewBlocked(f"batch index manifest path outside examples/review for {artifact_id}")
@@ -1195,7 +1195,8 @@ def _validate_manifest(manifest: dict[str, Any], manifest_path: Path, repo_root:
     paths = _fixture_paths(manifest, repo_root)
     for label, path in paths.items():
         if not path.is_file():
-            raise ReviewBlocked(f"{label} fixture path missing: {path}")
+            declared = (manifest.get("fixture_paths") or {}).get(label, "missing")
+            raise ReviewBlocked(f"{label} fixture path missing: {declared}")
         _validate_fixture_path(path, repo_root)
         fixture = _load_json(path)
         _validate_no_private_markers(fixture, f"{label} fixture")
@@ -1286,7 +1287,7 @@ def _validate_fixture_path(path: Path, repo_root: Path) -> None:
     resolved = path.resolve()
     allowed_roots = [(repo_root / "examples" / "demo").resolve(), (repo_root / "examples" / "review").resolve()]
     if not any(_is_relative_to(resolved, allowed) for allowed in allowed_roots):
-        raise ReviewBlocked(f"fixture path outside allowed example roots: {path}")
+        raise ReviewBlocked("fixture path outside allowed example roots")
 
 
 def _validate_no_private_markers(value: Any, label: str, path: str = "") -> None:

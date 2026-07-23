@@ -102,7 +102,12 @@ def build_demo_run(
     fixture_path: Path | None = None,
     negative_fixture_path: Path | None = None,
 ) -> dict[str, Any]:
-    root = repo_root or Path(__file__).resolve().parents[2]
+    if repo_root is not None:
+        root = repo_root.resolve()
+    elif (Path.cwd() / "examples" / "demo").is_dir():
+        root = Path.cwd().resolve()
+    else:
+        root = Path(__file__).resolve().parents[2]
     fixture = _load_json(fixture_path or root / "examples" / "demo" / "ho-det-010-safe-fixture.json")
     negative_fixture = _load_json(
         negative_fixture_path or root / "examples" / "demo" / "ho-det-010-safe-negative-fixture.json"
