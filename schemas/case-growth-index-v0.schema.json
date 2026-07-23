@@ -33,8 +33,8 @@
     "generated_at": { "type": "string", "minLength": 1 },
     "repo_root": { "type": "string", "minLength": 1 },
     "proof_ceiling": { "const": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY" },
-    "historical_snapshot": { "const": false },
-    "current_authority": { "const": true },
+    "historical_snapshot": { "type": "boolean" },
+    "current_authority": { "type": "boolean" },
     "snapshot_state": { "type": "object" },
     "source_revisions": {
       "type": "array",
@@ -260,6 +260,17 @@
       }
     }
   },
+  "allOf": [
+    {
+      "not": {
+        "required": ["historical_snapshot", "current_authority"],
+        "properties": {
+          "historical_snapshot": { "const": true },
+          "current_authority": { "const": true }
+        }
+      }
+    }
+  ],
   "$defs": {
     "string_array": {
       "type": "array",

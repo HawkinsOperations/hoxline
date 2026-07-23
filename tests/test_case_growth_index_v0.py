@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import json
 import shutil
@@ -34,6 +35,7 @@ from hoxline.cli import main
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "case_growth" / "org"
 SAMPLE_JSON = ROOT / "examples" / "case-growth" / "sample-case-growth-index.json"
+CURRENT_JSON = ROOT / "examples" / "case-growth" / "current-case-growth-index.json"
 SCHEMA = ROOT / "schemas" / "case-growth-index-v0.schema.json"
 
 
@@ -251,7 +253,7 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             self.assertEqual(verify_status, 1)
             self.assertIn("not the exact render", stdout.getvalue())
 
-    def test_schema_validates_sample_json(self) -> None:
+    def test_schema_validates_fail_closed_diagnostic_index(self) -> None:
         sample = self.index
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
         if jsonschema is not None:
@@ -259,6 +261,33 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         else:
             for field in schema["required"]:
                 self.assertIn(field, sample)
+
+    def test_schema_validates_checked_current_and_historical_states(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        current = json.loads(CURRENT_JSON.read_text(encoding="utf-8"))
+        historical = copy.deepcopy(current)
+        historical["historical_snapshot"] = True
+        historical["current_authority"] = False
+        historical["snapshot_state"]["historical_snapshot"] = True
+        historical["snapshot_state"]["current_authority"] = False
+        if jsonschema is not None:
+            jsonschema.validate(current, schema)
+            jsonschema.validate(historical, schema)
+        else:
+            self.assertFalse(current["historical_snapshot"])
+            self.assertTrue(current["current_authority"])
+            self.assertTrue(historical["historical_snapshot"])
+            self.assertFalse(historical["current_authority"])
+
+    def test_schema_rejects_historical_snapshot_claiming_current_authority(self) -> None:
+        if jsonschema is None:
+            self.skipTest("jsonschema is not installed")
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        contradictory = json.loads(CURRENT_JSON.read_text(encoding="utf-8"))
+        contradictory["historical_snapshot"] = True
+        contradictory["current_authority"] = True
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(contradictory, schema)
 
     def test_rows_include_every_required_field(self) -> None:
         for row in self.rows:
