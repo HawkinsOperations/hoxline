@@ -1399,9 +1399,13 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
         current_observed = stated.get("current_observed_head_sha")
         if stated.get("source_observation_kind") != "reviewed_immutable_commit":
             errors.append(f"{repository}: source_observation_kind must be reviewed_immutable_commit")
-        if observed_head != stated_sha or current_observed != stated_sha:
+        if observed_head != stated_sha:
             errors.append(
-                f"{repository}: recorded observed-head fields must identify the same reviewed source commit"
+                f"{repository}: source_observed_head_sha must identify the content-addressed source commit"
+            )
+        if not re.fullmatch(r"[0-9a-f]{40}", str(current_observed or "")):
+            errors.append(
+                f"{repository}: current_observed_head_sha must be a 40-character Git SHA"
             )
         resolved_ref = stated.get("resolved_ref")
         if not isinstance(resolved_ref, str) or not re.fullmatch(r"[A-Za-z0-9._/-]+", resolved_ref):
@@ -1450,6 +1454,24 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
             # above keep this explicitly bounded rather than silently treating
             # an arbitrary ancestor as current authority.
             pass
+        if (
+            repo_paths.get(repository) is not None
+            and re.fullmatch(r"[0-9a-f]{40}", str(current_observed or ""))
+            and git_commit_exists(repo_paths[repository], str(current_observed))
+        ):
+            current_observed_identity = git_blob_identity(
+                repo_paths[repository],
+                str(current_observed),
+                source_path,
+            )
+            if (
+                current_observed_identity is None
+                or current_observed_identity[0] != current_blob
+            ):
+                errors.append(
+                    f"{repository}: generation-time head observation does not carry "
+                    "the checked current authoritative blob"
+                )
         if stated.get("source_file_sha256") != current_revision.get("source_file_sha256") and not historical:
             errors.append(
                 f"{repository}: authoritative source fingerprint drifted; regenerate from {current_revision['source_path']}"

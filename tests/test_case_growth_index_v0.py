@@ -554,6 +554,25 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
         self.assertFalse(any("authoritative Git blob disagrees" in error for error in errors))
 
+    def test_generation_head_observation_is_separate_from_content_identity(self) -> None:
+        current = json.loads(json.dumps(self.index))
+        revision = current["source_revisions"][0]
+        revision["current_observed_head_sha"] = "e" * 40
+        current["reproducibility_sha256"] = _reproducibility_hash(current)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, current)
+        self.assertFalse(
+            any(
+                "observed-head fields must identify the same reviewed source commit" in error
+                for error in errors
+            )
+        )
+        self.assertFalse(
+            any(
+                "current_observed_head_sha must be a 40-character Git SHA" in error
+                for error in errors
+            )
+        )
+
     def test_selected_source_checkout_accepts_exact_detached_and_content_equivalent_rewrite(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             org_root = Path(temp_dir)
