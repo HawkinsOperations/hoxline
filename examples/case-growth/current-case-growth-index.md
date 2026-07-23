@@ -1,17 +1,18 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-23T00:32:37Z`
+Generated: `2026-07-23T05:30:55Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
-Reproducibility SHA-256: `d2b500c8db243e40366512e14393ce0e0f2cf4ff3ee9304b3c0b2f5938d5cdac`
+Source manifest digest: `d9f2fb28f34e354d04ff71ecaa036c492a105fcf81eb2c0b4bd8ce62914707e3`
+Reproducibility SHA-256: `6214875f0295c1d5899efe5e1048dd6ec5c9b4bda1bb5d47ad7e6a5e75785d5e`
 
 ## Summary
 
 | Metric | Count |
 | --- | ---: |
-| `cases_total` | 27 |
+| `cases_total` | 26 |
 | `source_packages_count` | 14 |
 | `controlled_validations_count` | 12 |
 | `runtime_candidate_lanes_count` | 5 |
@@ -25,22 +26,22 @@ Reproducibility SHA-256: `d2b500c8db243e40366512e14393ce0e0f2cf4ff3ee9304b3c0b2f
 | `closed_cases_count` | 0 |
 | `blocked_claims_count` | 295 |
 | `cases_with_next_gate_count` | 26 |
-| `cases_missing_proof_record_count` | 16 |
-| `cases_missing_proofcard_count` | 15 |
-| `cases_not_public_safe_count` | 27 |
-| `unknown_state_count` | 1 |
+| `cases_missing_proof_record_count` | 15 |
+| `cases_missing_proofcard_count` | 14 |
+| `cases_not_public_safe_count` | 26 |
+| `unknown_state_count` | 0 |
 
 ## Source Revisions
 
-| Repository | Authority role | Source path | Source revision | Source freshness | Snapshot freshness |
-| --- | --- | --- | --- | --- | --- |
-| `.github` | `org command-center routing` | `scripts/verify-command-center-invariants.py` | `b051aa3981e52a56b45a3078fcbf32ac34a99f92` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `c2790ab007279faff6130a60dc68818343c255ee` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `d150cf172a4cb6065fd54c19c59beb9b581ba629` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `d1ea495f2b010fbaefc2dccf22986526958ba424` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `042a918ad4a8473cd5abcfd575072fc094639682` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-website` | `rendering-only public status` | `public/data/public-status.json` | `ef7ad97279c06634e153be6e8ecee1959b9f7d78` | `CURRENT` | `CURRENT` |
-| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `ab42606514011c3fe0ede9772d4a03b41e03e4e4` | `CURRENT_SELF_REFERENTIAL` | `CURRENT` |
+| Repository | Authority role | Authority path | Observed head | Git blob | Semantic fingerprint | Source freshness |
+| --- | --- | --- | --- | --- | --- | --- |
+| `.github` | `org command-center routing` | `governance/COMMAND_CENTER_INVARIANTS.json` | `fee75e7a88c0b623590786e02f69d4297a0e10b4` | `623e3f9e813b0599618a7df41dee1c9a40fb7a18` | `45cfa989c3f742b546f7f8a497632b43c928029bcaa09e80e04c7c894dba660c` | `CURRENT` |
+| `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `16d4432eb46d457939f1cfe573c0c5d712650efb` | `e1d040134f139d2598c527c3584e1859e9c9553d` | `7ca1a5d76ed11de08832dbd074d120295d71d5935be3f10ed3d874d0198bf3e3` | `CURRENT` |
+| `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `34bbfc4f48f75f647d5946b4cbe6835abf5e7dbc` | `6fac3ac3d048c3ef687faaf5ebef1b04e846aad1` | `de88ff4a621256cae51ec597a2cbb73f172d16c9d6e5109bcc42ff9a3b461cc3` | `CURRENT` |
+| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `9ee26b78e685f324b57c42a3b37836c225b29c63` | `4a1f3401be43173582a18093efa622d0a40f9a98` | `98a4b18b63a6e2415dd8c2d15bc283287c2f0d7385a28b875739623448dd912b` | `CURRENT` |
+| `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `8ff2c1a2f1762e7635fe24194617f110275c2f0c` | `623b93e6e5ac141684978ff4dcdc6ed1dec55678` | `68e5de4749bfe34a6677331f6116fab82987c88e999ae14eaf706e9b33536170` | `CURRENT` |
+| `hawkinsoperations-website` | `rendering-only public status contract` | `schemas/public-status-v0.schema.json` | `3c8202b730836074e20c4fa1e3601741a02ee616` | `75b3e5ba72b87e8980d62bc7e00014704f9031a0` | `0c7caf0df6f110629b43e9383a098c5995675868bb4c96de1753a1bb0429426e` | `CURRENT` |
+| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `8652d863c34114927876f48d112ae7b0b44950c1` | `c302284aeb690fffe86f8c4aac49ab014c9cfd88` | `b9b3e136924df4f11c2520c70a4897ec77bac258403ec6e6416b02d7c731936f` | `CURRENT` |
 
 ## Convergence Findings
 
@@ -53,17 +54,17 @@ Next legal action: none; current source-controlled inputs converge
 | Health metric | Value |
 | --- | ---: |
 | `validation_coverage_percent` | 85.71 |
-| `proof_record_coverage_percent` | 40.74 |
-| `proofcard_coverage_percent` | 44.44 |
-| `scheduled_collector_coverage_percent` | 14.81 |
-| `runtime_candidate_coverage_percent` | 18.52 |
-| `metrics_coverage_percent` | 3.7 |
+| `proof_record_coverage_percent` | 42.31 |
+| `proofcard_coverage_percent` | 46.15 |
+| `scheduled_collector_coverage_percent` | 15.38 |
+| `runtime_candidate_coverage_percent` | 19.23 |
+| `metrics_coverage_percent` | 3.85 |
 | `public_safe_percent` | 0.0 |
 | `closed_case_percent` | 0.0 |
-| `blocked_claim_density` | 10.93 |
-| `next_gate_coverage_percent` | 96.3 |
-| `missing_proof_record_percent` | 59.26 |
-| `missing_proofcard_percent` | 55.56 |
+| `blocked_claim_density` | 11.35 |
+| `next_gate_coverage_percent` | 100.0 |
+| `missing_proof_record_percent` | 57.69 |
+| `missing_proofcard_percent` | 53.85 |
 | `not_public_safe_percent` | 100.0 |
 
 | Assessment | Value |
@@ -103,7 +104,6 @@ The health section is derived from numeric index counts only. It does not promot
 | `HO-DET-014` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-DET-015` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-DET-016` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
-| `HO-DET-999` | `NOT_FOUND` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `UNKNOWN_WITH_REASON` | `UNKNOWN_WITH_REASON: no next gate indexed` |
 | `HO-NDR-001` | `EXTERNAL_BOUNDARY_CONTRACT` | `VALIDATION_CONTRACT_ENFORCED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `captured cross-source corroboration evidence under separate proof scope` |
 | `HO-NDR-002` | `VALIDATION_PLANNED` | `NOT_FOUND` | `LISTED_ONLY` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-PIPE-001` | `SOURCE_EXISTS` | `VALIDATION_CONTRACT_ENFORCED` | `TELEMETRY_CONTRACT_ONLY` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof and runtime remain separate; any traffic, delivery, signal, route-proof, public-safe, or production wording requires separate approval` |
