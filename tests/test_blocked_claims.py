@@ -45,8 +45,9 @@ def test_failing_example_reports_blocked_claims() -> None:
     assert all(finding.line_number > 0 for finding in findings)
 
 
-def test_directory_scan_and_exclude() -> None:
+def test_directory_scan_and_exclude(tmp_path, monkeypatch) -> None:
     policy = load_policy(POLICY)
+    monkeypatch.chdir(tmp_path)
 
     findings = scan_paths([ROOT], policy, exclude_patterns=["examples/fail.md", "policy/blocked_claims.yml"])
 

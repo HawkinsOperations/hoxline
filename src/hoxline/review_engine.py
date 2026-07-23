@@ -1064,6 +1064,12 @@ def _review_repo_root(input_path: Path, explicit_root: Path | None = None) -> Pa
     for candidate in (resolved.parent, *resolved.parents):
         if (candidate / "pyproject.toml").is_file() and (candidate / "examples" / "review").is_dir():
             return candidate
+    package_root = Path(__file__).resolve().parents[2]
+    if (
+        (package_root / "pyproject.toml").is_file()
+        and (package_root / "examples" / "review").is_dir()
+    ):
+        return package_root
     return Path.cwd().resolve()
 
 

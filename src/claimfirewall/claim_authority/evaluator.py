@@ -167,13 +167,22 @@ def _iter_scan_files(paths: Iterable[str | Path], exclude_patterns: Iterable[str
     for raw_path in paths:
         path = Path(raw_path)
         if path.is_file():
-            if _is_supported(path) and not _is_excluded(path, excludes):
+            if _is_supported(path) and not _is_excluded(
+                path,
+                excludes,
+                path.parent,
+            ):
                 yield path
             continue
 
         if path.is_dir():
+            scan_root = path.resolve()
             for child in sorted(path.rglob("*")):
-                if child.is_file() and _is_supported(child) and not _is_excluded(child, excludes):
+                if child.is_file() and _is_supported(child) and not _is_excluded(
+                    child,
+                    excludes,
+                    scan_root,
+                ):
                     yield child
             continue
 
@@ -184,10 +193,14 @@ def _is_supported(path: Path) -> bool:
     return path.suffix.lower() in SUPPORTED_EXTENSIONS
 
 
-def _is_excluded(path: Path, exclude_patterns: Iterable[str]) -> bool:
+def _is_excluded(
+    path: Path,
+    exclude_patterns: Iterable[str],
+    scan_root: Path,
+) -> bool:
     normalized = path.as_posix()
     try:
-        relative = path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+        relative = path.resolve().relative_to(scan_root.resolve()).as_posix()
     except ValueError:
         relative = normalized
     name = path.name
