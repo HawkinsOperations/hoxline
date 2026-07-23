@@ -1,6 +1,6 @@
 {
   "schema_version": "case-growth-index-v1",
-  "generated_at": "2026-07-23T21:53:49Z",
+  "generated_at": "2026-07-23T22:04:45Z",
   "repo_root": "HawkinsOperations",
   "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
   "historical_snapshot": false,
@@ -19,7 +19,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
       "source_observed_head_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
-      "current_observed_head_sha": "5dd76305b291ecaa0e17273d48e58a32b97d2990",
+      "current_observed_head_sha": "657b041e55cb1c8e31e1ba4ebf0c620ab8a00cc7",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -211,7 +211,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "d2ce9d977e832e327b4bdbfef55f04a4fd7c35e7",
       "source_observed_head_sha": "d2ce9d977e832e327b4bdbfef55f04a4fd7c35e7",
-      "current_observed_head_sha": "ad8c4507304bd0796bab3ff95daadab3b1ad50b5",
+      "current_observed_head_sha": "228135bd1ecafe3bee7b4c28a7ad4aade536a68b",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -2024,5 +2024,5 @@
     "website_rendering_treated_as_proof": false,
     "green_ci_treated_as_approval": false
   },
-  "reproducibility_sha256": "40c53af1f0020f54e6b811f36494e6050679a70698f535e84e4637c75ab128eb"
+  "reproducibility_sha256": "7a631cb26a4ccb28ddb1dae331f7744e9183c21adc196a4fd040e1eb237f329f"
 }

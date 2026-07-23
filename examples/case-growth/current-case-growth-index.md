@@ -1,12 +1,12 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-23T21:53:49Z`
+Generated: `2026-07-23T22:04:45Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
 Source manifest digest: `ad6f20c070aee750d8d45ba8682822ae2dcf6d5e6730f411c4721cc5ec86e093`
-Reproducibility SHA-256: `40c53af1f0020f54e6b811f36494e6050679a70698f535e84e4637c75ab128eb`
+Reproducibility SHA-256: `7a631cb26a4ccb28ddb1dae331f7744e9183c21adc196a4fd040e1eb237f329f`
 
 ## Summary
 
