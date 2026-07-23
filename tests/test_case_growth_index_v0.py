@@ -37,6 +37,7 @@ FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "case_growth" / "org"
 SAMPLE_JSON = ROOT / "examples" / "case-growth" / "sample-case-growth-index.json"
 CURRENT_JSON = ROOT / "examples" / "case-growth" / "current-case-growth-index.json"
 SCHEMA = ROOT / "schemas" / "case-growth-index-v0.schema.json"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
@@ -188,6 +189,29 @@ def derived_health(summary: dict[str, int]) -> dict[str, float]:
 
 
 class CaseGrowthIndexV0Tests(unittest.TestCase):
+    def test_ci_checks_the_exact_pr_head_and_all_seven_repositories(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        pr_head = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+        def issues(value: str) -> list[str]:
+            findings = []
+            if value.count("uses: actions/checkout@") != 7:
+                findings.append("checkout_count")
+            for required in (
+                f"HAWKINS_HOXLINE_EVENT_SHA: {pr_head}",
+                f"ref: {pr_head}",
+                '"hoxline": os.environ["HAWKINS_HOXLINE_EVENT_SHA"]',
+                "if sha != immutable[name]:",
+            ):
+                if required not in value:
+                    findings.append(required)
+            return findings
+
+        self.assertEqual([], issues(workflow))
+
+        merge_ref_attack = workflow.replace(f"ref: {pr_head}", "ref: ${{ github.sha }}", 1)
+        self.assertNotEqual([], issues(merge_ref_attack))
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.index = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
