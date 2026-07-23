@@ -15,6 +15,7 @@ from urllib.parse import unquote, urlsplit
 
 import yaml
 
+from .case_growth.collector import verify_selected_source_checkout
 from .demo import (
     BLOCKED_CLAIM_FAMILIES,
     PRODUCT,
@@ -578,8 +579,9 @@ def _owned_authority_binding(manifest: dict[str, Any], repo_root: Path) -> dict[
         origin = _canonical_origin(_git(repo, "remote", "get-url", "origin"))
         if origin != _canonical_origin(CANONICAL_ORIGINS[repo_name]):
             raise ReviewBlocked("authority repository origin is not canonical")
-        if _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "HEAD":
-            raise ReviewBlocked("detached authority repository is not accepted")
+        selection_errors = verify_selected_source_checkout(org_root, repo_name)
+        if selection_errors:
+            raise ReviewBlocked(f"authority repository selection is invalid: {selection_errors[0]}")
     cache_key = (
         artifact_id,
         str(detection_repo),

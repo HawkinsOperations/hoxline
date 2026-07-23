@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,9 +18,11 @@ except ImportError:  # pragma: no cover - exercised only when optional test dep 
 from hoxline.case_growth.collector import (
     BOUNDARY,
     ROW_FIELDS,
+    _content_normalized_cases,
     _reproducibility_hash,
     build_case_growth_index,
     diff_case_growth_snapshot,
+    verify_selected_source_checkout,
     verify_case_growth_snapshot,
 )
 from hoxline.case_growth.discovery import REPO_NAMES
@@ -31,6 +34,68 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "case_growth" / "org"
 SAMPLE_JSON = ROOT / "examples" / "case-growth" / "sample-case-growth-index.json"
 SCHEMA = ROOT / "schemas" / "case-growth-index-v0.schema.json"
+
+
+def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        input=input_text,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _write_source_selection_manifest(
+    org_root: Path,
+    selected_repository: str,
+    revision: str,
+    reviewed_tree: str,
+) -> None:
+    entries: list[dict[str, object]] = [
+        {
+            "repository": ".github",
+            "canonical_repository": "HawkinsOperations/.github",
+            "revision_source": "github_event_sha",
+            "tree_source": "github_event_tree",
+        }
+    ]
+    for repository in REPO_NAMES:
+        if repository == ".github":
+            continue
+        entries.append(
+            {
+                "repository": repository,
+                "canonical_repository": f"HawkinsOperations/{repository}",
+                "revision": revision if repository == selected_repository else "0" * 40,
+                "reviewed_tree_sha": reviewed_tree if repository == selected_repository else "0" * 40,
+            }
+        )
+    manifest = {
+        "schema": "hawkinsoperations-convergence-source-manifest-v1",
+        "manifest_id": "TEST_EXACT_SEVEN_SOURCE_SELECTION",
+        "repositories": entries,
+        "constraints": {
+            "exact_repository_count": 7,
+            "read_only": True,
+            "default_branch_fallback": False,
+            "require_detached_exact_revision": True,
+            "record_checked_revisions": True,
+            "consumer_outputs_are_not_authority": True,
+            "proof_ceiling": "CONTROLLED_REPO_CONVERGENCE_AND_LOCAL_FIXTURE_REVIEW_ONLY",
+        },
+    }
+    manifest_path = org_root / ".github" / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    command_center = org_root / ".github"
+    _git(command_center, "init")
+    _git(command_center, "config", "user.name", "Hoxline Test")
+    _git(command_center, "config", "user.email", "hoxline-test@example.invalid")
+    _git(command_center, "remote", "add", "origin", "https://github.com/HawkinsOperations/.github.git")
+    _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
+    _git(command_center, "commit", "-m", "source selection")
 
 
 def row_by_id(index: dict[str, object], case_id: str) -> dict[str, object]:
@@ -377,6 +442,15 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertEqual(change["classification"], "OBSERVATION_ONLY_CONTENT_CURRENT")
         self.assertTrue(report["next_legal_action"].startswith("none;"))
 
+    def test_case_content_normalization_ignores_only_rewritten_commit_clock(self) -> None:
+        before = json.loads(json.dumps(self.rows))
+        after = json.loads(json.dumps(self.rows))
+        after[0]["last_updated"] = "2035-01-02T03:04:05+00:00"
+        self.assertEqual(_content_normalized_cases(before), _content_normalized_cases(after))
+
+        after[0]["source_status"] = "FORGED_SOURCE_STATUS"
+        self.assertNotEqual(_content_normalized_cases(before), _content_normalized_cases(after))
+
     def test_cli_verify_fails_closed_on_hostile_snapshot(self) -> None:
         hostile = json.loads(json.dumps(self.index))
         hostile["repo_root"] = r"C:\Users\operator\snapshot.json"
@@ -465,6 +539,74 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
         errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
         self.assertFalse(any("authoritative Git blob disagrees" in error for error in errors))
+
+    def test_selected_source_checkout_accepts_exact_detached_and_content_equivalent_rewrite(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
+            _git(repo, "add", "authority.yml")
+            _git(repo, "commit", "-m", "authority")
+            (repo / "review.txt").write_text("reviewed selection\n", encoding="utf-8")
+            _git(repo, "add", "review.txt")
+            _git(repo, "commit", "-m", "reviewed selection")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            _git(repo, "checkout", "--detach", selected)
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+            selection_path = org_root / ".github" / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+            selection_text = selection_path.read_text(encoding="utf-8")
+            selection_path.write_text(selection_text + "\n", encoding="utf-8")
+            self.assertTrue(
+                any(
+                    "must be tracked and clean" in error
+                    for error in verify_selected_source_checkout(org_root, repository)
+                )
+            )
+            selection_path.write_text(selection_text, encoding="utf-8")
+
+            (repo / "post-selection.txt").write_text("merge descendant observation\n", encoding="utf-8")
+            _git(repo, "add", "post-selection.txt")
+            _git(repo, "commit", "-m", "merge descendant")
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+            rewritten = _git(repo, "commit-tree", reviewed_tree, input_text="rewritten identity\n")
+            _git(repo, "checkout", "--detach", rewritten)
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+    def test_selected_source_checkout_rejects_older_same_authority_blob_ancestor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
+            _git(repo, "add", "authority.yml")
+            _git(repo, "commit", "-m", "authority")
+            older = _git(repo, "rev-parse", "HEAD")
+            authority_blob = _git(repo, "rev-parse", "HEAD:authority.yml")
+            (repo / "review.txt").write_text("reviewed selection\n", encoding="utf-8")
+            _git(repo, "add", "review.txt")
+            _git(repo, "commit", "-m", "reviewed selection")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            self.assertEqual(_git(repo, "rev-parse", "HEAD:authority.yml"), authority_blob)
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            _git(repo, "checkout", "--detach", older)
+            errors = verify_selected_source_checkout(org_root, repository)
+            self.assertTrue(any("behind the explicit selected revision" in error for error in errors))
 
     def test_current_snapshot_rejects_forged_content_identity(self) -> None:
         hostile = json.loads(json.dumps(self.index))

@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 from typing import Any
 
 from .discovery import (
@@ -44,6 +45,9 @@ CANONICAL_ORIGINS = {
     repository: f"github.com/HawkinsOperations/{repository}".casefold()
     for repository in REPO_NAMES
 }
+
+CONVERGENCE_SOURCE_MANIFEST = Path(".github/governance/CONVERGENCE_SOURCE_MANIFEST.json")
+CONVERGENCE_SOURCE_MANIFEST_SCHEMA = "hawkinsoperations-convergence-source-manifest-v1"
 
 BOUNDARY = {
     "runtime_public_proof_claimed": False,
@@ -199,6 +203,200 @@ def _normalized_origin(value: str) -> str:
         origin = origin.replace(":", "/", 1)
     origin = re.sub(r"^(?:https?|ssh)://", "", origin, flags=re.IGNORECASE)
     return origin.removesuffix(".git").rstrip("/").casefold()
+
+
+def _git_output(repo: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo), "merge-base", "--is-ancestor", ancestor, descendant],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0
+
+
+def _load_convergence_source_selections(repo_root: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    root = Path(repo_root).resolve()
+    manifest_path = root / CONVERGENCE_SOURCE_MANIFEST
+    if not manifest_path.is_file():
+        return {}, [f"missing explicit seven-source selection manifest: {CONVERGENCE_SOURCE_MANIFEST.as_posix()}"]
+    command_center = root / ".github"
+    manifest_relative = "governance/CONVERGENCE_SOURCE_MANIFEST.json"
+    if _normalized_origin(repo_origin(command_center)) != CANONICAL_ORIGINS[".github"]:
+        return {}, ["seven-source selection manifest owner origin is not canonical"]
+    tracked_path = _git_output(command_center, "ls-files", "--error-unmatch", "--", manifest_relative)
+    committed_blob = _git_output(command_center, "rev-parse", f"HEAD:{manifest_relative}")
+    worktree_blob = _git_output(command_center, "hash-object", "--", manifest_relative)
+    if tracked_path != manifest_relative or committed_blob is None or worktree_blob != committed_blob:
+        return {}, ["seven-source selection manifest must be tracked and clean at the checked command-center head"]
+    try:
+        manifest = load_structured(manifest_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return {}, [f"seven-source selection manifest is not strict valid JSON: {exc}"]
+    if not isinstance(manifest, dict):
+        return {}, ["seven-source selection manifest must be an object"]
+    errors: list[str] = []
+    unknown_top_level = sorted(set(manifest) - {"schema", "manifest_id", "repositories", "constraints"})
+    if unknown_top_level:
+        errors.append(f"seven-source selection manifest contains unsupported fields: {unknown_top_level}")
+    if manifest.get("schema") != CONVERGENCE_SOURCE_MANIFEST_SCHEMA:
+        errors.append(f"seven-source selection manifest schema must be {CONVERGENCE_SOURCE_MANIFEST_SCHEMA}")
+    entries = manifest.get("repositories")
+    if not isinstance(entries, list):
+        return {}, [*errors, "seven-source selection manifest repositories must be a list"]
+    selections: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append("seven-source selection manifest entries must be objects")
+            continue
+        repository = entry.get("repository")
+        if not isinstance(repository, str) or repository not in REPO_NAMES:
+            errors.append(f"seven-source selection manifest has unknown repository {repository!r}")
+            continue
+        if repository in selections:
+            errors.append(f"seven-source selection manifest duplicates repository {repository}")
+            continue
+        expected_canonical = f"HawkinsOperations/{repository}"
+        if entry.get("canonical_repository") != expected_canonical:
+            errors.append(f"{repository}: selected canonical repository must be {expected_canonical}")
+        if repository == ".github":
+            unknown = sorted(
+                set(entry)
+                - {"repository", "canonical_repository", "revision_source", "tree_source"}
+            )
+            if unknown:
+                errors.append(f".github: selection contains unsupported fields: {unknown}")
+            if entry.get("revision_source") != "github_event_sha" or entry.get("tree_source") != "github_event_tree":
+                errors.append(".github: dynamic command-center selection must use event SHA and event tree")
+        else:
+            unknown = sorted(
+                set(entry)
+                - {"repository", "canonical_repository", "revision", "reviewed_tree_sha"}
+            )
+            if unknown:
+                errors.append(f"{repository}: selection contains unsupported fields: {unknown}")
+            revision = entry.get("revision")
+            tree = entry.get("reviewed_tree_sha")
+            if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+                errors.append(f"{repository}: selected revision must be an immutable 40-character SHA")
+            if not isinstance(tree, str) or re.fullmatch(r"[0-9a-f]{40}", tree) is None:
+                errors.append(f"{repository}: reviewed tree must be a 40-character Git tree SHA")
+        selections[repository] = entry
+    missing = sorted(set(REPO_NAMES) - set(selections))
+    if missing or len(selections) != len(REPO_NAMES):
+        errors.append(f"seven-source selection manifest must name exactly seven repositories; missing={missing}")
+    constraints = manifest.get("constraints")
+    if not isinstance(constraints, dict):
+        errors.append("seven-source selection manifest constraints must be an object")
+    else:
+        expected_constraint_keys = {
+            "exact_repository_count",
+            "read_only",
+            "default_branch_fallback",
+            "require_detached_exact_revision",
+            "record_checked_revisions",
+            "consumer_outputs_are_not_authority",
+            "proof_ceiling",
+        }
+        unknown = sorted(set(constraints) - expected_constraint_keys)
+        missing_constraints = sorted(expected_constraint_keys - set(constraints))
+        if unknown or missing_constraints:
+            errors.append(
+                "seven-source selection manifest constraints must have exact fields; "
+                f"missing={missing_constraints}, unsupported={unknown}"
+            )
+        for key, expected in {
+            "exact_repository_count": 7,
+            "read_only": True,
+            "default_branch_fallback": False,
+            "require_detached_exact_revision": True,
+            "record_checked_revisions": True,
+            "consumer_outputs_are_not_authority": True,
+        }.items():
+            if constraints.get(key) != expected:
+                errors.append(f"seven-source selection manifest constraint {key} must be {expected!r}")
+        if constraints.get("proof_ceiling") != "CONTROLLED_REPO_CONVERGENCE_AND_LOCAL_FIXTURE_REVIEW_ONLY":
+            errors.append("seven-source selection manifest proof ceiling is unsupported")
+    return selections, errors
+
+
+def _verify_selected_source_checkout(
+    root: Path,
+    repository: str,
+    selections: dict[str, dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    if repository not in REPO_NAMES:
+        return [f"unknown source repository {repository!r}"]
+    repo = root / repository
+    if not repo.is_dir():
+        return [f"{repository}: selected source repository is missing"]
+    head = repo_head_sha(repo)
+    tree = _git_output(repo, "rev-parse", "HEAD^{tree}")
+    if head == "UNKNOWN" or tree is None:
+        return [f"{repository}: checked source head/tree is unavailable"]
+    entry = selections[repository]
+    if repository == ".github":
+        return []
+    selected = str(entry["revision"])
+    reviewed_tree = str(entry["reviewed_tree_sha"])
+    selected_tree = _git_output(repo, "rev-parse", f"{selected}^{{tree}}")
+    if selected_tree is not None and selected_tree != reviewed_tree:
+        errors.append(f"{repository}: manifest reviewed tree disagrees with its selected revision")
+    selected_exists = git_commit_exists(repo, selected)
+    checked_head_is_behind = head != selected and selected_exists and _is_ancestor(repo, head, selected)
+    selected_is_ancestor_of_head = head != selected and selected_exists and _is_ancestor(repo, selected, head)
+    if checked_head_is_behind:
+        errors.append(
+            f"{repository}: checked head is behind the explicit selected revision; "
+            "an arbitrary same-blob ancestor is not current authority"
+        )
+    rewritten_content_identity = (
+        head != selected
+        and not checked_head_is_behind
+        and not selected_is_ancestor_of_head
+    )
+    if rewritten_content_identity and tree != reviewed_tree:
+        errors.append(
+            f"{repository}: checked tree does not match the explicit reviewed tree; "
+            "refresh the immutable source selection after content changes"
+        )
+    return errors
+
+
+def verify_selected_source_checkout(repo_root: Path, repository: str) -> list[str]:
+    """Prove a checked source is the manifest-selected content, not an arbitrary same-blob ancestor."""
+    root = Path(repo_root).resolve()
+    selections, errors = _load_convergence_source_selections(root)
+    if errors:
+        return errors
+    return _verify_selected_source_checkout(root, repository, selections)
+
+
+def verify_all_selected_source_checkouts(repo_root: Path) -> list[str]:
+    root = Path(repo_root).resolve()
+    selections, errors = _load_convergence_source_selections(root)
+    if errors:
+        return errors
+    for repository in REPO_NAMES:
+        errors.extend(_verify_selected_source_checkout(root, repository, selections))
+    return errors
 
 
 def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str, Any]]:
@@ -452,6 +650,17 @@ def _reproducibility_hash(index: dict[str, Any]) -> str:
     stable.pop("reproducibility_sha256", None)
     encoded = json.dumps(stable, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _content_normalized_cases(value: Any) -> Any:
+    """Remove only commit-clock observations after source currentness is verified separately."""
+    if not isinstance(value, list):
+        return value
+    normalized = deepcopy(value)
+    for row in normalized:
+        if isinstance(row, dict):
+            row.pop("last_updated", None)
+    return normalized
 
 
 def _source_manifest_digest(source_revisions: list[dict[str, Any]]) -> str:
@@ -1049,6 +1258,10 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
         errors.append(f"source_revisions must match exact seven-repository set; missing={missing}, extra={extra}")
     current_by_repo = {item["repository"]: item for item in current["source_revisions"]}
     repo_paths = resolve_repo_paths(Path(repo_root))
+    selection_errors: list[str] = []
+    if current_authority:
+        selection_errors = verify_all_selected_source_checkouts(Path(repo_root))
+        errors.extend(selection_errors)
     for stated in stated_revisions:
         if not isinstance(stated, dict):
             errors.append("source_revisions entries must be objects")
@@ -1158,7 +1371,12 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
         if snapshot.get("case_ids_discovered_count") != current.get("case_ids_discovered_count"):
             errors.append("current snapshot case count disagrees with current authoritative repository state")
         for field in ("cases", "case_growth_health", "repo_slot_accuracy", "boundary"):
-            if snapshot.get(field) != current.get(field):
+            before = snapshot.get(field)
+            after = current.get(field)
+            if field == "cases" and not selection_errors:
+                before = _content_normalized_cases(before)
+                after = _content_normalized_cases(after)
+            if before != after:
                 errors.append(f"current snapshot {field} disagrees with normalized current authoritative content")
     for finding in current.get("contradictions", []):
         errors.append(f"current contradiction {finding['code']}: {finding['actual']} ({finding['next_legal_action']})")
