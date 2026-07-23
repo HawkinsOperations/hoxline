@@ -1,6 +1,6 @@
 {
   "schema_version": "case-growth-index-v1",
-  "generated_at": "2026-07-22T23:55:08Z",
+  "generated_at": "2026-07-23T00:03:27Z",
   "repo_root": "HawkinsOperations",
   "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
   "historical_snapshot": false,
@@ -116,12 +116,12 @@
       "repository": "hawkinsoperations-website",
       "authority_role": "rendering-only public status",
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
-      "source_commit_sha": "05da628443f2be88b9ce9fe5fc2dc9caccab09a7",
+      "source_commit_sha": "b08d44dfae587a2e5608a8bfe239118ea78ca58e",
       "source_parent_sha": null,
       "self_referential": false,
       "revision_scope": "authoritative_source_at_commit",
       "source_path": "public/data/public-status.json",
-      "source_file_sha256": "10598dfa4c6a4943692895463f2da313fad2076200ff764947e679d658bbccdd",
+      "source_file_sha256": "01c5af1a958e72acd33c34a2b96363e020ecd39f3c3031044b5d7f633a1bcc63",
       "source_freshness_state": "CURRENT",
       "snapshot_freshness_state": "CURRENT",
       "historical_snapshot": false,
@@ -136,12 +136,12 @@
       "repository": "hoxline",
       "authority_role": "case-growth and fixture-review product truth",
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
-      "source_commit_sha": "769622bee18921f7e75d0c0db2532db0c3054579",
-      "source_parent_sha": "680d7130c058f7a96856a247504ea6712e1b5043",
+      "source_commit_sha": "9ca329d0d347bebe3bfd785d467c158a1f4d6aa4",
+      "source_parent_sha": "e0c18eee12ff1c07ec5e0b3225c83cc0a620d83f",
       "self_referential": true,
       "revision_scope": "authoritative_sources_excluding_snapshot",
       "source_path": "src/hoxline/case_growth/collector.py",
-      "source_file_sha256": "035b88b3b78706de32fa3fc2dfb4abc70198271c792791930f06d9e61ee35773",
+      "source_file_sha256": "78ea9f9ba940dbc658560f481aa8952a42986f6c59cf7b8595d3fde381fa8e4e",
       "source_freshness_state": "CURRENT",
       "snapshot_freshness_state": "CURRENT",
       "historical_snapshot": false,
@@ -1968,5 +1968,5 @@
     "website_rendering_treated_as_proof": false,
     "green_ci_treated_as_approval": false
   },
-  "reproducibility_sha256": "b9c189817cb94bc534a3e2ef6c3ba276ae10ce39726d82ba831bf974a0ae31b2"
+  "reproducibility_sha256": "8965d983dc0d1a5bb3a12ee60a956a33654e54ad1863d04535c59aa997865b55"
 }
