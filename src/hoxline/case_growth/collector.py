@@ -549,6 +549,11 @@ def _build_source_revisions(
             else current_head
         )
         branch = repo_branch(repo) if repo is not None else "NOT_FOUND"
+        resolved_ref = (
+            current_head
+            if branch.startswith("UNKNOWN_WITH_REASON:")
+            else branch
+        )
         dirty = repo_dirty(repo) if repo is not None else False
         dirty_paths = repo_dirty_paths(repo) if repo is not None else []
         authority_dirty = relative_path.replace("\\", "/").casefold() in {
@@ -579,7 +584,7 @@ def _build_source_revisions(
             {
                 "repository": repository,
                 "authority_role": authority_role,
-                "resolved_ref": branch,
+                "resolved_ref": resolved_ref,
                 "source_commit_sha": selected_content_sha,
                 "source_observed_head_sha": selected_content_sha,
                 "current_observed_head_sha": current_head,

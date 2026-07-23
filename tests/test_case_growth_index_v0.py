@@ -673,6 +673,145 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             _git(repo, "checkout", "--detach", rewritten)
             self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
 
+    def test_detached_seven_source_generation_records_exact_resolved_refs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir) / "org"
+            shutil.copytree(FIXTURE_ROOT, org_root)
+            missing_authority_fixtures = {
+                ".github/governance/COMMAND_CENTER_INVARIANTS.json": "{}\n",
+                (
+                    "hawkinsoperations-platform/contracts/"
+                    "public-status-source-contract-v1.json"
+                ): "{}\n",
+                "hawkinsoperations-website/schemas/public-status-v0.schema.json": "{}\n",
+                "hoxline/src/hoxline/case_growth/collector.py": (
+                    "# detached authority fixture\n"
+                ),
+            }
+            for relative, content in missing_authority_fixtures.items():
+                authority_path = org_root / relative
+                authority_path.parent.mkdir(parents=True, exist_ok=True)
+                authority_path.write_text(content, encoding="utf-8")
+            expected_heads: dict[str, str] = {}
+            for repository in REPO_NAMES:
+                repo = org_root / repository
+                _git(repo, "init")
+                _git(repo, "config", "user.name", "Hoxline Test")
+                _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+                _git(
+                    repo,
+                    "remote",
+                    "add",
+                    "origin",
+                    f"https://github.com/HawkinsOperations/{repository}.git",
+                )
+                _git(repo, "add", ".")
+                _git(repo, "commit", "-m", "detached authority fixture")
+                head = _git(repo, "rev-parse", "HEAD")
+                expected_heads[repository] = head
+                _git(repo, "checkout", "--detach", head)
+
+            selections: list[dict[str, object]] = []
+            for repository in REPO_NAMES:
+                head = expected_heads[repository]
+                if repository == ".github":
+                    selections.append(
+                        {
+                            "repository": repository,
+                            "canonical_repository": "HawkinsOperations/.github",
+                            "revision_source": "github_event_sha",
+                            "authority_content_revision": head,
+                            "tree_source": "github_event_tree",
+                        }
+                    )
+                else:
+                    selections.append(
+                        {
+                            "repository": repository,
+                            "canonical_repository": (
+                                f"HawkinsOperations/{repository}"
+                            ),
+                            "revision": head,
+                            "authority_content_revision": head,
+                            "reviewed_tree_sha": _git(
+                                org_root / repository,
+                                "rev-parse",
+                                "HEAD^{tree}",
+                            ),
+                        }
+                    )
+            manifest = {
+                "schema": "hawkinsoperations-convergence-source-manifest-v1",
+                "manifest_id": "TEST_DETACHED_EXACT_SEVEN_SOURCE_SELECTION",
+                "repositories": selections,
+                "constraints": {
+                    "exact_repository_count": 7,
+                    "read_only": True,
+                    "default_branch_fallback": False,
+                    "require_detached_exact_revision": True,
+                    "record_checked_revisions": True,
+                    "consumer_outputs_are_not_authority": True,
+                    "proof_ceiling": (
+                        "CONTROLLED_REPO_CONVERGENCE_AND_LOCAL_FIXTURE_REVIEW_ONLY"
+                    ),
+                },
+            }
+            manifest_path = (
+                org_root
+                / ".github"
+                / "governance"
+                / "CONVERGENCE_SOURCE_MANIFEST.json"
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            command_center = org_root / ".github"
+            _git(
+                command_center,
+                "add",
+                "governance/CONVERGENCE_SOURCE_MANIFEST.json",
+            )
+            _git(command_center, "commit", "-m", "detached source selection")
+            expected_heads[".github"] = _git(command_center, "rev-parse", "HEAD")
+
+            with mock.patch.dict(
+                "os.environ",
+                {
+                    "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": (
+                        expected_heads[".github"]
+                    )
+                },
+            ):
+                generated = build_case_growth_index(
+                    org_root,
+                    generated_at="2026-06-27T00:00:00Z",
+                )
+            for revision in generated["source_revisions"]:
+                repository = revision["repository"]
+                with self.subTest(repository=repository):
+                    self.assertEqual(
+                        expected_heads[repository],
+                        revision["resolved_ref"],
+                    )
+                    self.assertEqual(
+                        revision["current_observed_head_sha"],
+                        revision["resolved_ref"],
+                    )
+                    self.assertFalse(
+                        str(revision["resolved_ref"]).startswith(
+                            "UNKNOWN_WITH_REASON:"
+                        )
+                    )
+
+            with mock.patch.dict(
+                "os.environ",
+                {
+                    "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": (
+                        expected_heads[".github"]
+                    )
+                },
+            ):
+                errors, _ = verify_case_growth_snapshot(org_root, generated)
+            self.assertEqual([], errors, errors)
+
     def test_dynamic_command_center_selection_requires_exact_detached_observation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             org_root = Path(temp_dir)
