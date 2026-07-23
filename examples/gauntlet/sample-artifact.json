@@ -1,11 +1,11 @@
 {
   "schema_version": "sample-artifact-v0",
   "artifact_id": "HOX-GAUNTLET-001",
-  "title": "Synthetic Splunk SOC detection review for browser-cache payload extraction",
+  "title": "Controlled-test Splunk SOC detection review for browser-cache payload extraction",
   "ai_assisted": true,
   "scenario": "An AI assistant drafts a Splunk/SOC-style detection idea and release note for browser-cache / ClickFix-style payload extraction review.",
   "public_safety": {
-    "synthetic_only": true,
+    "controlled_test_only": true,
     "contains_malware_code": false,
     "contains_exploit_instructions": false,
     "contains_customer_data": false,
@@ -17,13 +17,13 @@
     "status": "SOURCE_CONTROLLED_SAMPLE"
   },
   "detection_artifact": {
-    "type": "synthetic_splunk_detection_review",
+    "type": "controlled_test_detection_review",
     "platform": "Splunk",
     "soc_queue": "detection-engineering-review",
     "name": "Browser cache extraction followed by script interpreter staging",
-    "description": "Synthetic review object for suspicious browser cache file access followed by script interpreter staging. The object is a detection-review fixture, not deployable detection logic.",
+    "description": "Controlled-test review object for suspicious browser cache file access followed by script interpreter staging. The object is a detection-review fixture, not deployable detection logic.",
     "risk_hypothesis": "A user interaction lure may lead to cached payload extraction and local interpreter staging.",
-    "splunk_search_pseudocode": "index=synthetic_endpoint sourcetype=synthetic_process (parent_process_name IN (browser.exe, synthetic_browser.exe)) AND (process_name IN (powershell.exe, cmd.exe, wscript.exe)) AND file_path=\"*\\\\Browser\\\\Cache\\\\*\"",
+    "splunk_search_pseudocode": "index=controlled_test_endpoint sourcetype=controlled_test_process (parent_process_name IN (browser.exe, controlled_test_browser.exe)) AND (process_name IN (powershell.exe, cmd.exe, wscript.exe)) AND file_path=\"*\\\\Browser\\\\Cache\\\\*\"",
     "required_fields": [
       "event_time",
       "host",
@@ -43,8 +43,8 @@
   },
   "telemetry_contract": {
     "contract_id": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
-    "status": "PASSED_SYNTHETIC_CONTRACT",
-    "fixture_scope": "synthetic Splunk-style events only",
+    "status": "CONTROLLED_TEST_VALIDATED",
+    "fixture_scope": "controlled-test Splunk-style events only",
     "required_fields_present": true,
     "runtime_source_required_for_stronger_claims": true
   },

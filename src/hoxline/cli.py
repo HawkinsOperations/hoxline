@@ -86,7 +86,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--output", help="optional output file path")
 
     metrics_parser = gauntlet_subparsers.add_parser("metrics", help="emit Hoxline Gauntlet work-impact metrics")
-    metrics_parser.add_argument("--events", required=True, help="synthetic events fixture path")
+    metrics_parser.add_argument("--events", required=True, help="controlled-test events fixture path")
     metrics_parser.add_argument("--artifact", required=True, help="sample artifact JSON path")
     metrics_parser.add_argument("--proofcard", required=True, help="sample ProofCard JSON path")
     metrics_parser.add_argument("--claim-output", required=True, help="sample Claim Authority output JSON path")
@@ -534,10 +534,10 @@ def _build_gauntlet_v0_lab_report(artifact_path: Path) -> dict[str, object]:
         "scenario": artifact.get("scenario"),
         "proof_ceiling": proof_ceiling,
         "stages": [
-            {"stage": "AI-assisted security work", "state": "SOURCE_CONTROLLED_SYNTHETIC_DRAFT"},
+            {"stage": "AI-assisted security work", "state": "SOURCE_CONTROLLED_TEST_DRAFT"},
             {"stage": "Artifact Intake", "state": "ACCEPTED"},
             {"stage": "Evidence Graph", "state": "PRESENT"},
-            {"stage": "Telemetry Contract Check", "state": "PASSED_SYNTHETIC_CONTRACT"},
+            {"stage": "Telemetry Contract Check", "state": "CONTROLLED_TEST_VALIDATED"},
             {"stage": "Controlled Validation", "state": "PASSED_CONTROLLED_FIXTURES"},
             {"stage": "Runtime Candidate Ledger", "state": "NOT_PROMOTED"},
             {"stage": "Signal Observation", "state": "NOT_OBSERVED"},

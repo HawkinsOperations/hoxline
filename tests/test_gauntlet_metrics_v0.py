@@ -12,21 +12,21 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from hoxline.cli import main
-from hoxline.metrics import build_work_impact_report, evaluate_detection_fixture, load_synthetic_events
+from hoxline.metrics import build_work_impact_report, evaluate_detection_fixture, load_controlled_test_events
 
 
 ARTIFACT = ROOT / "examples" / "gauntlet" / "sample-artifact.json"
 CLAIM_OUTPUT = ROOT / "examples" / "gauntlet" / "sample-claim-authority-output.json"
 EXPECTED_RESULTS = ROOT / "examples" / "gauntlet" / "expected-detection-results.json"
-EVENTS = ROOT / "examples" / "gauntlet" / "synthetic-events.json"
+EVENTS = ROOT / "examples" / "gauntlet" / "controlled-test-events.json"
 PROOFCARD = ROOT / "examples" / "gauntlet" / "sample-proofcard.json"
 SAMPLE_METRICS = ROOT / "examples" / "gauntlet" / "sample-work-impact-metrics.json"
 SCHEMA = ROOT / "schemas" / "work-impact-metrics-v0.schema.json"
 
 
 class HoxlineGauntletMetricsV0Test(unittest.TestCase):
-    def test_synthetic_event_fixture_loads(self) -> None:
-        fixture = load_synthetic_events(EVENTS)
+    def test_controlled_test_event_fixture_loads(self) -> None:
+        fixture = load_controlled_test_events(EVENTS)
         events = fixture["events"]
 
         self.assertEqual(fixture["artifact_id"], "HOX-GAUNTLET-001")
@@ -36,7 +36,7 @@ class HoxlineGauntletMetricsV0Test(unittest.TestCase):
         self.assertGreaterEqual(sum(1 for event in events if not event["expected_detection_match"]), 6)
         self.assertTrue(
             any(
-                event["parent_process_name"] == "synthetic_browser.exe"
+                event["parent_process_name"] == "controlled_test_browser.exe"
                 and event["process_name"] == "notepad.exe"
                 and event["expected_detection_match"] is False
                 for event in events

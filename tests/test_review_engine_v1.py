@@ -19,6 +19,7 @@ from hoxline.review_engine import (
     _validate_generated_output_security,
     _validate_no_private_markers,
     _validate_recursive_boundaries,
+    verify_tracked_vocabulary,
     verify_review_run,
 )
 
@@ -341,7 +342,24 @@ def test_nfkc_security_keys_and_normalized_collisions_fail_closed(tmp_path) -> N
         assert _json(output / "machine-state.json")["final_status"] == "BLOCKED"
 
 
-def test_generic_negation_cannot_launder_an_adjacent_positive_claim() -> None:
+def test_generic_negation_cannot_launder_an_adjacent_positive_claim(tmp_path) -> None:
+    connector_attacks = [
+        f"does not prove runtime {connector} customer deployment is active"
+        for connector in (
+            "because",
+            "therefore",
+            "meanwhile",
+            "furthermore",
+            "also",
+            "nevertheless",
+            "nonetheless",
+            "except",
+            "despite that",
+            "in fact",
+            "whereas",
+            "yet",
+        )
+    ]
     attacks = [
         "pending documentation, production is live",
         "unsupported note \u2014 customer environment deployed",
@@ -349,8 +367,22 @@ def test_generic_negation_cannot_launder_an_adjacent_positive_claim() -> None:
         "missing receipt while production is live",
         "no proof currently, customer environment deployed",
         "not approved / production is live",
+        "does not prove runtime, customer deployment is active",
+        "does not prove runtime, AI authority is enabled",
+        "does not prove runtime, analyst approval granted",
+        "does not prove runtime, public safe is confirmed",
+        "does not prove runtime, final authorization received",
+        "does not prove runtime, case closure approved",
+        "does not prove runtime and customer deployment is active",
+        "does not prove runtime plus public safe is confirmed",
+        "does not prove runtime though case closure is approved",
+        "runtime is active and not simulated",
+        "signal is observed and not inferred",
+        *connector_attacks,
     ]
     for attack in attacks:
+        with pytest.raises(ReviewBlocked):
+            _validate_recursive_boundaries({"note": attack}, "hostile direct input")
         with pytest.raises(ReviewBlocked):
             _validate_generated_output_security({"note": attack}, "hostile generated output")
 
@@ -358,8 +390,48 @@ def test_generic_negation_cannot_launder_an_adjacent_positive_claim() -> None:
         "This does not prove production readiness, customer deployment, or signal-observed proof.",
         "Production readiness is unsupported.",
         "Claims block customer deployment.",
+        "This does not prove runtime, customer deployment, AI approval, final authorization, or case closure.",
+        "This does not prove runtime-active status, signal-observed status, production-ready status, public-safe status, AI-approved status, or analyst-approved status.",
+        "This does not prove runtime, customer deployment, AI approval, or case closure. These claims remain blocked.",
+        "This does not prove runtime, customer deployment, AI approval, or case closure; all identified claims remain blocked.",
+        "This does not prove runtime,\ncustomer deployment,\tAI approval, or case closure.",
+        "Public-safe runtime proof remains NOT_PUBLIC_SAFE.",
     ):
         _validate_generated_output_security({"note": bounded}, "bounded generated output")
+
+    blocked_paths = (
+        "blocked_claims",
+        "blocked_claim_classes",
+        "missing_evidence",
+        "safer_wording",
+        "what_hoxline_blocked",
+    )
+    path_laundering_claims = (
+        "customer deployment is active",
+        "AI authority is enabled",
+        "public safe is confirmed",
+        "case closure approved",
+        "runtime is active",
+    )
+    for blocked_path in blocked_paths:
+        for claim in path_laundering_claims:
+            with pytest.raises(ReviewBlocked):
+                _validate_generated_output_security(
+                    {blocked_path: [claim]},
+                    "hostile blocked-path output",
+                )
+
+    for bounded in (
+        "production ready",
+        "public-safe runtime proof",
+        "final authorization record",
+        "Runtime, signal, public-safe, production, customer, AI approval, final authorization, and case closure claims remain blocked.",
+        "Runtime, signal, public-safe, live IdP, production identity coverage, autonomous SOC, AI-approved disposition, and analyst-approved disposition claims remain blocked.",
+    ):
+        _validate_generated_output_security(
+            {"blocked_claims": [bounded]},
+            "bounded blocked-path output",
+        )
 
     with pytest.raises(ReviewBlocked):
         _validate_generated_output_security(
@@ -367,8 +439,31 @@ def test_generic_negation_cannot_launder_an_adjacent_positive_claim() -> None:
             "hostile generated output",
         )
 
+    output = tmp_path / "review-run"
+    assert main(["review", "run", "--artifact", str(MANIFEST), "--output", str(output), "--force"]) == 0
+    state_path = output / "machine-state.json"
+    baseline = _json(state_path)
+    reviewer_pack = output / "reviewer-pack.md"
+    original = reviewer_pack.read_text(encoding="utf-8")
+    for attack in attacks:
+        reviewer_pack.write_text(original + f"\n{attack}\n", encoding="utf-8")
+        hostile_state = deepcopy(baseline)
+        hostile_state["output_digests"]["reviewer-pack.md"] = hashlib.sha256(
+            reviewer_pack.read_bytes()
+        ).hexdigest()
+        hostile_state["state_integrity_digest"] = _integrity(hostile_state)
+        state_path.write_text(
+            json.dumps(hostile_state, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        errors = verify_review_run(state_path)
+        assert errors, attack
+        assert any("security validation failed" in error for error in errors), attack
+    reviewer_pack.write_text(original, encoding="utf-8")
+    state_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-def test_compositional_promotion_keys_and_embedded_structures_fail_closed() -> None:
+
+def test_compositional_promotion_keys_and_embedded_structures_fail_closed(tmp_path) -> None:
     keys = [
         "production_live",
         "customer_deployment",
@@ -393,6 +488,13 @@ def test_compositional_promotion_keys_and_embedded_structures_fail_closed() -> N
         "analyst_authority_state",
         "analyst_approval_value",
         "approved_by_analyst_flag",
+        "runtime_state",
+        "approval_state",
+        "extension_production_active_metadata",
+        "extension_runtime_state_metadata",
+        "extension_approval_state_metadata",
+        "%72untime_state",
+        "%2572untime_state",
     ]
     for key in keys:
         payload = {"metadata": {key: True}}
@@ -417,6 +519,96 @@ def test_compositional_promotion_keys_and_embedded_structures_fail_closed() -> N
         {"metadata": {"production_live": False, "case_status": "BLOCKED"}},
         "bounded output",
     )
+
+    for payload in (
+        {"runtime": {"state": True}},
+        {"approval": {"status": True}},
+        {"production": {"active": True}},
+    ):
+        encoded_json = json.dumps(payload, separators=(",", ":"))
+        for variant in (
+            payload,
+            encoded_json,
+            quote(encoded_json, safe=""),
+            quote(quote(encoded_json, safe=""), safe=""),
+            base64.urlsafe_b64encode(encoded_json.encode("utf-8")).decode("ascii").rstrip("="),
+        ):
+            with pytest.raises(ReviewBlocked):
+                _validate_recursive_boundaries({"extension": variant}, "hostile split input")
+            with pytest.raises(ReviewBlocked):
+                _validate_generated_output_security({"extension": variant}, "hostile split output")
+
+    _validate_recursive_boundaries(
+        {"runtime": {"state": False}, "approval": {"status": "BLOCKED"}},
+        "bounded split input",
+    )
+    _validate_recursive_boundaries(
+        {"final_status": "PASS", "artifacts": [{"final_status": "PASS"}]},
+        "canonical final status",
+    )
+    _validate_generated_output_security(
+        {"final_status": "PASS", "artifacts": [{"final_status": "PASS"}]},
+        "canonical final status",
+    )
+
+    neutral_wrapper_attacks = [
+        {"final": {"review": {"authorization": True}}},
+        {"ai": {"metadata": {"authority": True}}},
+        {"review": {"metadata": {"disposition": "APPROVED"}}},
+    ]
+    for index, attack in enumerate(neutral_wrapper_attacks):
+        with pytest.raises(ReviewBlocked):
+            _validate_recursive_boundaries(attack, "hostile neutral wrapper")
+        with pytest.raises(ReviewBlocked):
+            _validate_generated_output_security(attack, "hostile neutral wrapper")
+
+        manifest = _json(MANIFEST)
+        manifest["field_mapping"] = attack
+        manifest_path = tmp_path / f"neutral-wrapper-manifest-{index}.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        output = tmp_path / f"neutral-wrapper-manifest-{index}"
+        assert main(
+            ["review", "run", "--artifact", str(manifest_path), "--output", str(output), "--force"]
+        ) == 1
+
+    _validate_recursive_boundaries(
+        {
+            "final": {"review": {"authorization": False}},
+            "ai": {"metadata": {"authority": False}},
+            "review": {"metadata": {"disposition": "BLOCKED"}},
+        },
+        "bounded neutral wrappers",
+    )
+
+    array_attacks = [
+        {"production_live": [True]},
+        {"ai_authority": ["APPROVED"]},
+        {"review_disposition": [True]},
+        {"final_authorization": [1]},
+    ]
+    for index, attack in enumerate(array_attacks):
+        with pytest.raises(ReviewBlocked):
+            _validate_recursive_boundaries(attack, "hostile promotion array")
+        with pytest.raises(ReviewBlocked):
+            _validate_generated_output_security(attack, "hostile promotion array")
+
+        manifest = _json(MANIFEST)
+        manifest["field_mapping"] = attack
+        manifest_path = tmp_path / f"promotion-array-manifest-{index}.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        output = tmp_path / f"promotion-array-manifest-{index}"
+        assert main(
+            ["review", "run", "--artifact", str(manifest_path), "--output", str(output), "--force"]
+        ) == 1
+
+    bounded_array = {
+        "production_live": [False],
+        "ai_authority": ["NOT_APPROVED"],
+        "review_disposition": ["BLOCKED"],
+        "final_authorization": [False],
+    }
+    _validate_recursive_boundaries(bounded_array, "bounded promotion array")
+    _validate_generated_output_security(bounded_array, "bounded promotion array")
 
 
 def test_private_marker_keys_fail_closed_through_recursive_encodings() -> None:
@@ -457,6 +649,119 @@ def test_private_marker_keys_fail_closed_through_recursive_encodings() -> None:
         ):
             with pytest.raises(ReviewBlocked):
                 _validate_no_private_markers({"note": variant}, "hostile private value")
+
+
+def test_unicode_format_characters_cannot_obfuscate_claims_or_private_markers(tmp_path) -> None:
+    scan_ignorable_characters = (
+        "\u200b", "\u200c", "\u200d", "\u2060", "\ufeff",
+        "\u034f", "\u0301", "\ufe0f",
+        "\x00", "\x08", "\x1f", "\x7f",
+    )
+    claim_templates = (
+        "public{format} safe is confirmed",
+        "case{format} closure approved",
+        "AI{format} authority is enabled",
+        "runtime{format} active",
+    )
+    attacks = [
+        template.format(format=character)
+        for character in scan_ignorable_characters
+        for template in claim_templates
+    ]
+    for attack in attacks:
+        for variant in (attack, quote(attack, safe="")):
+            nested = {"nested": [{"note": variant}]}
+            with pytest.raises(ReviewBlocked):
+                _validate_recursive_boundaries(nested, "format-obfuscated input")
+            with pytest.raises(ReviewBlocked):
+                _validate_generated_output_security(nested, "format-obfuscated output")
+
+    for character in scan_ignorable_characters:
+        for marker in (
+            f"PRIVATE{character}_EVIDENCE",
+            f"RAW{character}_WAZUH",
+            f"CUSTOMER{character}_IDENTIFIER",
+        ):
+            with pytest.raises(ReviewBlocked):
+                _validate_no_private_markers({"note": marker}, "format-obfuscated private marker")
+
+    raw_plain = "public safe is confirmed"
+    raw_obfuscated = "public\u200b safe is confirmed"
+    assert hashlib.sha256(raw_plain.encode("utf-8")).hexdigest() != hashlib.sha256(
+        raw_obfuscated.encode("utf-8")
+    ).hexdigest()
+    _validate_generated_output_security(
+        {
+            "note": "valid family emoji: \U0001f468\u200d\U0001f469\u200d\U0001f467\ufe0f",
+            "accented": "r\u00e9sum\u00e9 review \U0001f469\u200d\U0001f4bb only",
+            "multiline": "controlled-test\nreview\tcomplete\rbounded",
+        },
+        "valid emoji control",
+    )
+
+    output = tmp_path / "review-run"
+    assert main(["review", "run", "--artifact", str(MANIFEST), "--output", str(output), "--force"]) == 0
+    state_path = output / "machine-state.json"
+    baseline = _json(state_path)
+    reviewer_pack = output / "reviewer-pack.md"
+    original = reviewer_pack.read_text(encoding="utf-8")
+    for attack in attacks:
+        reviewer_pack.write_text(original + f"\n{attack}\n", encoding="utf-8")
+        hostile_state = deepcopy(baseline)
+        hostile_state["output_digests"]["reviewer-pack.md"] = hashlib.sha256(
+            reviewer_pack.read_bytes()
+        ).hexdigest()
+        hostile_state["state_integrity_digest"] = _integrity(hostile_state)
+        state_path.write_text(
+            json.dumps(hostile_state, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        errors = verify_review_run(state_path)
+        assert errors, attack
+        assert any("security validation failed" in error for error in errors), attack
+    reviewer_pack.write_text(original, encoding="utf-8")
+    state_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _tracked_vocabulary_repo(tmp_path: Path, directory: str, name: str, content: bytes) -> Path:
+    root = tmp_path / directory
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    (root / name).write_bytes(content)
+    subprocess.run(["git", "-C", str(root), "add", "--", name], check=True)
+    return root
+
+
+def test_tracked_vocabulary_guard_is_nfkc_filename_utf8_and_nul_fail_closed(tmp_path) -> None:
+    accepted = _tracked_vocabulary_repo(
+        tmp_path,
+        "accepted",
+        "fixture.md",
+        "controlled-test résumé 中文 family 👩‍💻\n".encode("utf-8"),
+    )
+    assert verify_tracked_vocabulary(accepted) == []
+
+    retired = "syn" + "thetic"
+    cases = [
+        ("ascii", "fixture.md", f"retired {retired} fixture\n".encode("utf-8")),
+        (
+            "nfkc",
+            "fixture.md",
+            "retired \uff53\uff59\uff4e\uff54\uff48\uff45\uff54\uff49\uff43 fixture\n".encode("utf-8"),
+        ),
+        ("filename", f"{retired}-name.md", b"controlled-test fixture\n"),
+        ("format-filename", "syn\u200bthetic-name.md", b"controlled-test fixture\n"),
+        ("mark-filename", "synthe\u0301tic-name.md", b"controlled-test fixture\n"),
+        ("format-content", "fixture.md", "retired syn\u200bthetic fixture\n".encode("utf-8")),
+        ("mark-content", "fixture.md", "retired synthe\u0301tic fixture\n".encode("utf-8")),
+        ("control-content", "fixture.md", b"retired syn\x08thetic fixture\n"),
+        ("utf16", "fixture.md", f"{retired} fixture".encode("utf-16")),
+        ("nul-byte", "fixture.md", b"controlled-test\0fixture"),
+        ("unknown-extension", "fixture.blobx", b"controlled-test fixture"),
+    ]
+    for directory, name, content in cases:
+        root = _tracked_vocabulary_repo(tmp_path, directory, name, content)
+        assert verify_tracked_vocabulary(root), directory
 
 
 def test_encoded_mixed_and_drive_relative_paths_fail_closed(tmp_path) -> None:

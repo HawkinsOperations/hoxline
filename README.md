@@ -27,9 +27,9 @@ python -B -m hoxline demo quickstart --output .hoxline/demo-runs/self-test --for
 python -B -m hoxline demo verify --input .hoxline/demo-runs/self-test/run-summary.json
 ```
 
-The command writes `.hoxline/demo-runs/<timestamp-or-demo-id>/` with `intake.json`, `evidence-graph.json`, `telemetry-contract-check.json`, `validation-result.json`, `synthetic-signal.json`, `enrichment.json`, `triage-summary.md`, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, and `run-summary.json`.
+The command writes `.hoxline/demo-runs/<timestamp-or-demo-id>/` with `intake.json`, `evidence-graph.json`, `telemetry-contract-check.json`, `validation-result.json`, `controlled-test-signal.json`, `enrichment.json`, `triage-summary.md`, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, and `run-summary.json`.
 
-What it proves: Hoxline can carry a synthetic HO-DET-010 fixture through intake, evidence graph, telemetry contract check, controlled validation, fixture-only signal simulation, enrichment, triage, ProofCard, Claim Authority, blocked claims, and reviewer packaging.
+What it proves: Hoxline can carry a controlled-test HO-DET-010 fixture through intake, evidence graph, telemetry contract check, controlled validation, fixture-only signal simulation, enrichment, triage, ProofCard, Claim Authority, blocked claims, and reviewer packaging.
 
 What it does not prove: live runtime behavior, public signal observation, public-safe status, production readiness, SOCaaS deployment, customer deployment, autonomous SOC operation, AI approval, analyst approval, final authorization, or case closure. The demo does not touch endpoints, users, groups, Wazuh, Splunk, Cribl, private infrastructure, ledgers, or website proof state.
 
@@ -46,7 +46,7 @@ python -B -m hoxline review verify --run .hoxline/runs/<run-id>/machine-state.js
 
 The command writes `.hoxline/runs/<run-id>/` with `artifact-manifest.json`, stage outputs, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, `machine-state.json`, and `run-summary.json`.
 
-What it proves: Hoxline can take a public sanitized synthetic artifact manifest, run deterministic local review stages, write replayable machine state, generate reviewer artifacts, and block unsupported claims.
+What it proves: Hoxline can take a public sanitized controlled-test artifact manifest, run deterministic local review stages, write replayable machine state, generate reviewer artifacts, and block unsupported claims.
 
 What it does not prove: live runtime behavior, public signal observation, public-safe status, production readiness, SOCaaS deployment, customer deployment, autonomous SOC operation, AI approval, analyst approval, final authorization, or case closure.
 
@@ -141,7 +141,7 @@ References are carried from `hawkinsoperations-platform#64` and `hawkinsoperatio
 
 Hoxline also supports private runtime candidate review for artifacts whose source, telemetry contract, validation, private signal, packet verification, and scheduled collector inclusion have been established internally but are not public-safe proof.
 
-Separate from the one-command fixture demo, HO-DET-010 also has private runtime-candidate context that is not published here. The public demo uses only synthetic fixture records and must not be confused with private runtime candidate evidence. HO-DET-010 remains `NOT_PUBLIC_SAFE`; human review is required; AI has no disposition authority; no public proof, ledger append, website proof promotion, production, customer, SOCaaS, fleet, analyst-approved, AI-approved, or case-closure claim is made.
+Separate from the one-command fixture demo, HO-DET-010 also has private runtime-candidate context that is not published here. The public demo uses only controlled-test fixture records and must not be confused with private runtime candidate evidence. HO-DET-010 remains `NOT_PUBLIC_SAFE`; human review is required; AI has no disposition authority; no public proof, ledger append, website proof promotion, production, customer, SOCaaS, fleet, analyst-approved, AI-approved, or case-closure claim is made.
 ## Claim Firewall
 
 Claim Firewall is the first Claim Authority enforcement capability inside Hoxline.

@@ -19,7 +19,7 @@
       "id": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
       "type": "telemetry_contract_check",
       "label": "Telemetry Contract Check",
-      "status": "PASSED_SYNTHETIC_CONTRACT"
+      "status": "CONTROLLED_TEST_VALIDATED"
     },
     {
       "id": "HOX-GAUNTLET-001-CONTROLLED-VALIDATION",
@@ -107,7 +107,7 @@
   ],
   "telemetry_contract": {
     "contract_id": "HOX-GAUNTLET-001-TELEMETRY-CONTRACT",
-    "status": "PASSED_SYNTHETIC_CONTRACT",
+    "status": "CONTROLLED_TEST_VALIDATED",
     "required_fields": [
       "event_time",
       "host",

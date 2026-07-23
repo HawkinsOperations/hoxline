@@ -128,12 +128,24 @@ jobs:
       - name: Install package and declared test dependencies
         working-directory: org/hoxline
         run: |
-          python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
 
       - name: Compile
         working-directory: org/hoxline
         run: python -B -m compileall src tests
+
+      - name: Reject retired tracked vocabulary
+        working-directory: org/hoxline
+        run: |
+          python -B - <<'PY'
+          from pathlib import Path
+          from hoxline.review_engine import verify_tracked_vocabulary
+
+          errors = verify_tracked_vocabulary(Path("."))
+          if errors:
+              raise SystemExit("\n".join(errors))
+          print("Tracked vocabulary verification: PASS")
+          PY
 
       - name: Run unittest suite
         working-directory: org/hoxline

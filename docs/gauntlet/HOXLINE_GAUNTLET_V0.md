@@ -4,7 +4,7 @@ This gauntlet is a controlled product demo artifact for Hoxline. It shows how an
 
 Artifact ID: `HOX-GAUNTLET-001`
 
-Scenario: an AI assistant drafts a synthetic Splunk/SOC detection-review artifact and release note for a browser-cache / ClickFix-style payload extraction detection idea. The fixture is sanitized, contains no malware code, contains no exploit instructions, and does not depend on live telemetry.
+Scenario: an AI assistant drafts a controlled-test Splunk/SOC detection-review artifact and release note for a browser-cache / ClickFix-style payload extraction detection idea. The fixture is sanitized, contains no malware code, contains no exploit instructions, and does not depend on live telemetry.
 
 Proof ceiling: `CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY`.
 
@@ -31,7 +31,7 @@ AI-assisted security work
 ## Three-Minute Reviewer Path
 
 1. Read this page for the boundary and stage map.
-2. Open `examples/gauntlet/sample-artifact.json` for the synthetic detection artifact and telemetry contract.
+2. Open `examples/gauntlet/sample-artifact.json` for the controlled-test detection artifact and telemetry contract.
 3. Compare `examples/gauntlet/bad-release-note.md` with `examples/gauntlet/safe-release-note.md`.
 4. Open `examples/gauntlet/sample-evidence-graph.json`, `examples/gauntlet/sample-promotion-state.json`, `examples/gauntlet/sample-proofcard.json`, and `examples/gauntlet/sample-claim-authority-output.json`.
 5. Open `docs/gauntlet/HOXLINE_GAUNTLET_METRICS_V0.md` for the numeric Work Impact Metrics v0 output.
@@ -55,7 +55,7 @@ Purpose: demonstrate how Hoxline governs an AI-assisted Splunk/SOC detection dra
 
 The sample artifact has:
 
-* A synthetic Splunk-style detection review object.
+* A controlled-test Splunk-style detection review object.
 * A telemetry contract describing required fields and fixture-only scope.
 * Controlled validation with deterministic positive and negative fixture expectations.
 * Runtime candidate state recorded as `NOT_PROMOTED`.
@@ -70,7 +70,7 @@ The sample artifact has:
 | 1 | AI-assisted security work | Work is marked `ai_assisted=true`. | Intake required. |
 | 2 | Artifact Intake | Artifact identity, source-control path, scope, and proposed claims are recorded. | Evidence graph node created. |
 | 3 | Evidence Graph | Artifact, telemetry contract, validation, runtime candidate, signal observation, review, ProofCard, and claim decision nodes are linked. | Traceable state exists. |
-| 4 | Telemetry Contract Check | Status is `PASSED_SYNTHETIC_CONTRACT`. | Required synthetic fields are declared. |
+| 4 | Telemetry Contract Check | Status is `CONTROLLED_TEST_VALIDATED`. | Required controlled-test fields are declared. |
 | 5 | Controlled Validation | Status is `PASSED_CONTROLLED_FIXTURES`. | Fixture-only validation supports the safe claim. |
 | 6 | Runtime Candidate Ledger | Candidate state is `NOT_PROMOTED`. | Runtime proof remains unavailable. |
 | 7 | Signal Observation | Signal state is `NOT_OBSERVED`. | Signal proof remains unavailable. |
@@ -86,7 +86,7 @@ The sample artifact has:
 * `examples/gauntlet/sample-evidence-graph.json`
 * `examples/gauntlet/sample-proofcard.json`
 * `examples/gauntlet/sample-claim-authority-output.json`
-* `examples/gauntlet/synthetic-events.json`
+* `examples/gauntlet/controlled-test-events.json`
 * `examples/gauntlet/expected-detection-results.json`
 * `examples/gauntlet/sample-work-impact-metrics.json`
 * `examples/gauntlet/bad-release-note.md`
@@ -96,10 +96,10 @@ The sample JSON files keep runtime observation, signal observation, external pro
 
 ## Work Impact Metrics
 
-`HOX-GAUNTLET-001` now emits numeric Work Impact Metrics v0 for the controlled fixture: 12 synthetic events, 4 expected positives, 8 expected negatives, 4 true positives, 8 true negatives, 0 false positives, 0 false negatives, 1.0 precision, 1.0 recall, 1.0 F1, 0.0 false-positive rate, 100.0% telemetry coverage, 7 claims scanned, 1 claim allowed, 6 claims blocked, and 100.0% ProofCard completeness.
+`HOX-GAUNTLET-001` now emits numeric Work Impact Metrics v0 for the controlled fixture: 12 controlled-test events, 4 expected positives, 8 expected negatives, 4 true positives, 8 true negatives, 0 false positives, 0 false negatives, 1.0 precision, 1.0 recall, 1.0 F1, 0.0 false-positive rate, 100.0% telemetry coverage, 7 claims scanned, 1 claim allowed, 6 claims blocked, and 100.0% ProofCard completeness.
 
 Run:
 
 ```powershell
-python -B -m hoxline.cli gauntlet metrics --events examples/gauntlet/synthetic-events.json --artifact examples/gauntlet/sample-artifact.json --proofcard examples/gauntlet/sample-proofcard.json --claim-output examples/gauntlet/sample-claim-authority-output.json --format json
+python -B -m hoxline.cli gauntlet metrics --events examples/gauntlet/controlled-test-events.json --artifact examples/gauntlet/sample-artifact.json --proofcard examples/gauntlet/sample-proofcard.json --claim-output examples/gauntlet/sample-claim-authority-output.json --format json
 ```

@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .evaluator import evaluate_detection_fixture, load_synthetic_events, telemetry_coverage
+from .evaluator import evaluate_detection_fixture, load_controlled_test_events, telemetry_coverage
 
 
 PROOF_CEILING = "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY"
@@ -40,10 +40,10 @@ def build_work_impact_report(
     artifact = _load_json_object(artifact_path)
     proofcard = _load_json_object(proofcard_path)
     claim_output = _load_json_object(claim_output_path)
-    events_fixture = load_synthetic_events(events_path)
+    events_fixture = load_controlled_test_events(events_path)
     events = events_fixture["events"]
     if not isinstance(events, list):
-        raise ValueError("synthetic event fixture must include an events list")
+        raise ValueError("controlled-test event fixture must include an events list")
 
     _require(artifact, "artifact_id", "HOX-GAUNTLET-001")
     _require(artifact, "proof_ceiling", PROOF_CEILING)

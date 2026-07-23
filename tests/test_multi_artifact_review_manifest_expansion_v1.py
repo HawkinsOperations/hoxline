@@ -344,6 +344,37 @@ def test_batch_index_rejects_duplicate_keys_unknown_shapes_and_nested_authority(
         assert main(["review", "batch", "run", "--index", str(path), "--output", str(output), "--force"]) == 1
         assert _json(output / "batch-machine-state.json")["final_status"] == "BLOCKED"
 
+    for index_number, attack in enumerate(
+        (
+            {"final": {"review": {"authorization": True}}},
+            {"ai": {"metadata": {"authority": True}}},
+            {"review": {"metadata": {"disposition": "APPROVED"}}},
+        )
+    ):
+        index = _json(INDEX)
+        index["batch_claim_boundary"] = json.dumps(attack, separators=(",", ":"))
+        path = tmp_path / f"neutral-wrapper-index-{index_number}.json"
+        path.write_text(json.dumps(index), encoding="utf-8")
+        output = tmp_path / f"neutral-wrapper-index-{index_number}"
+        assert main(["review", "batch", "run", "--index", str(path), "--output", str(output), "--force"]) == 1
+        assert _json(output / "batch-machine-state.json")["final_status"] == "BLOCKED"
+
+    for index_number, attack in enumerate(
+        (
+            {"production_live": [True]},
+            {"ai_authority": ["APPROVED"]},
+            {"review_disposition": [True]},
+            {"final_authorization": [1]},
+        )
+    ):
+        index = _json(INDEX)
+        index["batch_claim_boundary"] = json.dumps(attack, separators=(",", ":"))
+        path = tmp_path / f"promotion-array-index-{index_number}.json"
+        path.write_text(json.dumps(index), encoding="utf-8")
+        output = tmp_path / f"promotion-array-index-{index_number}"
+        assert main(["review", "batch", "run", "--index", str(path), "--output", str(output), "--force"]) == 1
+        assert _json(output / "batch-machine-state.json")["final_status"] == "BLOCKED"
+
 
 def test_batch_replay_rescans_tampered_input_even_after_hash_recalculation(tmp_path) -> None:
     output = tmp_path / "batch"

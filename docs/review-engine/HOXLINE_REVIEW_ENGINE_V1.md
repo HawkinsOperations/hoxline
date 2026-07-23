@@ -50,7 +50,7 @@ Required fields include `manifest_version`, `artifact_id`, `artifact_name`, `art
 2. `evidence_graph`
 3. `telemetry_contract_check`
 4. `controlled_validation`
-5. `synthetic_signal`
+5. `controlled_test_signal`
 6. `enrichment`
 7. `triage`
 8. `proofcard`
@@ -72,7 +72,7 @@ No proof-boundary violation is warning-only. Violations produce `final_status=BL
 
 ## Generated Outputs
 
-PASS runs write `artifact-manifest.json`, `intake.json`, `evidence-graph.json`, `telemetry-contract-check.json`, `validation-result.json`, `synthetic-signal.json`, `enrichment.json`, `triage-summary.md`, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, `machine-state.json`, and `run-summary.json`.
+PASS runs write `artifact-manifest.json`, `intake.json`, `evidence-graph.json`, `telemetry-contract-check.json`, `validation-result.json`, `controlled-test-signal.json`, `enrichment.json`, `triage-summary.md`, `proofcard.json`, `proofcard.md`, `claim-authority.json`, `reviewer-pack.md`, `machine-state.json`, and `run-summary.json`.
 
 BLOCKED runs write sanitized `artifact-manifest.json`, `machine-state.json`, `blocked-review.md`, and `run-summary.json` when safe.
 
@@ -82,7 +82,7 @@ BLOCKED runs write sanitized `artifact-manifest.json`, `machine-state.json`, `bl
 
 ## Hostile Fixture Behavior
 
-Synthetic hostile manifests under `examples/review/hostile/` intentionally request unsafe claims, omit telemetry, point to missing fixtures, or include private/raw-like fields. They are expected to block. They are not evidence and are not runtime material.
+Controlled-test hostile manifests under `examples/review/hostile/` intentionally request unsafe claims, omit telemetry, point to missing fixtures, or include private/raw-like fields. They are expected to block. They are not evidence and are not runtime material.
 
 ## Clean-Room Expectation
 
@@ -110,19 +110,19 @@ A batch exits zero only when actual artifact outcomes match `expected_pass_artif
 
 ## Hostile Batch Behavior
 
-Synthetic hostile indexes under `examples/review/hostile-batch/` cover duplicate artifact IDs, missing manifests, expectation mismatches, unsafe batch status, private-marker attempts, and production wording. They are expected to block fail-closed.
+Controlled-test hostile indexes under `examples/review/hostile-batch/` cover duplicate artifact IDs, missing manifests, expectation mismatches, unsafe batch status, private-marker attempts, and production wording. They are expected to block fail-closed.
 
 ## Adding The Next Artifact Safely
 
-Add a manifest only when source-controlled metadata exists or when the manifest is explicitly synthetic and fixture-only. Add positive and negative synthetic fixtures under `examples/review/fixtures/`, list every blocked claim class, keep all governance flags bounded, add the artifact to the index, and add a hostile case for the most likely unsafe claim. If the artifact cannot satisfy telemetry or fixture gates, list it as expected BLOCKED instead of pretending it is review-passable.
+Add a manifest only when source-controlled metadata exists or when the manifest is explicitly controlled-test and fixture-only. Add positive and negative controlled-test fixtures under `examples/review/fixtures/`, list every blocked claim class, keep all governance flags bounded, add the artifact to the index, and add a hostile case for the most likely unsafe claim. If the artifact cannot satisfy telemetry or fixture gates, list it as expected BLOCKED instead of pretending it is review-passable.
 
 ## Future Detection Plug-In Path
 
-To add a future detection, create a synthetic fixture manifest with telemetry assumptions, allowed example fixture paths, expected event/rule metadata, requested bounded claim wording, blocked claim classes, and explicit proof/runtime/signal boundaries. The engine should block until every required field and gate is satisfied.
+To add a future detection, create a controlled-test fixture manifest with telemetry assumptions, allowed example fixture paths, expected event/rule metadata, requested bounded claim wording, blocked claim classes, and explicit proof/runtime/signal boundaries. The engine should block until every required field and gate is satisfied.
 
 ## What It Proves
 
-It proves Hoxline can deterministically review a public sanitized synthetic artifact manifest through machine-checkable stages, generate reviewer artifacts, emit replayable machine state, and block unsupported claims.
+It proves Hoxline can deterministically review a public sanitized controlled-test artifact manifest through machine-checkable stages, generate reviewer artifacts, emit replayable machine state, and block unsupported claims.
 
 ## What It Does Not Prove
 

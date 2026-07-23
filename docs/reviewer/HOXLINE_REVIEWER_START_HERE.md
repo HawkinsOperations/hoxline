@@ -123,7 +123,7 @@ Current private scheduled collector scope:
 - HO-DET-011
 - HO-DET-012
 
-HO-DET-010 has private runtime-candidate context outside this public fixture demo. Do not confuse the one-command synthetic fixture output with private runtime candidate evidence. HO-DET-010 remains `NOT_PUBLIC_SAFE`, `human_review_required=true`, and `ai_disposition_authority=false` pending governed review.
+HO-DET-010 has private runtime-candidate context outside this public fixture demo. Do not confuse the one-command controlled-test fixture output with private runtime candidate evidence. HO-DET-010 remains `NOT_PUBLIC_SAFE`, `human_review_required=true`, and `ai_disposition_authority=false` pending governed review.
 
 Do not copy private packet contents, raw Wazuh alerts, endpoint logs, command lines, generated credentials, private payloads, execution identifiers, or private telemetry into public documentation.
 ## Website Route

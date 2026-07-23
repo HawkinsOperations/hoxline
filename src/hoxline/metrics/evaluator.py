@@ -25,7 +25,7 @@ BROWSER_PARENT_NAMES = {
     "edge.exe",
     "firefox.exe",
     "msedge.exe",
-    "synthetic_browser.exe",
+    "controlled_test_browser.exe",
 }
 
 SCRIPT_INTERPRETER_NAMES = {
@@ -43,8 +43,8 @@ CACHE_PATH_MARKERS = (
     "/chrome/user data/default/cache/",
     "\\edge\\user data\\default\\cache\\",
     "/edge/user data/default/cache/",
-    "\\firefox\\profiles\\synthetic\\cache2\\",
-    "/firefox/profiles/synthetic/cache2/",
+    "\\firefox\\profiles\\controlled-test\\cache2\\",
+    "/firefox/profiles/controlled-test/cache2/",
 )
 
 
@@ -78,33 +78,33 @@ class DetectionMetrics:
         }
 
 
-def load_synthetic_events(path: str | Path) -> dict[str, Any]:
+def load_controlled_test_events(path: str | Path) -> dict[str, Any]:
     with Path(path).open("r", encoding="utf-8") as handle:
         data = json.load(handle)
     if not isinstance(data, dict):
-        raise ValueError("synthetic event fixture must be a JSON object")
-    if data.get("schema_version") != "synthetic-events-v0":
-        raise ValueError("synthetic event fixture schema_version must be synthetic-events-v0")
+        raise ValueError("controlled-test event fixture must be a JSON object")
+    if data.get("schema_version") != "controlled-test-events-v0":
+        raise ValueError("controlled-test event fixture schema_version must be controlled-test-events-v0")
     if data.get("artifact_id") != "HOX-GAUNTLET-001":
-        raise ValueError("synthetic event fixture artifact_id must be HOX-GAUNTLET-001")
+        raise ValueError("controlled-test event fixture artifact_id must be HOX-GAUNTLET-001")
     events = data.get("events")
     if not isinstance(events, list):
-        raise ValueError("synthetic event fixture must include an events list")
+        raise ValueError("controlled-test event fixture must include an events list")
     for event in events:
         _validate_event(event)
     return data
 
 
 def evaluate_detection_fixture(path: str | Path) -> DetectionMetrics:
-    fixture = load_synthetic_events(path)
+    fixture = load_controlled_test_events(path)
     events = fixture["events"]
     if not isinstance(events, list):
-        raise ValueError("synthetic event fixture must include an events list")
+        raise ValueError("controlled-test event fixture must include an events list")
 
     true_positive = true_negative = false_positive = false_negative = 0
     for event in events:
         if not isinstance(event, dict):
-            raise ValueError("synthetic event must be an object")
+            raise ValueError("controlled-test event must be an object")
         expected = event["expected_detection_match"] is True
         observed = matches_browser_cache_script_interpreter(event)
         if expected and observed:
@@ -169,10 +169,10 @@ def telemetry_coverage(events: list[dict[str, Any]], required_fields: list[str])
 
 def _validate_event(event: object) -> None:
     if not isinstance(event, dict):
-        raise ValueError("synthetic event must be an object")
+        raise ValueError("controlled-test event must be an object")
     missing = [field for field in REQUIRED_EVENT_FIELDS if field not in event]
     if missing:
-        raise ValueError(f"synthetic event missing required fields: {', '.join(missing)}")
+        raise ValueError(f"controlled-test event missing required fields: {', '.join(missing)}")
     if not isinstance(event["expected_detection_match"], bool):
         raise ValueError("expected_detection_match must be boolean")
 

@@ -100,20 +100,29 @@ REQUIRED_MANIFEST_FIELDS = [
 PROHIBITED_CLAIM_PATTERNS = {
     "public-safe runtime proof": re.compile(r"public[- ]safe runtime proof", re.IGNORECASE),
     "public-safe promotion": re.compile(
-        r"\bpublic[-_ ]safe(?:[-_ ](?:approved|promotion|promoted|proof|status|true))\b",
+        r"\bpublic[-_ ]safe(?:[-_ ](?:is[-_ ])?(?:approved|confirmed|promotion|promoted|proof|status|true))\b",
         re.IGNORECASE,
     ),
-    "runtime promotion": re.compile(r"\bruntime[-_ ]active\b", re.IGNORECASE),
+    "runtime promotion": re.compile(
+        r"\bruntime(?:[-_ ]active|\s+(?:is|was)\s+active)\b",
+        re.IGNORECASE,
+    ),
     "signal promotion": re.compile(
-        r"\bsignal(?:[-_ ](?:was[-_ ]?)?observed|[-_ ]proof)\b",
+        r"\bsignal(?:[-_ ](?:was[-_ ]?)?observed|[-_ ]proof|\s+(?:is|was)\s+observed)\b",
         re.IGNORECASE,
     ),
     "production": re.compile(r"\bproduction(?:[- ]ready| readiness)?\b", re.IGNORECASE),
     "customer deployment": re.compile(r"\bcustomer(?:[- ]deployed| deployment)?\b", re.IGNORECASE),
     "SOCaaS deployment": re.compile(r"\bSOCaaS(?:[- ]ready| deployed| deployment)?\b", re.IGNORECASE),
     "autonomous SOC": re.compile(r"\bautonomous SOC\b", re.IGNORECASE),
-    "AI-approved disposition": re.compile(r"\bAI[-_ ]approved\b", re.IGNORECASE),
-    "analyst-approved disposition": re.compile(r"\banalyst[-_ ]approved\b", re.IGNORECASE),
+    "AI-approved disposition": re.compile(
+        r"\bAI(?:[-_ ]approved|[-_ ](?:authority|disposition)(?:[-_ ](?:enabled|approved|true))?)\b",
+        re.IGNORECASE,
+    ),
+    "analyst-approved disposition": re.compile(
+        r"\banalyst(?:[-_ ]approved|[-_ ]approval(?:[-_ ](?:granted|approved|true))?)\b",
+        re.IGNORECASE,
+    ),
     "final authorization": re.compile(r"\bfinal[-_ ]authorization\b", re.IGNORECASE),
     "case closure": re.compile(r"\bcase[-_ ]closure\b|\bcase[-_ ]closed\b", re.IGNORECASE),
     "live cloud claim": re.compile(r"\blive (?:AWS|cloud)(?: runtime| proof| signal)?\b", re.IGNORECASE),
@@ -149,6 +158,7 @@ PRIVATE_VALUE_PATTERNS = [
     )
 ]
 PRIVATE_KEY_TOKENS = {
+    "customeridentifier",
     "endpointlog",
     "generatedpassword",
     "password",
@@ -160,6 +170,15 @@ PRIVATE_KEY_TOKENS = {
     "rawwazuh",
     "secret",
     "token",
+}
+RETIRED_VOCABULARY = "syn" + "thetic"
+TRACKED_TEXT_EXTENSIONS = {
+    ".cfg", ".css", ".csv", ".html", ".ini", ".js", ".json", ".md", ".mjs",
+    ".ps1", ".py", ".rst", ".sh", ".toml", ".ts", ".tsx", ".txt", ".yaml", ".yml",
+}
+TRACKED_BINARY_EXTENSIONS = {".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".webp"}
+TRACKED_TEXT_FILENAMES = {
+    ".editorconfig", ".gitattributes", ".gitignore", "LICENSE", "MANIFEST.in", "Makefile",
 }
 PASS_OUTPUT_ROLES = {
     "artifact_manifest": "artifact-manifest.json",
@@ -462,6 +481,20 @@ def _normalized_key_identity(value: Any) -> str:
     return _normalize_security_key(unicodedata.normalize("NFKC", str(value)))
 
 
+def _security_scan_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    scanned: list[str] = []
+    for character in normalized:
+        if character in "\t\r\n":
+            scanned.append(" ")
+            continue
+        category = unicodedata.category(character)
+        if category.startswith(("C", "M")):
+            continue
+        scanned.append(character)
+    return "".join(scanned)
+
+
 def _is_promotion_key(normalized_key: str) -> bool:
     if normalized_key == "finalstatus":
         return False
@@ -470,10 +503,56 @@ def _is_promotion_key(normalized_key: str) -> bool:
         for token in SECURITY_FALSE_KEY_TOKENS | COMPOSITIONAL_PROMOTION_KEYS
     ):
         return True
-    authority_prefixes = ("production", "customer", "socaas", "runtime", "signal", "approval", "closure", "case", "publicsafe", "final")
-    promotion_suffixes = ("active", "approved", "authorized", "closed", "deployed", "live", "observed", "proof", "ready", "runtime", "status")
-    return any(prefix in normalized_key for prefix in authority_prefixes) and any(
-        normalized_key.endswith(suffix) for suffix in promotion_suffixes
+    anchored_prefixes = ("ai", "analyst", "review", "final")
+    contained_prefixes = (
+        "production", "customer", "socaas", "runtime", "signal", "approval",
+        "closure", "case", "publicsafe",
+    )
+    promotion_indicators = (
+        "active",
+        "approved",
+        "authority",
+        "authorization",
+        "authorized",
+        "closed",
+        "decision",
+        "deployed",
+        "disposition",
+        "enabled",
+        "live",
+        "observed",
+        "proof",
+        "ready",
+        "state",
+        "status",
+    )
+    authority_match = any(normalized_key.startswith(prefix) for prefix in anchored_prefixes) or any(
+        prefix in normalized_key for prefix in contained_prefixes
+    )
+    return authority_match and any(
+        indicator in normalized_key for indicator in promotion_indicators
+    )
+
+
+def _is_promotion_path(path: str) -> bool:
+    segments = [
+        _normalize_security_key(segment)
+        for segment in re.split(r"\.|\[\d+\]", path)
+        if segment
+    ]
+    if any(_is_promotion_key(segment) for segment in segments):
+        return True
+    authority_segments = {
+        "ai", "analyst", "review", "final", "production", "customer", "socaas",
+        "runtime", "signal", "approval", "closure", "case", "publicsafe",
+    }
+    indicator_segments = {
+        "active", "approved", "authority", "authorization", "authorized", "closed",
+        "decision", "deployed", "disposition", "enabled", "live", "observed",
+        "proof", "ready", "state", "status",
+    }
+    return any(segment in authority_segments for segment in segments) and any(
+        segment in indicator_segments for segment in segments
     )
 
 
@@ -533,19 +612,19 @@ def _canonical_base64_text(value: str, *, strict: bool) -> str | None:
 
 
 def _decoded_text_variants(value: str, *, strict_base64: bool = True) -> list[str]:
-    initial = unicodedata.normalize("NFKC", value)
+    initial = _security_scan_text(value)
     variants = [initial]
     frontier = [initial]
     for _ in range(3):
         next_frontier: list[str] = []
         for current in frontier:
-            decoded_url = unicodedata.normalize("NFKC", unquote(current))
+            decoded_url = _security_scan_text(unquote(current))
             if decoded_url != current and decoded_url not in variants:
                 variants.append(decoded_url)
                 next_frontier.append(decoded_url)
             decoded_b64 = _canonical_base64_text(current, strict=strict_base64)
             if decoded_b64 is not None:
-                decoded_b64 = unicodedata.normalize("NFKC", decoded_b64)
+                decoded_b64 = _security_scan_text(decoded_b64)
                 if decoded_b64 not in variants:
                     variants.append(decoded_b64)
                     next_frontier.append(decoded_b64)
@@ -577,7 +656,13 @@ def _validate_recursive_boundaries(value: Any, label: str, path: str = "") -> No
         for key, item in value.items():
             key_path = f"{path}.{key}" if path else str(key)
             normalized_key = _normalize_security_key(key)
-            if _is_promotion_key(normalized_key) and not _is_bounded_promotion_value(item):
+            canonical_final_status = normalized_key == "finalstatus" and item in {
+                "PASS", "MIXED", "BLOCKED",
+            }
+            if (
+                not canonical_final_status
+                and (_is_promotion_key(normalized_key) or _is_promotion_path(key_path))
+            ) and not isinstance(item, (dict, list)) and not _is_bounded_promotion_value(item):
                 raise ReviewBlocked(f"{label} contains prohibited authority promotion")
             for canonical, expected in SECURITY_FIXED_FIELDS.items():
                 if normalized_key == _normalize_security_key(canonical) and item != expected:
@@ -589,9 +674,14 @@ def _validate_recursive_boundaries(value: Any, label: str, path: str = "") -> No
             _validate_recursive_boundaries(item, label, f"{path}[{index}]")
         return
     if isinstance(value, str):
+        if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+            raise ReviewBlocked(f"{label} contains prohibited authority promotion")
         _validate_declared_string(value, label)
         if _string_has_unsafe_claim(value):
             raise ReviewBlocked(f"{label} contains an unsupported claim")
+        return
+    if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+        raise ReviewBlocked(f"{label} contains prohibited authority promotion")
 
 
 def _is_bounded_negative_claim(value: str, *, path: str = "", label: str = "") -> bool:
@@ -602,7 +692,7 @@ def _is_bounded_negative_claim(value: str, *, path: str = "", label: str = "") -
         re.IGNORECASE,
     ):
         return True
-    if any(
+    blocked_context = any(
         token in normalized_path
         for token in (
             "blockedclaims",
@@ -611,8 +701,7 @@ def _is_bounded_negative_claim(value: str, *, path: str = "", label: str = "") -
             "saferwording",
             "whathoxlineblocked",
         )
-    ):
-        return True
+    )
     if normalized_path.endswith(
         ("path", "machinestate", "outputdir", "reviewerpack", "blockedreview", "runsummary")
     ) and re.fullmatch(r"[A-Za-z0-9._/-]+", value):
@@ -630,14 +719,87 @@ def _is_bounded_negative_claim(value: str, *, path: str = "", label: str = "") -
         re.IGNORECASE,
     )
     trailing_negative = re.compile(
-        r"^\s*:?\s*(?:is|are|remains?)\s+(?:unsupported|prohibited|false|not asserted)\b",
+        r"^\s*:?\s*(?:is|are|remains?)\s+(?:unsupported|prohibited|false|not asserted|NOT_PUBLIC_SAFE)\b",
         re.IGNORECASE,
     )
-    clause_separator = re.compile(r"[,;:/\u2013\u2014]|\b(?:while|but|however)\b", re.IGNORECASE)
-    hard_separator = re.compile(r"[;:/\u2013\u2014]|\b(?:while|but|however)\b", re.IGNORECASE)
+    clause_separator = re.compile(
+        r"[,;:/\u2013\u2014]|\b(?:while|but|however|and|plus|though)\b",
+        re.IGNORECASE,
+    )
+    hard_separator = re.compile(
+        r"[;:/\u2013\u2014]|\b(?:while|but|however|though)\b",
+        re.IGNORECASE,
+    )
+    authority_subject = (
+        r"(?:public[-_ ]safe(?:[-_ ](?:runtime|proof|status))?|runtime|signal|production|"
+        r"customer(?:[-_ ](?:environment|deployment))?|SOCaaS(?:[-_ ]deployment)?|"
+        r"AI[-_ ](?:authority|approval|disposition)|analyst[-_ ](?:authority|approval|disposition)|"
+        r"final[-_ ]authorization|case[-_ ]closure)"
+    )
+    affirmative_predicate = re.compile(
+        rf"\b{authority_subject}\b"
+        r"(?:\s+(?:is|are|was|were|has|have|becomes?|became))?\s+"
+        r"(?:enabled|granted|confirmed|received|approved|active|deployed|live|observed|closed|true)\b",
+        re.IGNORECASE,
+    )
+    blocked_suffix = re.compile(
+        r"\b(?:claim|claims|claim classes|claim families|identified claims)\s+"
+        r"(?:remain|remains|are)\s+(?:blocked|unsupported|prohibited|not asserted)\b",
+        re.IGNORECASE,
+    )
+    global_negative_predicate = re.compile(
+        r"\b(?:is|are|remains?)\s+"
+        r"(?:unsupported|prohibited|false|not asserted|NOT_PUBLIC_SAFE)\b",
+        re.IGNORECASE,
+    )
+    exact_bounded_nouns = {
+        *(_security_scan_text(item).strip().casefold() for item in BLOCKED_CLAIM_FAMILIES),
+        "public signal proof",
+        "human review gate completion",
+        "final authorization record",
+    }
     unsafe_seen = False
     for candidate in _decoded_text_variants(value):
         normalized = unicodedata.normalize("NFKC", candidate)
+        canonical_value = re.sub(
+            r"\s+",
+            " ",
+            normalized.strip().strip(" \t`*_-.:;"),
+        ).casefold()
+        explicit_affirmative = affirmative_predicate.search(normalized)
+        if blocked_context and canonical_value in exact_bounded_nouns:
+            return True
+        if blocked_context and ":" in normalized:
+            claim_label, bounded_explanation = normalized.split(":", 1)
+            canonical_label = re.sub(
+                r"\s+",
+                " ",
+                claim_label.strip().strip(" \t`*_-.:;"),
+            ).casefold()
+            if (
+                canonical_label in exact_bounded_nouns
+                and global_negative_predicate.search(bounded_explanation) is not None
+            ):
+                return True
+        if explicit_affirmative is not None:
+            return False
+        if global_negative_predicate.search(normalized) is not None and any(
+            pattern.search(normalized) for pattern in PROHIBITED_CLAIM_PATTERNS.values()
+        ):
+            return True
+        if blocked_suffix.search(normalized) is not None and any(
+            pattern.search(normalized) for pattern in PROHIBITED_CLAIM_PATTERNS.values()
+        ):
+            return True
+        negative_intro = inherited_negative.search(normalized)
+        if (
+            negative_intro is not None
+            and affirmative_predicate.search(normalized, negative_intro.end()) is not None
+        ):
+            # A denial governs only the authority nouns it directly scopes. Any
+            # later explicit affirmative authority predicate is a new claim,
+            # regardless of the connector used to join the clauses.
+            return False
         for pattern in PROHIBITED_CLAIM_PATTERNS.values():
             for match in pattern.finditer(normalized):
                 unsafe_seen = True
@@ -655,10 +817,22 @@ def _is_bounded_negative_claim(value: str, *, path: str = "", label: str = "") -
                 # deployment, or approval" can govern a comma-delimited list.
                 # Weak phrases such as "unsupported note" do not carry across
                 # punctuation, and hard delimiters always reset the scope.
-                if separators and separators[-1].group() == ",":
+                if separators and separators[-1].group().casefold() in {",", "and", "plus"}:
                     hard = [item for item in hard_separator.finditer(normalized) if item.end() <= match.start()]
                     hard_start = hard[-1].end() if hard else 0
-                    if inherited_negative.search(normalized[hard_start : match.start()]):
+                    next_separator = next(
+                        (
+                            item
+                            for item in clause_separator.finditer(normalized, match.end())
+                            if item.start() >= match.end()
+                        ),
+                        None,
+                    )
+                    fragment_end = next_separator.start() if next_separator else len(normalized)
+                    fragment = normalized[clause_start:fragment_end]
+                    if inherited_negative.search(
+                        normalized[hard_start : match.start()]
+                    ) and not affirmative_predicate.search(fragment):
                         continue
                 return False
     return unsafe_seen
@@ -673,7 +847,13 @@ def _validate_generated_output_security(value: Any, label: str, path: str = "") 
                 raise ReviewBlocked(f"{label} contains normalized-key collision")
             seen.add(normalized_key)
             key_path = f"{path}.{key}" if path else str(key)
-            if _is_promotion_key(normalized_key) and not _is_bounded_promotion_value(item):
+            canonical_final_status = normalized_key == "finalstatus" and item in {
+                "PASS", "MIXED", "BLOCKED",
+            }
+            if (
+                not canonical_final_status
+                and (_is_promotion_key(normalized_key) or _is_promotion_path(key_path))
+            ) and not isinstance(item, (dict, list)) and not _is_bounded_promotion_value(item):
                 raise ReviewBlocked(f"{label} contains prohibited authority promotion")
             for canonical, expected in REVIEW_OUTPUT_SECURITY_FIELDS.items():
                 if normalized_key == _normalized_key_identity(canonical) and item != expected:
@@ -685,7 +865,13 @@ def _validate_generated_output_security(value: Any, label: str, path: str = "") 
             _validate_generated_output_security(item, label, f"{path}[{index}]")
         return
     if isinstance(value, str):
+        if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+            raise ReviewBlocked(f"{label} contains prohibited authority promotion")
         _validate_declared_string(value, label)
+        value_is_bounded = (
+            _string_has_unsafe_claim(value)
+            and _is_bounded_negative_claim(value, path=path, label=label)
+        )
         lines = value.splitlines() if "\n" in value or "\r" in value else [value]
         markdown_section = ""
         for line in lines:
@@ -696,8 +882,11 @@ def _validate_generated_output_security(value: Any, label: str, path: str = "") 
             line_path = f"{path}.{markdown_section}" if markdown_section else path
             if _string_has_unsafe_claim(line) and not _is_bounded_negative_claim(
                 line, path=line_path, label=label
-            ):
+            ) and not value_is_bounded:
                 raise ReviewBlocked(f"{label} contains an unsupported claim")
+        return
+    if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+        raise ReviewBlocked(f"{label} contains prohibited authority promotion")
 
 
 def _expected_file_text(value: Any) -> str:
@@ -2979,6 +3168,75 @@ def _safe_run_identity(name: str) -> str:
     if any(token in normalized for token in PRIVATE_KEY_TOKENS) or _string_has_unsafe_claim(name):
         return f"sanitized-run-{hashlib.sha256(name.encode('utf-8')).hexdigest()[:12]}"
     return name
+
+
+def verify_tracked_vocabulary(repo_root: Path) -> list[str]:
+    root = repo_root.resolve()
+    try:
+        result = subprocess.run(
+            [
+                "git", "-C", str(root), "ls-files", "--cached", "--others",
+                "--exclude-standard", "-z",
+            ],
+            check=False,
+            capture_output=True,
+        )
+    except OSError as exc:
+        return [f"tracked vocabulary inventory failed: {exc}"]
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        return [f"tracked vocabulary inventory failed: {detail or 'git ls-files failed'}"]
+    deleted_result = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--deleted", "-z"],
+        check=False,
+        capture_output=True,
+    )
+    if deleted_result.returncode != 0:
+        detail = deleted_result.stderr.decode("utf-8", errors="replace").strip()
+        return [f"tracked deleted-path inventory failed: {detail or 'git ls-files --deleted failed'}"]
+    try:
+        tracked = result.stdout.decode("utf-8", errors="strict").split("\0")
+        deleted = {
+            item
+            for item in deleted_result.stdout.decode("utf-8", errors="strict").split("\0")
+            if item
+        }
+    except UnicodeDecodeError as exc:
+        return [f"tracked filename inventory is not strict UTF-8: {exc}"]
+
+    errors: list[str] = []
+    for relative in sorted(item for item in tracked if item):
+        if relative in deleted:
+            continue
+        normalized_relative = _security_scan_text(relative)
+        if RETIRED_VOCABULARY in normalized_relative.casefold():
+            errors.append(f"tracked filename contains retired vocabulary: {relative}")
+        path = root / Path(relative)
+        try:
+            if not path.is_file():
+                errors.append(f"tracked path is missing or not a regular file: {relative}")
+                continue
+            suffix = path.suffix.casefold()
+            if suffix in TRACKED_BINARY_EXTENSIONS:
+                continue
+            if suffix not in TRACKED_TEXT_EXTENSIONS and path.name not in TRACKED_TEXT_FILENAMES:
+                errors.append(f"tracked file type is not explicitly classified: {relative}")
+                continue
+            payload = path.read_bytes()
+        except OSError as exc:
+            errors.append(f"tracked file read failed: {relative}: {exc}")
+            continue
+        if b"\0" in payload:
+            errors.append(f"tracked text file contains NUL bytes: {relative}")
+            continue
+        try:
+            text = payload.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            errors.append(f"tracked text file is not strict UTF-8: {relative}: {exc}")
+            continue
+        if RETIRED_VOCABULARY in _security_scan_text(text).casefold():
+            errors.append(f"tracked file contains retired vocabulary: {relative}")
+    return errors
 
 
 def _resolve_path(path: Path, base: Path) -> Path:
