@@ -1072,8 +1072,13 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
                 errors.append("hoxline: self_referential must be true")
             if stated.get("revision_scope") != "authoritative_sources_excluding_snapshot":
                 errors.append("hoxline: revision_scope must be authoritative_sources_excluding_snapshot")
-            if current_authority and stated_sha != current_revision.get("source_parent_sha"):
-                errors.append("hoxline: current checked snapshot must cite the immediate parent engine commit")
+            if current_authority and stated_sha not in {
+                current_revision.get("source_commit_sha"),
+                current_revision.get("source_parent_sha"),
+            }:
+                errors.append(
+                    "hoxline: current snapshot must cite the current engine commit or the immediate parent of its checked snapshot commit"
+                )
         if not re.fullmatch(r"[0-9a-f]{40}", str(stated_sha or "")):
             errors.append(f"{repository}: source_commit_sha must be a 40-character Git SHA")
         elif repo_paths.get(repository) is None or not git_commit_exists(repo_paths[repository], str(stated_sha)):
