@@ -145,7 +145,35 @@ def build_case_growth_index(repo_root: Path, generated_at: str | None = None) ->
     case_growth_health = _build_case_growth_health(summary)
     _add_cross_repo_quality_notes(ordered_rows, data_quality_notes)
 
-    source_revisions = _build_source_revisions(repo_paths)
+    source_selections: dict[str, dict[str, Any]] | None = None
+    selection_manifest = (
+        repo_root / ".github" / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+    )
+    if selection_manifest.is_file():
+        source_selections, selection_errors = _load_convergence_source_selections(
+            repo_root
+        )
+        if selection_errors:
+            raise ValueError(
+                "invalid seven-source selection manifest: "
+                + "; ".join(selection_errors)
+            )
+        checkout_errors: list[str] = []
+        for repository in REPO_NAMES:
+            checkout_errors.extend(
+                _verify_selected_source_checkout(
+                    repo_root,
+                    repository,
+                    source_selections,
+                )
+            )
+        if checkout_errors:
+            raise ValueError(
+                "selected source checkout verification failed: "
+                + "; ".join(checkout_errors)
+            )
+
+    source_revisions = _build_source_revisions(repo_paths, source_selections)
     contradictions, drift = _source_convergence_findings(repo_paths, source_revisions, summary, ordered_rows)
     global_current_authority = (
         not contradictions
@@ -381,6 +409,45 @@ def _verify_selected_source_checkout(
     if head == "UNKNOWN" or tree is None:
         return [f"{repository}: checked source head/tree is unavailable"]
     entry = selections[repository]
+    authority_path = AUTHORITY_SOURCES[repository][1]
+    content_revision = str(entry["authority_content_revision"])
+    if not git_commit_exists(repo, content_revision):
+        errors.append(
+            f"{repository}: authority content revision is unreachable in the checked repository"
+        )
+        return errors
+    current_blob = git_blob_identity(repo, head, authority_path)
+    content_blob = git_blob_identity(repo, content_revision, authority_path)
+    if current_blob is None or content_blob is None or current_blob[0] != content_blob[0]:
+        errors.append(
+            f"{repository}: authority content revision does not carry the checked authority blob"
+        )
+    elif (
+        semantic_fingerprint(authority_path, current_blob[1])
+        != semantic_fingerprint(authority_path, content_blob[1])
+    ):
+        errors.append(
+            f"{repository}: authority content revision semantic fingerprint disagrees with current"
+        )
+    head_is_content_ancestor = (
+        head != content_revision and _is_ancestor(repo, head, content_revision)
+    )
+    content_is_head_ancestor = (
+        head != content_revision and _is_ancestor(repo, content_revision, head)
+    )
+    content_tree = _git_output(repo, "rev-parse", f"{content_revision}^{{tree}}")
+    if head_is_content_ancestor:
+        errors.append(
+            f"{repository}: checked head is behind the authority content revision"
+        )
+    elif (
+        head != content_revision
+        and not content_is_head_ancestor
+        and content_tree != tree
+    ):
+        errors.append(
+            f"{repository}: authority content revision is outside the reviewed current lineage"
+        )
     if repository == ".github":
         observed = os.environ.get(
             "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA",
@@ -443,14 +510,22 @@ def verify_all_selected_source_checkouts(repo_root: Path) -> list[str]:
     return errors
 
 
-def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str, Any]]:
+def _build_source_revisions(
+    repo_paths: dict[str, Path | None],
+    selections: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     revisions: list[dict[str, Any]] = []
     for repository in REPO_NAMES:
         repo = repo_paths.get(repository)
         authority_role, relative_path = AUTHORITY_SOURCES[repository]
         source = repo / relative_path if repo is not None else None
         source_exists = source is not None and source.is_file()
-        sha = repo_head_sha(repo) if repo is not None else "UNKNOWN"
+        current_head = repo_head_sha(repo) if repo is not None else "UNKNOWN"
+        selected_content_sha = (
+            str(selections[repository]["authority_content_revision"])
+            if selections is not None and repository in selections
+            else current_head
+        )
         branch = repo_branch(repo) if repo is not None else "NOT_FOUND"
         dirty = repo_dirty(repo) if repo is not None else False
         dirty_paths = repo_dirty_paths(repo) if repo is not None else []
@@ -463,7 +538,7 @@ def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str
             freshness = "MISSING_REPOSITORY"
         elif not source_exists:
             freshness = "MISSING_AUTHORITY_SOURCE"
-        elif sha == "UNKNOWN":
+        elif current_head == "UNKNOWN":
             freshness = "UNVERSIONED_SOURCE"
         elif authority_dirty:
             freshness = "WORKTREE_MODIFIED"
@@ -471,7 +546,11 @@ def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str
             freshness = "REPOSITORY_IDENTITY_INVALID"
         else:
             freshness = "CURRENT"
-        blob_identity = git_blob_identity(repo, sha, relative_path) if repo is not None else None
+        blob_identity = (
+            git_blob_identity(repo, selected_content_sha, relative_path)
+            if repo is not None
+            else None
+        )
         committed_fingerprint = hashlib.sha256(blob_identity[1]).hexdigest() if blob_identity is not None else None
         semantic = semantic_fingerprint(relative_path, blob_identity[1]) if blob_identity is not None else None
         revisions.append(
@@ -479,9 +558,9 @@ def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str
                 "repository": repository,
                 "authority_role": authority_role,
                 "resolved_ref": branch,
-                "source_commit_sha": sha,
-                "source_observed_head_sha": sha,
-                "current_observed_head_sha": sha,
+                "source_commit_sha": selected_content_sha,
+                "source_observed_head_sha": selected_content_sha,
+                "current_observed_head_sha": current_head,
                 "source_observation_kind": "reviewed_immutable_commit",
                 "source_parent_sha": None,
                 "self_referential": False,
@@ -504,7 +583,7 @@ def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str
                 "source_freshness_state": freshness,
                 "snapshot_freshness_state": "CURRENT",
                 "historical_snapshot": False,
-                "current_authority": source_exists and sha != "UNKNOWN" and canonical_origin and not authority_dirty,
+                "current_authority": source_exists and current_head != "UNKNOWN" and canonical_origin and not authority_dirty,
                 "missing_source_state": not source_exists,
                 "dangling_reference_state": repo is not None and not source_exists,
                 "contradictions": [],

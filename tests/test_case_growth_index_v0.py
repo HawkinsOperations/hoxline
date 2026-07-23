@@ -54,12 +54,27 @@ def _write_source_selection_manifest(
     revision: str,
     reviewed_tree: str,
 ) -> None:
+    command_center = org_root / ".github"
+    command_authority_path = command_center / "governance" / "COMMAND_CENTER_INVARIANTS.json"
+    command_authority_path.parent.mkdir(parents=True)
+    command_authority_path.write_text(
+        json.dumps({"schema": "command-center-invariants-v1", "test_fixture": True}),
+        encoding="utf-8",
+    )
+    _git(command_center, "init")
+    _git(command_center, "config", "user.name", "Hoxline Test")
+    _git(command_center, "config", "user.email", "hoxline-test@example.invalid")
+    _git(command_center, "remote", "add", "origin", "https://github.com/HawkinsOperations/.github.git")
+    _git(command_center, "add", "governance/COMMAND_CENTER_INVARIANTS.json")
+    _git(command_center, "commit", "-m", "command authority")
+    command_content_revision = _git(command_center, "rev-parse", "HEAD")
+
     entries: list[dict[str, object]] = [
         {
             "repository": ".github",
             "canonical_repository": "HawkinsOperations/.github",
             "revision_source": "github_event_sha",
-            "authority_content_revision": revision,
+            "authority_content_revision": command_content_revision,
             "tree_source": "github_event_tree",
         }
     ]
@@ -92,13 +107,7 @@ def _write_source_selection_manifest(
         },
     }
     manifest_path = org_root / ".github" / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
-    manifest_path.parent.mkdir(parents=True)
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-    command_center = org_root / ".github"
-    _git(command_center, "init")
-    _git(command_center, "config", "user.name", "Hoxline Test")
-    _git(command_center, "config", "user.email", "hoxline-test@example.invalid")
-    _git(command_center, "remote", "add", "origin", "https://github.com/HawkinsOperations/.github.git")
     _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
     _git(command_center, "commit", "-m", "source selection")
 
@@ -554,8 +563,13 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             _git(repo, "init")
             _git(repo, "config", "user.name", "Hoxline Test")
             _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
             (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
-            _git(repo, "add", "authority.yml")
+            _git(repo, "add", "authority.yml", "detections/DETECTION_PROMOTION_MATRIX.yml")
             _git(repo, "commit", "-m", "authority")
             (repo / "review.txt").write_text("reviewed selection\n", encoding="utf-8")
             _git(repo, "add", "review.txt")
@@ -596,8 +610,13 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             _git(repo, "init")
             _git(repo, "config", "user.name", "Hoxline Test")
             _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
             (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
-            _git(repo, "add", "authority.yml")
+            _git(repo, "add", "authority.yml", "detections/DETECTION_PROMOTION_MATRIX.yml")
             _git(repo, "commit", "-m", "authority")
             selected = _git(repo, "rev-parse", "HEAD")
             reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
@@ -647,8 +666,13 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             _git(repo, "init")
             _git(repo, "config", "user.name", "Hoxline Test")
             _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
             (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
-            _git(repo, "add", "authority.yml")
+            _git(repo, "add", "authority.yml", "detections/DETECTION_PROMOTION_MATRIX.yml")
             _git(repo, "commit", "-m", "authority")
             older = _git(repo, "rev-parse", "HEAD")
             authority_blob = _git(repo, "rev-parse", "HEAD:authority.yml")
