@@ -436,6 +436,26 @@ def _verify_selected_source_checkout(
         head != content_revision and _is_ancestor(repo, content_revision, head)
     )
     content_tree = _git_output(repo, "rev-parse", f"{content_revision}^{{tree}}")
+    rewritten_reviewed_projection = False
+    if (
+        repository != ".github"
+        and head != content_revision
+        and not head_is_content_ancestor
+        and not content_is_head_ancestor
+    ):
+        selected = str(entry["revision"])
+        reviewed_tree = str(entry["reviewed_tree_sha"])
+        selected_tree = _git_output(repo, "rev-parse", f"{selected}^{{tree}}")
+        content_is_selected_ancestor = (
+            content_revision == selected
+            or _is_ancestor(repo, content_revision, selected)
+        )
+        rewritten_reviewed_projection = (
+            selected_tree is not None
+            and selected_tree == reviewed_tree
+            and tree == reviewed_tree
+            and content_is_selected_ancestor
+        )
     if head_is_content_ancestor:
         errors.append(
             f"{repository}: checked head is behind the authority content revision"
@@ -444,6 +464,8 @@ def _verify_selected_source_checkout(
         head != content_revision
         and not content_is_head_ancestor
         and content_tree != tree
+        and repository != ".github"
+        and not rewritten_reviewed_projection
     ):
         errors.append(
             f"{repository}: authority content revision is outside the reviewed current lineage"

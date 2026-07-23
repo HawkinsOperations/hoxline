@@ -676,6 +676,111 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
                 errors = verify_selected_source_checkout(org_root, ".github")
             self.assertTrue(any("differs from the immutable workflow observation" in error for error in errors))
 
+    def test_command_center_content_identity_survives_exact_rewritten_event_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            _git(repo, "add", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            command_center = org_root / ".github"
+            command_tree = _git(command_center, "rev-parse", "HEAD^{tree}")
+            rewritten = _git(
+                command_center,
+                "commit-tree",
+                command_tree,
+                input_text="rewritten command event\n",
+            )
+            _git(command_center, "checkout", "--detach", rewritten)
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": rewritten},
+            ):
+                self.assertEqual(
+                    verify_selected_source_checkout(org_root, ".github"),
+                    [],
+                )
+
+    def test_content_commit_must_belong_to_selected_reviewed_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            authority_path = repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml"
+            authority_path.write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            _git(repo, "add", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority content")
+            content_revision = _git(repo, "rev-parse", "HEAD")
+            content_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            (repo / "review.txt").write_text("reviewed final\n", encoding="utf-8")
+            _git(repo, "add", "review.txt")
+            _git(repo, "commit", "-m", "reviewed final")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            command_center = org_root / ".github"
+            manifest_path = command_center / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            selected_entry = next(
+                entry
+                for entry in manifest["repositories"]
+                if entry["repository"] == repository
+            )
+            selected_entry["authority_content_revision"] = content_revision
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
+            _git(command_center, "commit", "-m", "select content ancestor")
+
+            rewritten = _git(repo, "commit-tree", reviewed_tree, input_text="rewritten final\n")
+            _git(repo, "checkout", "--detach", rewritten)
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+            unrelated_content = _git(
+                repo,
+                "commit-tree",
+                content_tree,
+                input_text="unrelated same authority content\n",
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            selected_entry = next(
+                entry
+                for entry in manifest["repositories"]
+                if entry["repository"] == repository
+            )
+            selected_entry["authority_content_revision"] = unrelated_content
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
+            _git(command_center, "commit", "-m", "hostile unrelated content")
+            errors = verify_selected_source_checkout(org_root, repository)
+            self.assertTrue(
+                any(
+                    "outside the reviewed current lineage" in error
+                    for error in errors
+                )
+            )
+
     def test_selected_source_checkout_rejects_older_same_authority_blob_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             org_root = Path(temp_dir)
