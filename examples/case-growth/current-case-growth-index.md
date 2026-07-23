@@ -1,12 +1,12 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-23T22:10:35Z`
+Generated: `2026-07-23T23:30:59Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
-Source manifest digest: `ad6f20c070aee750d8d45ba8682822ae2dcf6d5e6730f411c4721cc5ec86e093`
-Reproducibility SHA-256: `3d436b4687568d8e8fd34c84a0ddced7e8f5201f75f1483dd092eab53faae2c4`
+Source manifest digest: `b2f9c2d2d886fcf3be3c0c29d5da32231652a893dcd06d5d9f8f088f08bb4fb5`
+Reproducibility SHA-256: `e34e6ca619acc857b4f0f542a193c82c3e99f23ccd7f721755b6493c7b647f7e`
 
 ## Summary
 
@@ -41,7 +41,7 @@ Reproducibility SHA-256: `3d436b4687568d8e8fd34c84a0ddced7e8f5201f75f1483dd092ea
 | `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `651a43a4dfe0776605d5bd7b85ef4f8381c42b64` | `577dd64c65324f45248ce36e4550cba04b9ff056` | `8381676118717c267039bb783a4540544a82e20c3e5df943bfc3eeae05cc5d95` | `CURRENT` |
 | `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `042a918ad4a8473cd5abcfd575072fc094639682` | `623b93e6e5ac141684978ff4dcdc6ed1dec55678` | `68e5de4749bfe34a6677331f6116fab82987c88e999ae14eaf706e9b33536170` | `CURRENT` |
 | `hawkinsoperations-website` | `rendering-only public status contract` | `schemas/public-status-v0.schema.json` | `5856f8e69527b5e61c3953b88a2ad4c088268655` | `1f10e8c0948635eda720905c1f1e7476ef63bf3c` | `5d04c8fbce269352e341798f28afdc29720fd2ea97b80d63884cfdb32e893a11` | `CURRENT` |
-| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `d2ce9d977e832e327b4bdbfef55f04a4fd7c35e7` | `1eed4c1d3433667670a130278ca8a804e00c5243` | `8eee6ebefd06667c8d4c4814a03fa1b159215d6189a136b9fe74d9bd8702c324` | `CURRENT` |
+| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `b0945c4c3db7312f7d50a51d4abab9e65ac454da` | `b4d8f87864c4039fa756fe13da1b6a2371ca6e14` | `e5f564a3a6e57ae1e35b0818def99093f8398684d5eca51ec13d7a9a34ec5428` | `CURRENT` |
 
 ## Convergence Findings
 
