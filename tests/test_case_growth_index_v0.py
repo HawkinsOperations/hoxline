@@ -70,6 +70,9 @@ def _write_source_selection_manifest(
                 "repository": repository,
                 "canonical_repository": f"HawkinsOperations/{repository}",
                 "revision": revision if repository == selected_repository else "0" * 40,
+                "authority_content_revision": (
+                    revision if repository == selected_repository else "0" * 40
+                ),
                 "reviewed_tree_sha": reviewed_tree if repository == selected_repository else "0" * 40,
             }
         )

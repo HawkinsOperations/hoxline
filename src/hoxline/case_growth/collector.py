@@ -288,14 +288,28 @@ def _load_convergence_source_selections(repo_root: Path) -> tuple[dict[str, dict
         else:
             unknown = sorted(
                 set(entry)
-                - {"repository", "canonical_repository", "revision", "reviewed_tree_sha"}
+                - {
+                    "repository",
+                    "canonical_repository",
+                    "revision",
+                    "authority_content_revision",
+                    "reviewed_tree_sha",
+                }
             )
             if unknown:
                 errors.append(f"{repository}: selection contains unsupported fields: {unknown}")
             revision = entry.get("revision")
+            content_revision = entry.get("authority_content_revision")
             tree = entry.get("reviewed_tree_sha")
             if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None:
                 errors.append(f"{repository}: selected revision must be an immutable 40-character SHA")
+            if (
+                not isinstance(content_revision, str)
+                or re.fullmatch(r"[0-9a-f]{40}", content_revision) is None
+            ):
+                errors.append(
+                    f"{repository}: authority content revision must be an immutable 40-character SHA"
+                )
             if not isinstance(tree, str) or re.fullmatch(r"[0-9a-f]{40}", tree) is None:
                 errors.append(f"{repository}: reviewed tree must be a 40-character Git tree SHA")
         selections[repository] = entry
