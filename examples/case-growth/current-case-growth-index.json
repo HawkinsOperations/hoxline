@@ -1,6 +1,6 @@
 {
   "schema_version": "case-growth-index-v1",
-  "generated_at": "2026-07-23T17:05:44Z",
+  "generated_at": "2026-07-23T17:22:53Z",
   "repo_root": "HawkinsOperations",
   "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
   "historical_snapshot": false,
@@ -19,7 +19,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
       "source_observed_head_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
-      "current_observed_head_sha": "da64b4638b46696274206cc85ecb44427b2c9566",
+      "current_observed_head_sha": "7ed69fa7656121f3e595b83de61705557aa073d7",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -115,7 +115,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "651a43a4dfe0776605d5bd7b85ef4f8381c42b64",
       "source_observed_head_sha": "651a43a4dfe0776605d5bd7b85ef4f8381c42b64",
-      "current_observed_head_sha": "651a43a4dfe0776605d5bd7b85ef4f8381c42b64",
+      "current_observed_head_sha": "8ad2ec22595c3cccf6696a07d9708c3397d60175",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -179,7 +179,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "5856f8e69527b5e61c3953b88a2ad4c088268655",
       "source_observed_head_sha": "5856f8e69527b5e61c3953b88a2ad4c088268655",
-      "current_observed_head_sha": "8a08611f9562e9b34a7422a7c3faeabfe69aba0a",
+      "current_observed_head_sha": "ad76debe8f183477f1f8244c04d19177cce3aede",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -211,7 +211,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "d2ce9d977e832e327b4bdbfef55f04a4fd7c35e7",
       "source_observed_head_sha": "d2ce9d977e832e327b4bdbfef55f04a4fd7c35e7",
-      "current_observed_head_sha": "768fd2263a123fe6a508849a9f5eaed37f403135",
+      "current_observed_head_sha": "0b40f45ec7b5275effb8270ab3382fa6df218e95",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -2024,5 +2024,5 @@
     "website_rendering_treated_as_proof": false,
     "green_ci_treated_as_approval": false
   },
-  "reproducibility_sha256": "aba0c2f21807937bc27ab0c9fb8bdbe1b410d9d89190f98f6c2daecf31d96ef9"
+  "reproducibility_sha256": "f313b41532c29870c152549e127bad740a71f3be60aa2a29ae64f4b1e84ea521"
 }
