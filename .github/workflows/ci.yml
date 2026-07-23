@@ -26,7 +26,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/.github
-          ref: fee75e7a88c0b623590786e02f69d4297a0e10b4
+          ref: c8f7fe023aa8eb9af385a8bb222133b9997fe94e
           path: org/.github
           persist-credentials: false
 
@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-platform
-          ref: 9ee26b78e685f324b57c42a3b37836c225b29c63
+          ref: dce32809fcee7faef3f92da7139b2781bb9c4330
           path: org/hawkinsoperations-platform
           persist-credentials: false
 
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-proof
-          ref: 8ff2c1a2f1762e7635fe24194617f110275c2f0c
+          ref: c60882552571c1664549d3e594c6994dc27dce63
           path: org/hawkinsoperations-proof
           persist-credentials: false
 
@@ -66,7 +66,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-website
-          ref: 3c8202b730836074e20c4fa1e3601741a02ee616
+          ref: 9f4c03b84f2c03a305cd1e974ae405cd05218923
           path: org/hawkinsoperations-website
           persist-credentials: false
 
@@ -89,12 +89,12 @@ jobs:
               "hoxline",
           ]
           immutable = {
-              ".github": "fee75e7a88c0b623590786e02f69d4297a0e10b4",
+              ".github": "c8f7fe023aa8eb9af385a8bb222133b9997fe94e",
               "hawkinsoperations-detections": "16d4432eb46d457939f1cfe573c0c5d712650efb",
               "hawkinsoperations-validation": "34bbfc4f48f75f647d5946b4cbe6835abf5e7dbc",
-              "hawkinsoperations-platform": "9ee26b78e685f324b57c42a3b37836c225b29c63",
-              "hawkinsoperations-proof": "8ff2c1a2f1762e7635fe24194617f110275c2f0c",
-              "hawkinsoperations-website": "3c8202b730836074e20c4fa1e3601741a02ee616",
+              "hawkinsoperations-platform": "dce32809fcee7faef3f92da7139b2781bb9c4330",
+              "hawkinsoperations-proof": "c60882552571c1664549d3e594c6994dc27dce63",
+              "hawkinsoperations-website": "9f4c03b84f2c03a305cd1e974ae405cd05218923",
           }
           actual = sorted(path.name for path in root.iterdir() if (path / ".git").exists())
           if actual != sorted(expected):
