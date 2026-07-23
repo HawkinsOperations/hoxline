@@ -4,7 +4,7 @@
   ],
   "ai_disposition_authority": false,
   "allowed_claim_class": "controlled local fixture review only",
-  "artifact_family": "synthetic-review-only",
+  "artifact_family": "controlled-test-review-only",
   "artifact_id": "HO-DET-012",
   "artifact_name": "Suspicious scheduled task creation or update detection",
   "artifact_type": "detection-review-artifact",
@@ -42,7 +42,7 @@
   ],
   "field_mapping": {
     "action": "task lifecycle action",
-    "actor": "synthetic actor label",
+    "actor": "controlled-test actor label",
     "event_id": "event identifier",
     "task_action": "task action label",
     "task_name": "scheduled task under review"
@@ -62,12 +62,12 @@
   "public_proof_promoted": false,
   "public_safe_status": "NOT_PUBLIC_SAFE",
   "requested_claims": [
-    "HO-DET-012 can be reviewed locally through deterministic Hoxline Review Engine v1 using bundled synthetic fixtures only."
+    "HO-DET-012 can be reviewed locally through deterministic Hoxline Review Engine v1 using bundled controlled-test fixtures only."
   ],
   "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
   "runtime_proof": false,
   "severity": "medium",
-  "signal_boundary": "Synthetic fixture signal only; not public signal observation.",
+  "signal_boundary": "Controlled-test fixture signal only; not public signal observation.",
   "source_owner": "hawkinsoperations-detections",
   "telemetry_contract": {
     "event_ids": [
@@ -84,14 +84,14 @@
     ],
     "scope": "fixture-only metadata contract",
     "source": "Windows Security EventChannel",
-    "source_control_note": "Source-controlled detection and validation metadata exists outside Hoxline; this manifest carries only synthetic fixture metadata.",
+    "source_control_note": "Source-controlled detection and validation metadata exists outside Hoxline; this manifest carries only controlled-test fixture metadata.",
     "wazuh_rule_ids": [
       910021,
       910022,
       910023
     ]
   },
-  "triage_what_happened": "A synthetic fixture represented a scheduled task creation pattern.",
+  "triage_what_happened": "A controlled-test fixture represented a scheduled task creation pattern.",
   "triage_why_it_matters": "Unexpected scheduled tasks can indicate persistence when backed by governed evidence.",
   "validation_owner": "hawkinsoperations-validation",
   "wazuh_mutation": false

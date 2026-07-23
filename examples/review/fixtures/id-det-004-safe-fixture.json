@@ -6,13 +6,13 @@
       "event_key": "impossible_travel",
       "channel": "Identity fixture",
       "action": "travel_session_context",
-      "actor": "synthetic-review-actor"
+      "actor": "controlled-test-review-actor"
     }
   ],
   "expected_detection": true,
   "fixture_id": "id-det-004-positive-fixture-v1",
-  "fixture_kind": "synthetic-demo-only",
-  "host": "synthetic-fixture-host",
+  "fixture_kind": "controlled-test-demo-only",
+  "host": "controlled-test-fixture-host",
   "network_required": false,
   "runtime_required": false,
   "safe_fixture": true,

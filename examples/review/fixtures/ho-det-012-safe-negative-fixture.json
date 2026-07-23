@@ -1,6 +1,6 @@
 {
   "artifact_id": "HO-DET-012",
-  "description": "Synthetic negative fixture for HO-DET-012; local review only and not runtime evidence.",
+  "description": "Controlled-test negative fixture for HO-DET-012; local review only and not runtime evidence.",
   "endpoint_mutation": false,
   "events": [
     {
@@ -14,7 +14,7 @@
   ],
   "expected_detection": false,
   "fixture_id": "ho-det-012-safe-negative-fixture-v1",
-  "fixture_kind": "synthetic-demo-only",
+  "fixture_kind": "controlled-test-demo-only",
   "host": "demo-host-012",
   "network_required": false,
   "runtime_required": false,

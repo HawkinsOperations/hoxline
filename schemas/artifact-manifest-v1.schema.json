@@ -38,7 +38,7 @@
     },
     "artifact_name": { "type": "string", "minLength": 1 },
     "artifact_type": { "const": "detection-review-artifact" },
-    "artifact_family": { "const": "synthetic-review-only" },
+    "artifact_family": { "const": "controlled-test-review-only" },
     "source_owner": { "const": "hawkinsoperations-detections" },
     "validation_owner": { "const": "hawkinsoperations-validation" },
     "platform_owner": { "const": "hawkinsoperations-platform" },

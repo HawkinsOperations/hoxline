@@ -1,7 +1,7 @@
 {
   "ai_disposition_authority": false,
   "allowed_claim_class": "boundary contract review only",
-  "artifact_family": "synthetic-review-only",
+  "artifact_family": "controlled-test-review-only",
   "artifact_id": "HO-NDR-001",
   "artifact_name": "Security Onion NDR boundary contract",
   "artifact_type": "boundary-review-artifact",
@@ -43,7 +43,7 @@
   ],
   "runtime_boundary": "No runtime execution, Security Onion access, endpoint mutation, SIEM action, or live signal action.",
   "runtime_proof": false,
-  "signal_boundary": "No synthetic or live signal is claimed.",
+  "signal_boundary": "No controlled-test or live signal is claimed.",
   "source_owner": "hawkinsoperations-detections",
   "telemetry_contract": {
     "event_ids": [],

@@ -385,3 +385,119 @@ def test_batch_replay_rejects_child_path_escape_and_aggregate_laundering(tmp_pat
         assert verify_batch_run(state_path), field
     state_path.write_text(json.dumps(baseline), encoding="utf-8")
     assert verify_batch_run(state_path) == []
+
+
+def test_batch_replay_rejects_rehashed_output_and_role_laundering(tmp_path) -> None:
+    output = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(INDEX), "--output", str(output), "--force"]) == 0
+    state_path = output / "batch-machine-state.json"
+    baseline = _json(state_path)
+
+    for name in baseline["output_digests"]:
+        path = output / name
+        original = path.read_text(encoding="utf-8")
+        if path.suffix == ".json":
+            hostile = json.loads(original)
+            hostile["replay_extension"] = {"approvedByAnalyst": True}
+            path.write_text(json.dumps(hostile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        else:
+            path.write_text(original + "\nproduction ready\n", encoding="utf-8")
+        state = json.loads(json.dumps(baseline))
+        state["output_digests"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        state["batch_state_integrity_digest"] = _semantic_digest(
+            {key: value for key, value in state.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        assert verify_batch_run(state_path), name
+        path.write_text(original, encoding="utf-8")
+        state_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["outputs"]["summary"] = "batch-reviewer-pack.md"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["replay_extension"] = "bounded-looking extra field"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    for field, value in {
+        "created_at": "2099-01-01T00:00:00Z",
+        "batch_id": "laundered-batch",
+        "block_reason": "unexpected non-blocked reason",
+    }.items():
+        hostile_state = json.loads(json.dumps(baseline))
+        hostile_state[field] = value
+        hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+            {key: item for key, item in hostile_state.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        assert verify_batch_run(state_path), field
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["artifacts"] = list(reversed(hostile_state["artifacts"]))
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+
+def test_blocked_batch_replay_rejects_rehashed_output_and_role_laundering(tmp_path) -> None:
+    index = HOSTILE_BATCH_DIR / "unsafe-batch-public-safe-claim-index.json"
+    output = tmp_path / "blocked-batch"
+    assert main(["review", "batch", "run", "--index", str(index), "--output", str(output), "--force"]) == 1
+    state_path = output / "batch-machine-state.json"
+    baseline = _json(state_path)
+    assert baseline["final_status"] == "BLOCKED"
+    assert verify_batch_run(state_path) == []
+
+    for name in baseline["output_digests"]:
+        path = output / name
+        original = path.read_text(encoding="utf-8")
+        if path.suffix == ".json":
+            hostile = json.loads(original)
+            hostile["replay_extension"] = {"approvedByAnalyst": True}
+            path.write_text(json.dumps(hostile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        else:
+            path.write_text(original + "\ncase closure\n", encoding="utf-8")
+        state = json.loads(json.dumps(baseline))
+        state["output_digests"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        state["batch_state_integrity_digest"] = _semantic_digest(
+            {key: value for key, value in state.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        assert verify_batch_run(state_path), name
+        path.write_text(original, encoding="utf-8")
+        state_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["outputs"]["summary"] = "batch-reviewer-pack.md"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["replay_extension"] = "bounded-looking extra field"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["created_at"] = "2099-01-01T00:00:00Z"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)

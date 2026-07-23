@@ -13,7 +13,7 @@ DOCTRINE = "AI is not the authority. Evidence is."
 SCHEMA_VERSION = "hoxline-demo-run-v0"
 DEMO_ID = "hoxline-one-command-reviewer-demo-v0"
 ARTIFACT_ID = "HO-DET-010"
-ARTIFACT_TYPE = "synthetic-local-admin-membership-change-detection"
+ARTIFACT_TYPE = "controlled-test-local-admin-membership-change-detection"
 PROOF_CEILING = "CONTROLLED_FIXTURE_VALIDATED"
 PUBLIC_SAFE_STATUS = "NOT_PUBLIC_SAFE"
 SAFE_ALLOWED_CLAIM = (
@@ -45,7 +45,7 @@ EXPECTED_OUTPUTS = [
     "evidence-graph.json",
     "telemetry-contract-check.json",
     "validation-result.json",
-    "synthetic-signal.json",
+    "controlled-test-signal.json",
     "enrichment.json",
     "triage-summary.md",
     "proofcard.json",
@@ -118,7 +118,7 @@ def build_demo_run(
     intake = _artifact_intake()
     telemetry = _telemetry_contract_check(fixture)
     validation = _controlled_validation(fixture, negative_fixture, telemetry)
-    signal = _synthetic_signal(fixture, validation)
+    signal = _controlled_test_signal(fixture, validation)
     enrichment = _enrichment(fixture)
     triage = _triage(signal, enrichment, validation)
     proofcard = _proofcard(intake, telemetry, validation, signal, enrichment, triage)
@@ -129,7 +129,7 @@ def build_demo_run(
         "evidence_graph": evidence_graph,
         "telemetry_contract_check": telemetry,
         "validation_result": validation,
-        "synthetic_signal": signal,
+        "controlled_test_signal": signal,
         "enrichment": enrichment,
         "triage_summary": _triage_markdown(triage),
         "proofcard": proofcard,
@@ -153,7 +153,7 @@ def write_demo_run(output_dir: Path, run: dict[str, Any], force: bool = False) -
         "evidence-graph.json": run["evidence_graph"],
         "telemetry-contract-check.json": run["telemetry_contract_check"],
         "validation-result.json": run["validation_result"],
-        "synthetic-signal.json": run["synthetic_signal"],
+        "controlled-test-signal.json": run["controlled_test_signal"],
         "enrichment.json": run["enrichment"],
         "triage-summary.md": run["triage_summary"],
         "proofcard.json": run["proofcard"],
@@ -185,7 +185,7 @@ def verify_demo_run_dir(input_path: Path) -> list[str]:
         claim_authority = _load_json(run_dir / "claim-authority.json")
         telemetry = _load_json(run_dir / "telemetry-contract-check.json")
         validation = _load_json(run_dir / "validation-result.json")
-        signal = _load_json(run_dir / "synthetic-signal.json")
+        signal = _load_json(run_dir / "controlled-test-signal.json")
         reviewer_pack = (run_dir / "reviewer-pack.md").read_text(encoding="utf-8")
     except (OSError, DemoError) as exc:
         return [str(exc)]
@@ -217,7 +217,7 @@ def verify_demo_run_dir(input_path: Path) -> list[str]:
     if validation.get("result") != "pass" or validation.get("endpoint_mutation") is not False:
         errors.append("validation must pass without endpoint mutation")
     if signal.get("detection_fired") is not True or signal.get("source") != "safe bundled fixture":
-        errors.append("synthetic signal must fire from safe bundled fixture only")
+        errors.append("controlled-test signal must fire from safe bundled fixture only")
     if proofcard.get("public_safe_status") != PUBLIC_SAFE_STATUS:
         errors.append("ProofCard must keep public_safe_status NOT_PUBLIC_SAFE")
     if proofcard.get("human_review_required") is not True:
@@ -248,7 +248,7 @@ def render_quickstart_console(output_dir: Path, run: dict[str, Any]) -> str:
         "2. Evidence graph linked.",
         "3. Telemetry contract checked.",
         "4. Controlled validation passed using bundled fixture.",
-        "5. Safe synthetic signal/detection event fired.",
+        "5. Safe controlled-test signal/detection event fired.",
         "6. Enrichment attached ATT&CK / source / field mapping.",
         "7. Triage summary generated.",
         "8. ProofCard rendered.",
@@ -270,14 +270,14 @@ def _artifact_intake() -> dict[str, Any]:
         "artifact_id": ARTIFACT_ID,
         "artifact_type": ARTIFACT_TYPE,
         "source_owner": "hawkinsoperations-detections",
-        "source_label": "synthetic demo fixture for local Administrators membership change logic",
+        "source_label": "controlled-test demo fixture for local Administrators membership change logic",
         "ai_assisted": True,
         "initial_claim_ceiling": PROOF_CEILING,
         "public_safe_status": PUBLIC_SAFE_STATUS,
         "human_review_required": True,
         "ai_disposition_authority": False,
         "notes": [
-            "Fixture is synthetic and local-only.",
+            "Fixture is controlled-test and local-only.",
             "No users, groups, endpoints, Wazuh systems, or private infrastructure are touched.",
         ],
     }
@@ -318,15 +318,15 @@ def _controlled_validation(fixture: dict[str, Any], negative_fixture: dict[str, 
         "endpoint_mutation": False,
         "runtime_rerun": False,
         "wazuh_mutation": False,
-        "explanation": "Validation evaluates bundled synthetic fixture records only.",
+        "explanation": "Validation evaluates bundled controlled-test fixture records only.",
     }
 
 
-def _synthetic_signal(fixture: dict[str, Any], validation: dict[str, Any]) -> dict[str, Any]:
+def _controlled_test_signal(fixture: dict[str, Any], validation: dict[str, Any]) -> dict[str, Any]:
     return {
-        "schema_version": "synthetic-signal-v0",
+        "schema_version": "controlled-test-signal-v0",
         "artifact_id": ARTIFACT_ID,
-        "signal_id": "synthetic-signal-ho-det-010-demo-v0",
+        "signal_id": "controlled-test-signal-ho-det-010-demo-v0",
         "source": "safe bundled fixture",
         "detection_fired": validation["result"] == "pass" and _fixture_matches_detection(fixture),
         "simulation_only": True,
@@ -349,8 +349,8 @@ def _enrichment(fixture: dict[str, Any]) -> dict[str, Any]:
             "4733": "member removed from local group",
             "4738": "user account changed",
         },
-        "source_mapping": {"channel": "Windows Security EventChannel", "fixture_host": fixture["host"], "fixture_scope": "synthetic demo host"},
-        "field_mapping": {"event_id": "event identifier", "target_account": "account under review", "group_name": "local group name", "action": "membership or account action", "actor": "synthetic actor label"},
+        "source_mapping": {"channel": "Windows Security EventChannel", "fixture_host": fixture["host"], "fixture_scope": "controlled-test demo host"},
+        "field_mapping": {"event_id": "event identifier", "target_account": "account under review", "group_name": "local group name", "action": "membership or account action", "actor": "controlled-test actor label"},
         "confidence": "bounded-demo-high",
         "severity": "medium",
     }
@@ -360,9 +360,9 @@ def _triage(signal: dict[str, Any], enrichment: dict[str, Any], validation: dict
     return {
         "schema_version": "triage-summary-v0",
         "artifact_id": ARTIFACT_ID,
-        "what_happened": "A synthetic fixture represented a local Administrators membership change pattern.",
+        "what_happened": "A controlled-test fixture represented a local Administrators membership change pattern.",
         "why_it_matters": "Unexpected local administrator membership changes can indicate account or privilege manipulation.",
-        "evidence_exists": ["artifact intake record", "evidence graph", "telemetry contract check", "positive and negative synthetic fixtures", "fixture-derived synthetic signal", "enrichment mapping", "ProofCard", "Claim Authority decision"],
+        "evidence_exists": ["artifact intake record", "evidence graph", "telemetry contract check", "positive and negative controlled-test fixtures", "fixture-derived controlled-test signal", "enrichment mapping", "ProofCard", "Claim Authority decision"],
         "missing_evidence": ["public-safe runtime proof", "public signal proof", "human review gate completion", "final authorization record"],
         "next_gate": "human_review_gate",
         "detection_fired": signal["detection_fired"],
@@ -382,10 +382,10 @@ def _proofcard(intake: dict[str, Any], telemetry: dict[str, Any], validation: di
         "proof_ceiling_meaning": "LOCAL_FIXTURE_DEMONSTRATION_ONLY",
         "review_lane": "ONE_COMMAND_REVIEWER_DEMO_V0",
         "review_version": "v0",
-        "owner_split": {"source_truth": "hawkinsoperations-detections", "behavior_truth": "bundled synthetic fixture", "platform_runtime_truth": "not asserted", "proof_authority": "not asserted by demo", "rendering": "local generated files only"},
+        "owner_split": {"source_truth": "hawkinsoperations-detections", "behavior_truth": "bundled controlled-test fixture", "platform_runtime_truth": "not asserted", "proof_authority": "not asserted by demo", "rendering": "local generated files only"},
         "telemetry_contract": telemetry,
         "controlled_validation": validation,
-        "synthetic_signal": signal,
+        "controlled_test_signal": signal,
         "enrichment": enrichment,
         "triage": triage,
         "allowed_claims": [SAFE_ALLOWED_CLAIM],
@@ -420,7 +420,7 @@ def _evidence_graph(intake: dict[str, Any], telemetry: dict[str, Any], validatio
         _node("artifact-intake", "artifact_intake", intake["source_owner"], "PASS"),
         _node("telemetry-contract-check", "telemetry_contract_check", "hoxline-demo-fixture", telemetry["result"].upper()),
         _node("controlled-validation", "controlled_validation", "hoxline-demo-fixture", validation["result"].upper()),
-        _node("synthetic-signal", "synthetic_signal", "hoxline-demo-fixture", "PASS"),
+        _node("controlled-test-signal", "controlled_test_signal", "hoxline-demo-fixture", "PASS"),
         _node("proofcard", "proofcard", proofcard["proof_owner"], "PASS"),
         _node("claim-authority", "claim_authority", "hoxline", "PASS"),
     ]
@@ -433,8 +433,8 @@ def _evidence_graph(intake: dict[str, Any], telemetry: dict[str, Any], validatio
         "edges": [
             {"from": "artifact-intake", "to": "telemetry-contract-check", "relationship": "declares assumptions"},
             {"from": "telemetry-contract-check", "to": "controlled-validation", "relationship": "bounds fixture validation"},
-            {"from": "controlled-validation", "to": "synthetic-signal", "relationship": "creates fixture-only signal"},
-            {"from": "synthetic-signal", "to": "proofcard", "relationship": "summarized by"},
+            {"from": "controlled-validation", "to": "controlled-test-signal", "relationship": "creates fixture-only signal"},
+            {"from": "controlled-test-signal", "to": "proofcard", "relationship": "summarized by"},
             {"from": "proofcard", "to": "claim-authority", "relationship": "constrains claims"},
         ],
         "missing_evidence": proofcard["missing_evidence"],
@@ -461,14 +461,14 @@ def _run_summary(intake: dict[str, Any], evidence_graph: dict[str, Any], telemet
         "public_proof_promoted": False,
         "lifetime_ledger_changed": False,
         "website_rendering_is_proof": False,
-        "stage_results": {"intake": intake["intake_id"], "evidence_graph": evidence_graph["graph_id"], "telemetry_contract_check": telemetry["result"], "controlled_validation": validation["result"], "synthetic_signal": signal["detection_fired"], "enrichment": enrichment["confidence"], "triage": triage["next_gate"], "proofcard": proofcard["proofcard_id"], "claim_authority": claim_authority["decision_id"]},
+        "stage_results": {"intake": intake["intake_id"], "evidence_graph": evidence_graph["graph_id"], "telemetry_contract_check": telemetry["result"], "controlled_validation": validation["result"], "controlled_test_signal": signal["detection_fired"], "enrichment": enrichment["confidence"], "triage": triage["next_gate"], "proofcard": proofcard["proofcard_id"], "claim_authority": claim_authority["decision_id"]},
     }
 
 
 def _reviewer_pack(proofcard: dict[str, Any], claim_authority: dict[str, Any], triage: dict[str, Any]) -> str:
     lines = [
         "# Hoxline One-Command Reviewer Demo v0", "", f"Product: {PRODUCT}", "", f"Doctrine: {DOCTRINE}", "", f"Artifact: `{ARTIFACT_ID}`", "", "## 30-Second Talk Track", "", TALK_TRACK, "",
-        "## What This Proves", "", "- A reviewer can run Hoxline locally against bundled synthetic fixtures.", "- Hoxline can produce intake, graph, telemetry, validation, signal simulation, enrichment, triage, ProofCard, Claim Authority, and reviewer-pack outputs.", "- Claim Authority allows only bounded demo wording and blocks stronger public claims.", "",
+        "## What This Proves", "", "- A reviewer can run Hoxline locally against bundled controlled-test fixtures.", "- Hoxline can produce intake, graph, telemetry, validation, signal simulation, enrichment, triage, ProofCard, Claim Authority, and reviewer-pack outputs.", "- Claim Authority allows only bounded demo wording and blocks stronger public claims.", "",
         "## What This Does Not Prove", "", "- It does not prove live runtime behavior.", "- It does not prove public signal observation.", "- It does not prove public-safe status, production readiness, deployment, approval, authorization, or case closure.", "- It does not touch endpoints, users, groups, Wazuh, Splunk, Cribl, private infrastructure, or ledgers.", "",
         "## Triage", "", f"- What happened: {triage['what_happened']}", f"- Why it matters: {triage['why_it_matters']}", f"- Next gate: `{triage['next_gate']}`", "", "## Allowed Claim", "", f"- {claim_authority['allowed_claims'][0]}", "", "## Blocked Claims", "",
     ]
@@ -542,7 +542,7 @@ def _node(node_id: str, node_type: str, owner: str, status: str) -> dict[str, st
 
 
 def _validate_fixture(fixture: dict[str, Any], expected_detection: bool) -> None:
-    expected = {"schema_version": "hoxline-demo-fixture-v0", "artifact_id": ARTIFACT_ID, "fixture_kind": "synthetic-demo-only", "safe_fixture": True, "endpoint_mutation": False, "runtime_required": False, "network_required": False}
+    expected = {"schema_version": "hoxline-demo-fixture-v0", "artifact_id": ARTIFACT_ID, "fixture_kind": "controlled-test-demo-only", "safe_fixture": True, "endpoint_mutation": False, "runtime_required": False, "network_required": False}
     for field, value in expected.items():
         if fixture.get(field) != value:
             raise DemoError(f"fixture field {field} must be {value!r}")

@@ -59,7 +59,7 @@ def test_detection_fires_only_from_safe_fixture(tmp_path) -> None:
     output_dir = tmp_path / "demo-run"
     assert main(["demo", "quickstart", "--output", str(output_dir), "--force"]) == 0
 
-    signal = _json(output_dir / "synthetic-signal.json")
+    signal = _json(output_dir / "controlled-test-signal.json")
     validation = _json(output_dir / "validation-result.json")
     assert signal["source"] == "safe bundled fixture"
     assert signal["detection_fired"] is True

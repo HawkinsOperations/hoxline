@@ -1,7 +1,7 @@
 {
   "ai_disposition_authority": false,
   "allowed_claim_class": "controlled local fixture review only",
-  "artifact_family": "synthetic-review-only",
+  "artifact_family": "controlled-test-review-only",
   "artifact_id": "ID-DET-004",
   "artifact_name": "Identity travel context fixture review",
   "artifact_type": "detection-review-artifact",
@@ -30,7 +30,7 @@
     "event_key": "fixture selector",
     "channel": "fixture source label",
     "action": "bounded fixture action",
-    "actor": "synthetic actor label"
+    "actor": "controlled-test actor label"
   },
   "fixture_paths": {
     "negative": "examples/review/fixtures/id-det-004-safe-negative-fixture.json",
@@ -47,12 +47,12 @@
   "public_proof_promoted": false,
   "public_safe_status": "NOT_PUBLIC_SAFE",
   "requested_claims": [
-    "ID-DET-004 can be reviewed locally through deterministic Hoxline Review Engine v1 using bundled synthetic fixtures only."
+    "ID-DET-004 can be reviewed locally through deterministic Hoxline Review Engine v1 using bundled controlled-test fixtures only."
   ],
   "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
   "runtime_proof": false,
   "severity": "medium",
-  "signal_boundary": "Synthetic fixture signal only; not public signal observation.",
+  "signal_boundary": "Controlled-test fixture signal only; not public signal observation.",
   "source_owner": "hawkinsoperations-detections",
   "telemetry_contract": {
     "event_ids": [],
@@ -71,7 +71,7 @@
     "source_control_note": "Source and controlled-validation metadata remain owned by their repositories; this manifest carries sanitized fixture metadata only.",
     "wazuh_rule_ids": []
   },
-  "triage_what_happened": "A synthetic fixture represented the ID-DET-004 controlled review pattern.",
+  "triage_what_happened": "A controlled-test fixture represented the ID-DET-004 controlled review pattern.",
   "triage_why_it_matters": "The bounded pattern is useful for deterministic reviewer reproduction when kept separate from runtime and proof claims.",
   "validation_owner": "hawkinsoperations-validation",
   "wazuh_mutation": false
