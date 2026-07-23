@@ -4,6 +4,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -353,7 +354,22 @@ def _verify_selected_source_checkout(
         return [f"{repository}: checked source head/tree is unavailable"]
     entry = selections[repository]
     if repository == ".github":
-        return []
+        observed = os.environ.get(
+            "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA",
+            "",
+        ).strip()
+        detached = repo_branch(repo).startswith("UNKNOWN_WITH_REASON:")
+        if detached and re.fullmatch(r"[0-9a-f]{40}", observed) is None:
+            errors.append(
+                ".github: detached command-center checkout requires "
+                "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA"
+            )
+        elif observed and observed != head:
+            errors.append(
+                ".github: checked command-center head differs from the immutable "
+                "workflow observation"
+            )
+        return errors
     selected = str(entry["revision"])
     reviewed_tree = str(entry["reviewed_tree_sha"])
     selected_tree = _git_output(repo, "rev-parse", f"{selected}^{{tree}}")

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 try:
@@ -581,6 +582,50 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             rewritten = _git(repo, "commit-tree", reviewed_tree, input_text="rewritten identity\n")
             _git(repo, "checkout", "--detach", rewritten)
             self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+    def test_dynamic_command_center_selection_requires_exact_detached_observation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
+            _git(repo, "add", "authority.yml")
+            _git(repo, "commit", "-m", "authority")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            command_center = org_root / ".github"
+            command_head = _git(command_center, "rev-parse", "HEAD")
+            self.assertEqual(verify_selected_source_checkout(org_root, ".github"), [])
+
+            _git(command_center, "checkout", "--detach", command_head)
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": ""},
+            ):
+                errors = verify_selected_source_checkout(org_root, ".github")
+            self.assertTrue(any("requires HAWKINS_COMMAND_CENTER" in error for error in errors))
+
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": command_head},
+            ):
+                self.assertEqual(
+                    verify_selected_source_checkout(org_root, ".github"),
+                    [],
+                )
+
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": "f" * 40},
+            ):
+                errors = verify_selected_source_checkout(org_root, ".github")
+            self.assertTrue(any("differs from the immutable workflow observation" in error for error in errors))
 
     def test_selected_source_checkout_rejects_older_same_authority_blob_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
