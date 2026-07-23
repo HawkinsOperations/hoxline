@@ -1,12 +1,12 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-23T08:09:54Z`
+Generated: `2026-07-23T08:26:10Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
-Source manifest digest: `ecb16dbae42d8faa2fbfdba30c3c2b88b813ff058f1949335134f4f87a4f3c8f`
-Reproducibility SHA-256: `c6daf34b83f157dfbf35f3abce5bd6c1fdbcc815eeec2a4982c740c2d563a8e4`
+Source manifest digest: `806e26fe48b3ebad14a0cf9f9db7ca31c57cc85660207fdff05f50850c011546`
+Reproducibility SHA-256: `833b596e3f49b12f36949e91446fb16fc209cf3b38d011222d65f8dee261f286`
 
 ## Summary
 
@@ -35,13 +35,13 @@ Reproducibility SHA-256: `c6daf34b83f157dfbf35f3abce5bd6c1fdbcc815eeec2a4982c740
 
 | Repository | Authority role | Authority path | Observed head | Git blob | Semantic fingerprint | Source freshness |
 | --- | --- | --- | --- | --- | --- | --- |
-| `.github` | `org command-center routing` | `governance/COMMAND_CENTER_INVARIANTS.json` | `43fd17e7e66606fac92994cfc9eeb3871a03eff1` | `623e3f9e813b0599618a7df41dee1c9a40fb7a18` | `45cfa989c3f742b546f7f8a497632b43c928029bcaa09e80e04c7c894dba660c` | `CURRENT` |
+| `.github` | `org command-center routing` | `governance/COMMAND_CENTER_INVARIANTS.json` | `cc1032cdf913a8cf10050d239f29e45d18a10381` | `623e3f9e813b0599618a7df41dee1c9a40fb7a18` | `45cfa989c3f742b546f7f8a497632b43c928029bcaa09e80e04c7c894dba660c` | `CURRENT` |
 | `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `16d4432eb46d457939f1cfe573c0c5d712650efb` | `e1d040134f139d2598c527c3584e1859e9c9553d` | `7ca1a5d76ed11de08832dbd074d120295d71d5935be3f10ed3d874d0198bf3e3` | `CURRENT` |
 | `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `34bbfc4f48f75f647d5946b4cbe6835abf5e7dbc` | `6fac3ac3d048c3ef687faaf5ebef1b04e846aad1` | `de88ff4a621256cae51ec597a2cbb73f172d16c9d6e5109bcc42ff9a3b461cc3` | `CURRENT` |
-| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `e7451f51eae4beacdf9c22fbcc1c6983c1fa619c` | `b4dc8749d9e51592a05b1ebe83c87b86a8cc01b3` | `5e57cd9e7eeee3fac51d5f89fa2a84f664b5e8d0bab3e0c475052bbcbf3a064b` | `CURRENT` |
+| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `87414ef6734993f9a4cedf4b95a03473ba336884` | `b4dc8749d9e51592a05b1ebe83c87b86a8cc01b3` | `5e57cd9e7eeee3fac51d5f89fa2a84f664b5e8d0bab3e0c475052bbcbf3a064b` | `CURRENT` |
 | `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `c60882552571c1664549d3e594c6994dc27dce63` | `623b93e6e5ac141684978ff4dcdc6ed1dec55678` | `68e5de4749bfe34a6677331f6116fab82987c88e999ae14eaf706e9b33536170` | `CURRENT` |
 | `hawkinsoperations-website` | `rendering-only public status contract` | `schemas/public-status-v0.schema.json` | `7709c7aec560ad0195ca171c093e4f8468301796` | `1f10e8c0948635eda720905c1f1e7476ef63bf3c` | `5d04c8fbce269352e341798f28afdc29720fd2ea97b80d63884cfdb32e893a11` | `CURRENT` |
-| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `8a5e6bcc8b0bfff4a8661a8c663bd2832e8659dd` | `6622de6d38df5372b971fa928da504a0d611fc36` | `e47d174a56d538566820f1b75588ce00cf943f7e0c975536f01e6ad83169888c` | `CURRENT` |
+| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `6736f52a1e2eb1b90c79a633ea0a382e06c85fac` | `2ce8aaef7419ab8f155563fd67ba0a53569d14bb` | `0024da90dcc53017f0d488ec16bd4bb1e4796c6f93cd6223df9b241ba5de56e1` | `CURRENT` |
 
 ## Convergence Findings
 
