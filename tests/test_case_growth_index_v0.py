@@ -601,7 +601,14 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
 
             command_center = org_root / ".github"
             command_head = _git(command_center, "rev-parse", "HEAD")
-            self.assertEqual(verify_selected_source_checkout(org_root, ".github"), [])
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": ""},
+            ):
+                self.assertEqual(
+                    verify_selected_source_checkout(org_root, ".github"),
+                    [],
+                )
 
             _git(command_center, "checkout", "--detach", command_head)
             with mock.patch.dict(
