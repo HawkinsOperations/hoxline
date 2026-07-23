@@ -279,12 +279,26 @@ def _load_convergence_source_selections(repo_root: Path) -> tuple[dict[str, dict
         if repository == ".github":
             unknown = sorted(
                 set(entry)
-                - {"repository", "canonical_repository", "revision_source", "tree_source"}
+                - {
+                    "repository",
+                    "canonical_repository",
+                    "revision_source",
+                    "authority_content_revision",
+                    "tree_source",
+                }
             )
             if unknown:
                 errors.append(f".github: selection contains unsupported fields: {unknown}")
             if entry.get("revision_source") != "github_event_sha" or entry.get("tree_source") != "github_event_tree":
                 errors.append(".github: dynamic command-center selection must use event SHA and event tree")
+            content_revision = entry.get("authority_content_revision")
+            if (
+                not isinstance(content_revision, str)
+                or re.fullmatch(r"[0-9a-f]{40}", content_revision) is None
+            ):
+                errors.append(
+                    ".github: authority content revision must be an immutable 40-character SHA"
+                )
         else:
             unknown = sorted(
                 set(entry)

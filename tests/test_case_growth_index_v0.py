@@ -59,6 +59,7 @@ def _write_source_selection_manifest(
             "repository": ".github",
             "canonical_repository": "HawkinsOperations/.github",
             "revision_source": "github_event_sha",
+            "authority_content_revision": revision,
             "tree_source": "github_event_tree",
         }
     ]
