@@ -12,12 +12,8 @@
   "telemetry_contract": {
     "source": "Windows Security EventChannel",
     "event_ids": [
-      4720,
-      4725,
-      4726,
       4732,
-      4733,
-      4738
+      4733
     ],
     "wazuh_rule_ids": [
       910101,
@@ -39,12 +35,8 @@
     "negative": "examples/demo/ho-det-010-safe-negative-fixture.json"
   },
   "expected_event_ids": [
-    4720,
-    4725,
-    4726,
     4732,
-    4733,
-    4738
+    4733
   ],
   "expected_rule_ids": [
     910101,

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import base64
+from copy import deepcopy
 from pathlib import Path
 import subprocess
 import sys
@@ -75,7 +77,7 @@ def test_ho_det_010_event_and_rule_metadata_represented(tmp_path) -> None:
     telemetry = _json(output_dir / "telemetry-contract-check.json")
     manifest = _json(output_dir / "artifact-manifest.json")
     assert telemetry["required_source"] == "Windows Security EventChannel"
-    assert telemetry["event_ids"] == [4720, 4725, 4726, 4732, 4733, 4738]
+    assert telemetry["event_ids"] == [4732, 4733]
     assert telemetry["wazuh_rule_family"] == [910101, 910102, 910103]
     assert manifest["telemetry_contract"]["wazuh_rule_ids"] == [910101, 910102, 910103]
 
@@ -164,7 +166,7 @@ def test_blocked_outputs_do_not_echo_private_or_raw_field_names(tmp_path) -> Non
         assert "raw_alert" not in combined
         assert "private_execution_id" not in combined
         assert "private_evidence\"" not in combined
-        assert "prohibited private/raw" in combined
+        assert "input rejected by strict-structure boundary" in combined
 def test_hostile_manifest_names_cover_required_block_classes() -> None:
     names = {path.name for path in HOSTILE_DIR.glob("*.json")}
     assert "missing-telemetry-contract.json" in names
@@ -226,3 +228,105 @@ def test_local_generated_outputs_remain_ignored() -> None:
     )
 
     assert result.returncode == 0
+
+
+def test_duplicate_and_unknown_manifest_fields_fail_closed(tmp_path) -> None:
+    text = MANIFEST.read_text(encoding="utf-8")
+    duplicate = text.replace(
+        '"ai_disposition_authority": false,',
+        '"ai_disposition_authority": false, "AI_Disposition_Authority": true,',
+        1,
+    )
+    duplicate_path = tmp_path / "duplicate.json"
+    duplicate_path.write_text(duplicate, encoding="utf-8")
+    duplicate_out = tmp_path / "duplicate-run"
+    assert main(["review", "run", "--artifact", str(duplicate_path), "--output", str(duplicate_out), "--force"]) == 1
+    assert _json(duplicate_out / "machine-state.json")["final_status"] == "BLOCKED"
+
+    unknown = _json(MANIFEST)
+    unknown["extension"] = {"harmless": True}
+    unknown_path = tmp_path / "unknown.json"
+    unknown_path.write_text(json.dumps(unknown), encoding="utf-8")
+    unknown_out = tmp_path / "unknown-run"
+    assert main(["review", "run", "--artifact", str(unknown_path), "--output", str(unknown_out), "--force"]) == 1
+    assert _json(unknown_out / "machine-state.json")["block_reason"] == "input rejected by strict-structure boundary"
+
+
+def test_nested_and_encoded_authority_laundering_fails_closed(tmp_path) -> None:
+    encoded_claims = [
+        "public_safe_approved",
+        "analyst%2Dapproved%20disposition",
+        "final%2520authorization",
+        base64.urlsafe_b64encode(b"case closure").decode("ascii"),
+        '{"nested":{"ai_approved":true}}',
+    ]
+    for index, claim in enumerate(encoded_claims):
+        manifest = _json(MANIFEST)
+        manifest["field_mapping"] = {"nested": claim}
+        path = tmp_path / f"encoded-{index}.json"
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        output = tmp_path / f"encoded-{index}"
+        assert main(["review", "run", "--artifact", str(path), "--output", str(output), "--force"]) == 1
+        state = _json(output / "machine-state.json")
+        assert state["block_reason"] == "input rejected by claim-authority boundary"
+        combined = "\n".join(item.read_text(encoding="utf-8") for item in output.glob("*.json"))
+        assert claim not in combined
+
+    manifest = _json(MANIFEST)
+    manifest["field_mapping"] = {"nested_authority": {"approvedByAnalyst": True}}
+    path = tmp_path / "nested-authority.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    output = tmp_path / "nested-authority"
+    assert main(["review", "run", "--artifact", str(path), "--output", str(output), "--force"]) == 1
+
+
+def test_encoded_mixed_and_drive_relative_paths_fail_closed(tmp_path) -> None:
+    attacks = [
+        r"C:relative\fixture.json",
+        r"C:\private\fixture.json",
+        r"\\host\share\fixture.json",
+        "/tmp/fixture.json",
+        r"examples/review\../private.json",
+        "examples/review/%2e%2e/private.json",
+        "examples/review/%252e%252e/private.json",
+        "file:///C:/private/fixture.json",
+    ]
+    for index, attack in enumerate(attacks):
+        manifest = _json(MANIFEST)
+        manifest["fixture_paths"]["positive"] = attack
+        path = tmp_path / f"path-{index}.json"
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        output = tmp_path / f"path-{index}"
+        assert main(["review", "run", "--artifact", str(path), "--output", str(output), "--force"]) == 1
+        state = _json(output / "machine-state.json")
+        assert state["block_reason"] == "input rejected by path-containment boundary"
+        assert attack not in json.dumps(state)
+
+
+def test_single_replay_binds_every_output_and_machine_state_field(tmp_path) -> None:
+    output = tmp_path / "review-run"
+    assert main(["review", "run", "--artifact", str(MANIFEST), "--output", str(output), "--force"]) == 0
+    state_path = output / "machine-state.json"
+    baseline = _json(state_path)
+
+    for field, value in {
+        "final_status": "BLOCKED",
+        "public_safe_status": "PUBLIC_SAFE",
+        "human_review_required": False,
+        "ai_disposition_authority": True,
+        "next_gate": "case closure",
+        "source_manifest_digest": "0" * 64,
+    }.items():
+        hostile = deepcopy(baseline)
+        hostile[field] = value
+        state_path.write_text(json.dumps(hostile), encoding="utf-8")
+        assert verify_review_run(state_path), field
+    state_path.write_text(json.dumps(baseline), encoding="utf-8")
+
+    for name in baseline["output_digests"]:
+        path = output / name
+        original = path.read_bytes()
+        path.write_bytes(original + b"\n")
+        assert any("digest mismatch" in error for error in verify_review_run(state_path)), name
+        path.write_bytes(original)
+    assert verify_review_run(state_path) == []

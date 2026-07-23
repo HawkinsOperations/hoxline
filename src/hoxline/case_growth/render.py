@@ -15,6 +15,7 @@ def render_case_growth_markdown(index: dict[str, Any]) -> str:
         f"Repo-slot accuracy: `{repo_slots.get('wording', 'UNKNOWN_WITH_REASON')}`",
         f"Historical snapshot: `{str(index.get('historical_snapshot')).lower()}`",
         f"Current authority: `{str(index.get('current_authority')).lower()}`",
+        f"Source manifest digest: `{index.get('source_manifest_digest')}`",
         f"Reproducibility SHA-256: `{index.get('reproducibility_sha256')}`",
         "",
         "## Summary",
@@ -49,14 +50,16 @@ def render_case_growth_markdown(index: dict[str, Any]) -> str:
             "",
             "## Source Revisions",
             "",
-            "| Repository | Authority role | Source path | Source revision | Source freshness | Snapshot freshness |",
-            "| --- | --- | --- | --- | --- | --- |",
+            "| Repository | Authority role | Authority path | Observed head | Git blob | Semantic fingerprint | Source freshness |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for source in index.get("source_revisions", []):
         lines.append(
-            f"| {_cell(source['repository'])} | {_cell(source['authority_role'])} | {_cell(source['source_path'])} | "
-            f"`{source['source_commit_sha']}` | `{source['source_freshness_state']}` | `{source['snapshot_freshness_state']}` |"
+            f"| {_cell(source['repository'])} | {_cell(source['authority_role'])} | "
+            f"{_cell(source.get('authoritative_path') or source['source_path'])} | "
+            f"`{source['source_commit_sha']}` | `{source.get('authoritative_git_blob_sha')}` | "
+            f"`{source.get('authoritative_content_fingerprint')}` | `{source['source_freshness_state']}` |"
         )
 
     lines.extend(["", "## Convergence Findings", ""])

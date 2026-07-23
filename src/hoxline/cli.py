@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 
 from .case_growth import (
     build_case_growth_index,
@@ -158,6 +160,10 @@ def _build_parser() -> argparse.ArgumentParser:
     case_growth_index_parser.add_argument("--repo-root", required=True, help="HawkinsOperations local org repo root")
     case_growth_index_parser.add_argument("--format", choices=("json", "markdown"), default="json", help="output format")
     case_growth_index_parser.add_argument("--output", help="optional output path")
+    case_growth_index_parser.add_argument(
+        "--paired-output-base",
+        help="write a content-bound JSON/Markdown pair using this path without a suffix",
+    )
     case_growth_verify_parser = case_growth_subparsers.add_parser("verify", help="fail closed when a snapshot drifts from current authority")
     case_growth_verify_parser.add_argument("--repo-root", required=True, help="HawkinsOperations local org repo root")
     case_growth_verify_parser.add_argument("--snapshot", required=True, help="checked-in Case Growth snapshot JSON")
@@ -242,10 +248,16 @@ def _run_case_growth_index(args: argparse.Namespace) -> int:
         print(f"Hoxline Case Growth Index: error: {exc}", file=sys.stderr)
         return 2
 
-    if args.format == "json":
-        output = json.dumps(index, indent=2) + "\n"
-    else:
-        output = render_case_growth_markdown(index)
+    json_output = json.dumps(index, indent=2) + "\n"
+    markdown_output = render_case_growth_markdown(index)
+    output = json_output if args.format == "json" else markdown_output
+
+    if args.paired_output_base:
+        try:
+            _write_case_growth_pair(Path(args.paired_output_base), json_output, markdown_output)
+        except OSError as exc:
+            print(f"Hoxline Case Growth Index: paired output error: {exc}", file=sys.stderr)
+            return 2
 
     if args.output:
         output_path = Path(args.output)
@@ -256,10 +268,43 @@ def _run_case_growth_index(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write_case_growth_pair(base_path: Path, json_output: str, markdown_output: str) -> None:
+    if base_path.suffix:
+        raise OSError("paired output base must not include a suffix")
+    base_path.parent.mkdir(parents=True, exist_ok=True)
+    targets = ((base_path.with_suffix(".json"), json_output), (base_path.with_suffix(".md"), markdown_output))
+    temporary: list[tuple[Path, Path]] = []
+    try:
+        for target, content in targets:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                dir=target.parent,
+                prefix=f".{target.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                handle.write(content)
+                temporary.append((Path(handle.name), target))
+        for temp_path, target in temporary:
+            os.replace(temp_path, target)
+    finally:
+        for temp_path, _ in temporary:
+            if temp_path.exists():
+                temp_path.unlink()
+
+
 def _run_case_growth_verify(args: argparse.Namespace) -> int:
     try:
-        snapshot = _load_json(Path(args.snapshot))
+        snapshot_path = Path(args.snapshot)
+        snapshot = _load_json(snapshot_path)
         errors, current = verify_case_growth_snapshot(Path(args.repo_root), snapshot)
+        markdown_path = snapshot_path.with_suffix(".md")
+        if not markdown_path.is_file():
+            errors.append(f"paired Case Growth Markdown is missing: {markdown_path.name}")
+        elif markdown_path.read_text(encoding="utf-8") != render_case_growth_markdown(snapshot):
+            errors.append("paired Case Growth Markdown is not the exact render of the checked JSON")
     except (OSError, ValueError) as exc:
         print(f"Hoxline Case Growth verify: error: {exc}", file=sys.stderr)
         return 2

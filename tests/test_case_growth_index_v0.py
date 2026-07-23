@@ -7,7 +7,6 @@ import shutil
 import sys
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
 
 try:
@@ -133,8 +132,48 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("| case_id | source | validation | runtime_candidate |", stdout.getvalue())
 
+    def test_cli_writes_content_bound_json_markdown_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pair_base = Path(temp_dir) / "case-growth"
+            with contextlib.redirect_stdout(io.StringIO()):
+                status = main(
+                    [
+                        "case-growth",
+                        "index",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--format",
+                        "json",
+                        "--paired-output-base",
+                        str(pair_base),
+                    ]
+                )
+            self.assertEqual(status, 0)
+            payload = json.loads(pair_base.with_suffix(".json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                pair_base.with_suffix(".md").read_text(encoding="utf-8"),
+                render_case_growth_markdown(payload),
+            )
+            pair_base.with_suffix(".md").write_text("tampered\n", encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                verify_status = main(
+                    [
+                        "case-growth",
+                        "verify",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--snapshot",
+                        str(pair_base.with_suffix(".json")),
+                        "--format",
+                        "json",
+                    ]
+                )
+            self.assertEqual(verify_status, 1)
+            self.assertIn("not the exact render", stdout.getvalue())
+
     def test_schema_validates_sample_json(self) -> None:
-        sample = json.loads(SAMPLE_JSON.read_text(encoding="utf-8"))
+        sample = self.index
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
         if jsonschema is not None:
             jsonschema.validate(sample, schema)
@@ -231,10 +270,8 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertTrue(all(row["case_state"] != "CLOSED" for row in self.rows))
 
     def test_website_evidence_never_creates_proof_status(self) -> None:
-        website_only = row_by_id(self.index, "HO-DET-999")
-        self.assertEqual(website_only["source_status"], "NOT_FOUND")
-        self.assertEqual(website_only["proof_record_status"], "NOT_PROVEN")
-        self.assertEqual(website_only["proofcard_status"], "NOT_PROVEN")
+        case_ids = {row["case_id"] for row in self.rows}
+        self.assertNotIn("HO-DET-999", case_ids)
 
     def test_metrics_available_for_hox_gauntlet_fixture(self) -> None:
         gauntlet = row_by_id(self.index, "HOX-GAUNTLET-001")
@@ -325,17 +362,19 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         change = next(item for item in report["changes"] if item["field"] == "summary.proof_records_count")
         self.assertEqual(change["classification"], "EXPECTED_HISTORICAL_CONTEXT")
 
-    def test_diff_classifies_snapshot_commit_self_reference_as_expected(self) -> None:
+    def test_diff_classifies_head_rewrite_with_same_content_as_observation_only(self) -> None:
         snapshot = json.loads(json.dumps(self.index))
         hoxline_revision = next(item for item in snapshot["source_revisions"] if item["repository"] == "hoxline")
-        hoxline_revision["source_commit_sha"] = hoxline_revision["source_parent_sha"]
+        hoxline_revision["source_commit_sha"] = "a" * 40
+        hoxline_revision["source_observed_head_sha"] = "a" * 40
+        hoxline_revision["current_observed_head_sha"] = "a" * 40
         report = diff_case_growth_snapshot(FIXTURE_ROOT, snapshot)
         change = next(
             item
             for item in report["changes"]
             if item["source_owner"] == "hoxline" and item["field"] == "source_commit_sha"
         )
-        self.assertEqual(change["classification"], "EXPECTED_SELF_REFERENTIAL_CONTEXT")
+        self.assertEqual(change["classification"], "OBSERVATION_ONLY_CONTENT_CURRENT")
         self.assertTrue(report["next_legal_action"].startswith("none;"))
 
     def test_cli_verify_fails_closed_on_hostile_snapshot(self) -> None:
@@ -418,49 +457,44 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, bounded)
         self.assertFalse(any("final authorization wording" in error for error in errors))
 
-    def test_historical_snapshot_sha_must_resolve_in_stated_repository(self) -> None:
+    def test_unavailable_observed_sha_does_not_replace_content_authority(self) -> None:
         hostile = json.loads(json.dumps(self.index))
-        hostile["historical_snapshot"] = True
-        hostile["current_authority"] = False
         hostile["source_revisions"][0]["source_commit_sha"] = "f" * 40
+        hostile["source_revisions"][0]["source_observed_head_sha"] = "f" * 40
+        hostile["source_revisions"][0]["current_observed_head_sha"] = "f" * 40
         hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
         errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
-        self.assertTrue(any("not a reachable commit" in error for error in errors))
+        self.assertFalse(any("authoritative Git blob disagrees" in error for error in errors))
 
-    def test_historical_snapshot_fingerprint_must_match_stated_commit_blob(self) -> None:
+    def test_current_snapshot_rejects_forged_content_identity(self) -> None:
         hostile = json.loads(json.dumps(self.index))
-        hostile["historical_snapshot"] = True
-        hostile["current_authority"] = False
-        hostile["source_revisions"][0]["source_commit_sha"] = "a" * 40
-        hostile["source_revisions"][0]["source_file_sha256"] = "0" * 64
+        hostile["source_revisions"][0]["authoritative_git_blob_sha"] = "a" * 40
+        hostile["source_revisions"][0]["authoritative_content_fingerprint"] = "0" * 64
         hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
-        with (
-            mock.patch("hoxline.case_growth.collector.git_commit_exists", return_value=True),
-            mock.patch("hoxline.case_growth.collector.git_blob_sha256", return_value="b" * 64),
-        ):
-            errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
-        self.assertTrue(any("does not match the authoritative blob at the stated commit" in error for error in errors))
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("authoritative Git blob disagrees" in error for error in errors))
+        self.assertTrue(any("semantic fingerprint disagrees" in error for error in errors))
 
     def test_current_snapshot_rejects_worktree_modified_freshness(self) -> None:
         hostile = json.loads(json.dumps(self.index))
+        hostile["current_authority"] = True
+        hostile["snapshot_state"]["current_authority"] = True
         hostile["source_revisions"][0]["source_freshness_state"] = "WORKTREE_MODIFIED"
         hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
         errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
         self.assertTrue(any("source_freshness_state must be one of" in error for error in errors))
 
-    def test_current_hoxline_snapshot_requires_self_reference_and_immediate_parent(self) -> None:
+    def test_generated_consumers_cannot_become_self_referential_authority(self) -> None:
         hostile = json.loads(json.dumps(self.index))
         hoxline_revision = next(
             revision for revision in hostile["source_revisions"] if revision["repository"] == "hoxline"
         )
-        hoxline_revision["self_referential"] = False
+        hoxline_revision["self_referential"] = True
         hoxline_revision["revision_scope"] = "authoritative_source_at_commit"
-        hoxline_revision["source_commit_sha"] = "a" * 40
         hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
         errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
-        self.assertTrue(any("self_referential must be true" in error for error in errors))
-        self.assertTrue(any("revision_scope must be authoritative_sources_excluding_snapshot" in error for error in errors))
-        self.assertTrue(any("must cite the immediate parent engine commit" in error for error in errors))
+        self.assertTrue(any("generated consumers must not be self-referential authority" in error for error in errors))
+        self.assertTrue(any("revision_scope must be content_addressed_authority" in error for error in errors))
 
     def test_verify_rejects_drive_unc_and_posix_absolute_paths(self) -> None:
         for leaked_path in (r"D:\private\evidence.json", r"\\private-host\share\evidence.json", "/home/reviewer/evidence.json"):

@@ -13,7 +13,7 @@ from .discovery import (
     case_growth_files,
     discover_case_ids,
     file_sha256,
-    git_blob_sha256,
+    git_blob_identity,
     git_commit_exists,
     last_git_update,
     load_structured,
@@ -21,22 +21,28 @@ from .discovery import (
     repo_dirty,
     repo_dirty_paths,
     repo_head_sha,
-    repo_parent_sha,
+    repo_origin,
     repo_relative,
     resolve_repo_paths,
+    semantic_fingerprint,
 )
 
 
 PROOF_CEILING = "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY"
 
 AUTHORITY_SOURCES = {
-    ".github": ("org command-center routing", "scripts/verify-command-center-invariants.py"),
+    ".github": ("org command-center routing", "governance/COMMAND_CENTER_INVARIANTS.json"),
     "hawkinsoperations-detections": ("detection source truth", "detections/DETECTION_PROMOTION_MATRIX.yml"),
     "hawkinsoperations-validation": ("controlled validation truth", "validation/VALIDATION_REGISTRY.yml"),
     "hawkinsoperations-platform": ("platform contract truth", "contracts/public-status-source-contract-v1.json"),
     "hawkinsoperations-proof": ("proof and claim-boundary truth", "proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml"),
-    "hawkinsoperations-website": ("rendering-only public status", "public/data/public-status.json"),
+    "hawkinsoperations-website": ("rendering-only public status contract", "schemas/public-status-v0.schema.json"),
     "hoxline": ("case-growth and fixture-review product truth", "src/hoxline/case_growth/collector.py"),
+}
+
+CANONICAL_ORIGINS = {
+    repository: f"github.com/HawkinsOperations/{repository}".casefold()
+    for repository in REPO_NAMES
 }
 
 BOUNDARY = {
@@ -136,20 +142,27 @@ def build_case_growth_index(repo_root: Path, generated_at: str | None = None) ->
 
     source_revisions = _build_source_revisions(repo_paths)
     contradictions, drift = _source_convergence_findings(repo_paths, source_revisions, summary, ordered_rows)
+    global_current_authority = (
+        not contradictions
+        and not drift
+        and all(item.get("current_authority") is True for item in source_revisions)
+    )
     result = {
         "schema_version": "case-growth-index-v1",
         "generated_at": generated,
         "repo_root": "HawkinsOperations",
         "proof_ceiling": PROOF_CEILING,
         "historical_snapshot": False,
-        "current_authority": True,
+        "current_authority": global_current_authority,
         "snapshot_state": {
-            "freshness": "CURRENT",
+            "freshness": "CURRENT" if global_current_authority else "BLOCKED",
             "historical_snapshot": False,
-            "current_authority": True,
-            "self_source_revision_semantics": "worktree-head-or-snapshot-commit-parent",
+            "current_authority": global_current_authority,
+            "identity_model": "repo_path_git_blob_and_semantic_fingerprint_with_separate_head_observation",
+            "generated_consumers_are_authority": False,
         },
         "source_revisions": source_revisions,
+        "source_manifest_digest": _source_manifest_digest(source_revisions),
         "contradictions": contradictions,
         "drift": drift,
         "next_legal_action": _next_legal_action(source_revisions, contradictions, drift),
@@ -179,6 +192,15 @@ def _repo_boundary(repo_name: str) -> str:
     }[repo_name]
 
 
+def _normalized_origin(value: str) -> str:
+    origin = value.strip().replace("\\", "/")
+    origin = re.sub(r"^git@", "", origin)
+    if origin.startswith("github.com:"):
+        origin = origin.replace(":", "/", 1)
+    origin = re.sub(r"^(?:https?|ssh)://", "", origin, flags=re.IGNORECASE)
+    return origin.removesuffix(".git").rstrip("/").casefold()
+
+
 def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str, Any]]:
     revisions: list[dict[str, Any]] = []
     for repository in REPO_NAMES:
@@ -190,40 +212,57 @@ def _build_source_revisions(repo_paths: dict[str, Path | None]) -> list[dict[str
         branch = repo_branch(repo) if repo is not None else "NOT_FOUND"
         dirty = repo_dirty(repo) if repo is not None else False
         dirty_paths = repo_dirty_paths(repo) if repo is not None else []
+        authority_dirty = relative_path.replace("\\", "/").casefold() in {
+            path.replace("\\", "/").casefold() for path in dirty_paths
+        }
+        origin = repo_origin(repo) if repo is not None else "UNKNOWN"
+        canonical_origin = _normalized_origin(origin) == CANONICAL_ORIGINS[repository]
         if repo is None:
             freshness = "MISSING_REPOSITORY"
         elif not source_exists:
             freshness = "MISSING_AUTHORITY_SOURCE"
         elif sha == "UNKNOWN":
             freshness = "UNVERSIONED_SOURCE"
-        elif repository == "hoxline" and dirty and all(path.startswith("examples/case-growth/") for path in dirty_paths):
-            freshness = "CURRENT_SELF_REFERENTIAL"
-        elif dirty:
+        elif authority_dirty:
             freshness = "WORKTREE_MODIFIED"
+        elif not canonical_origin:
+            freshness = "REPOSITORY_IDENTITY_INVALID"
         else:
             freshness = "CURRENT"
-        committed_fingerprint = git_blob_sha256(repo, sha, relative_path) if repo is not None else None
+        blob_identity = git_blob_identity(repo, sha, relative_path) if repo is not None else None
+        committed_fingerprint = hashlib.sha256(blob_identity[1]).hexdigest() if blob_identity is not None else None
+        semantic = semantic_fingerprint(relative_path, blob_identity[1]) if blob_identity is not None else None
         revisions.append(
             {
                 "repository": repository,
                 "authority_role": authority_role,
                 "resolved_ref": branch,
                 "source_commit_sha": sha,
-                "source_parent_sha": repo_parent_sha(repo) if repo is not None and repository == "hoxline" else None,
-                "self_referential": repository == "hoxline",
-                "revision_scope": (
-                    "authoritative_sources_excluding_snapshot" if repository == "hoxline" else "authoritative_source_at_commit"
-                ),
+                "source_observed_head_sha": sha,
+                "current_observed_head_sha": sha,
+                "source_observation_kind": "reviewed_immutable_commit",
+                "source_parent_sha": None,
+                "self_referential": False,
+                "revision_scope": "content_addressed_authority",
                 "source_path": relative_path,
+                "authoritative_path": relative_path,
+                "authoritative_git_blob_sha": blob_identity[0] if blob_identity is not None else None,
+                "source_git_blob_sha": blob_identity[0] if blob_identity is not None else None,
                 "source_file_sha256": (
                     committed_fingerprint
                     if committed_fingerprint is not None
                     else file_sha256(source) if source_exists and source is not None else None
                 ),
+                "authoritative_content_fingerprint": semantic,
+                "source_semantic_fingerprint_sha256": semantic,
+                "canonical_origin": CANONICAL_ORIGINS[repository],
+                "observed_origin": _normalized_origin(origin),
+                "repository_dirty_observed": dirty,
+                "authority_source_dirty": authority_dirty,
                 "source_freshness_state": freshness,
                 "snapshot_freshness_state": "CURRENT",
                 "historical_snapshot": False,
-                "current_authority": source_exists and sha != "UNKNOWN",
+                "current_authority": source_exists and sha != "UNKNOWN" and canonical_origin and not authority_dirty,
                 "missing_source_state": not source_exists,
                 "dangling_reference_state": repo is not None and not source_exists,
                 "contradictions": [],
@@ -363,7 +402,7 @@ def _source_convergence_findings(
 
     website_repo = repo_paths.get("hawkinsoperations-website")
     if website_repo is not None:
-        website_path = website_repo / AUTHORITY_SOURCES["hawkinsoperations-website"][1]
+        website_path = website_repo / "public" / "data" / "public-status.json"
         if website_path.is_file():
             website = load_structured(website_path) or {}
             rendered = ((website.get("metrics") or {}).get("proof_records") or {}).get("value")
@@ -377,58 +416,6 @@ def _source_convergence_findings(
                         current,
                         rendered,
                         "regenerate website public status from the proof-owned current index; website remains rendering-only",
-                    )
-                )
-
-    current_shas = {item["repository"]: item["source_commit_sha"] for item in source_revisions}
-    for surface_owner, relative_path in (
-        ("hawkinsoperations-platform", AUTHORITY_SOURCES["hawkinsoperations-platform"][1]),
-        ("hawkinsoperations-website", AUTHORITY_SOURCES["hawkinsoperations-website"][1]),
-    ):
-        surface_repo = repo_paths.get(surface_owner)
-        if surface_repo is None or not (surface_repo / relative_path).is_file():
-            continue
-        surface = load_structured(surface_repo / relative_path) or {}
-        path_refs = surface.get("source_commit_refs") if isinstance(surface.get("source_commit_refs"), dict) else {}
-        repository_refs = (
-            surface.get("source_repository_commit_refs")
-            if isinstance(surface.get("source_repository_commit_refs"), dict)
-            else {}
-        )
-        refs = dict(path_refs)
-        refs.update(repository_refs)
-        revision_items = surface.get("source_revisions")
-        if isinstance(revision_items, list):
-            for item in revision_items:
-                if isinstance(item, dict):
-                    name = item.get("repository") or item.get("repo") or item.get("name")
-                    sha = (
-                        item.get("repository_revision")
-                        or item.get("source_repository_revision")
-                        or item.get("source_commit_sha")
-                        or item.get("commit_sha")
-                        or item.get("source_revision")
-                    )
-                    if name and sha:
-                        refs[str(name).removeprefix("HawkinsOperations/")] = sha
-        for owner, stated_sha in refs.items():
-            normalized_owner = str(owner).removeprefix("HawkinsOperations/")
-            current_sha = current_shas.get(normalized_owner)
-            direct_parent_cycle = (
-                surface_owner == "hawkinsoperations-website"
-                and normalized_owner in {"hawkinsoperations-website", "hoxline"}
-                and repo_paths.get(normalized_owner) is not None
-                and stated_sha == repo_parent_sha(repo_paths[normalized_owner])
-            )
-            if current_sha and stated_sha != current_sha and not direct_parent_cycle:
-                drift.append(
-                    _finding(
-                        "SOURCE_REVISION_DRIFT",
-                        surface_owner,
-                        relative_path,
-                        current_sha,
-                        stated_sha,
-                        f"regenerate {relative_path} from {normalized_owner} at its current source revision",
                     )
                 )
 
@@ -464,6 +451,21 @@ def _reproducibility_hash(index: dict[str, Any]) -> str:
     stable.pop("generated_at", None)
     stable.pop("reproducibility_sha256", None)
     encoded = json.dumps(stable, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _source_manifest_digest(source_revisions: list[dict[str, Any]]) -> str:
+    manifest = [
+        {
+            "repository": item.get("repository"),
+            "authority_role": item.get("authority_role"),
+            "authoritative_path": item.get("authoritative_path") or item.get("source_path"),
+            "authoritative_git_blob_sha": item.get("authoritative_git_blob_sha"),
+            "authoritative_content_fingerprint": item.get("authoritative_content_fingerprint"),
+        }
+        for item in source_revisions
+    ]
+    encoded = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
@@ -1057,55 +1059,68 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
             continue
         current_revision = current_by_repo[repository]
         stated_sha = stated.get("source_commit_sha")
-        accepted_shas = {current_revision["source_commit_sha"]}
-        if repository == "hawkinsoperations-website":
-            website_repo = repo_paths.get(repository)
-            website_parent = repo_parent_sha(website_repo) if website_repo is not None else None
-            if (
-                stated_sha == website_parent
-                and stated.get("source_file_sha256") == current_revision.get("source_file_sha256")
-            ):
-                accepted_shas.add(website_parent)
-        if repository == "hoxline":
-            accepted_shas.add(current_revision.get("source_parent_sha"))
-            if stated.get("self_referential") is not True:
-                errors.append("hoxline: self_referential must be true")
-            if stated.get("revision_scope") != "authoritative_sources_excluding_snapshot":
-                errors.append("hoxline: revision_scope must be authoritative_sources_excluding_snapshot")
-            if current_authority and stated_sha not in {
-                current_revision.get("source_commit_sha"),
-                current_revision.get("source_parent_sha"),
-            }:
-                errors.append(
-                    "hoxline: current snapshot must cite the immediate parent engine commit when checked in, or the current engine commit when newly generated"
-                )
+        observed_head = stated.get("source_observed_head_sha")
+        current_observed = stated.get("current_observed_head_sha")
+        if stated.get("source_observation_kind") != "reviewed_immutable_commit":
+            errors.append(f"{repository}: source_observation_kind must be reviewed_immutable_commit")
+        if observed_head != stated_sha or current_observed != stated_sha:
+            errors.append(
+                f"{repository}: recorded observed-head fields must identify the same reviewed source commit"
+            )
+        resolved_ref = stated.get("resolved_ref")
+        if not isinstance(resolved_ref, str) or not re.fullmatch(r"[A-Za-z0-9._/-]+", resolved_ref):
+            errors.append(f"{repository}: resolved_ref is malformed")
+        source_path = str(stated.get("authoritative_path") or stated.get("source_path") or "")
+        if source_path != current_revision["source_path"]:
+            errors.append(f"{repository}: authoritative source path disagrees with current owner path")
+        stated_blob = stated.get("authoritative_git_blob_sha") or stated.get("source_git_blob_sha")
+        current_blob = current_revision.get("authoritative_git_blob_sha")
+        if stated_blob != current_blob:
+            errors.append(
+                f"{repository}: authoritative Git blob disagrees with the file at the checked current tree"
+            )
+        stated_semantic = (
+            stated.get("authoritative_content_fingerprint")
+            or stated.get("source_semantic_fingerprint_sha256")
+        )
+        current_semantic = current_revision.get("authoritative_content_fingerprint")
+        if stated_semantic != current_semantic:
+            errors.append(
+                f"{repository}: authoritative semantic fingerprint disagrees with checked current content"
+            )
+        if stated.get("revision_scope") != "content_addressed_authority":
+            errors.append(f"{repository}: revision_scope must be content_addressed_authority")
+        if stated.get("self_referential") is not False:
+            errors.append(f"{repository}: generated consumers must not be self-referential authority")
+        if stated.get("canonical_origin") != current_revision.get("canonical_origin"):
+            errors.append(f"{repository}: canonical repository origin disagrees with owner")
+        if stated.get("observed_origin") != current_revision.get("observed_origin"):
+            errors.append(f"{repository}: observed repository origin is not canonical")
         if not re.fullmatch(r"[0-9a-f]{40}", str(stated_sha or "")):
             errors.append(f"{repository}: source_commit_sha must be a 40-character Git SHA")
-        elif repo_paths.get(repository) is None or not git_commit_exists(repo_paths[repository], str(stated_sha)):
-            errors.append(f"{repository}: source_commit_sha is not a reachable commit in the stated repository")
-        else:
-            if stated_sha not in accepted_shas and not historical:
+        elif repo_paths.get(repository) is None:
+            errors.append(f"{repository}: source repository is missing")
+        elif git_commit_exists(repo_paths[repository], str(stated_sha)):
+            observed_identity = git_blob_identity(repo_paths[repository], str(stated_sha), source_path)
+            if observed_identity is None or observed_identity[0] != current_blob:
                 errors.append(
-                    f"{repository}: stale source revision {stated_sha}; current is {current_revision['source_commit_sha']}; "
-                    "regenerate or explicitly label the snapshot historical"
+                    f"{repository}: observed commit does not carry the checked current authoritative blob"
                 )
-            source_path = str(stated.get("source_path") or "")
-            source_prefix = f"{repository}/"
-            commit_path = source_path[len(source_prefix) :] if source_path.startswith(source_prefix) else source_path
-            commit_fingerprint = git_blob_sha256(repo_paths[repository], str(stated_sha), commit_path)
-            if commit_fingerprint is None:
-                errors.append(f"{repository}: authoritative source path is missing from the stated commit")
-            elif stated.get("source_file_sha256") != commit_fingerprint:
-                errors.append(f"{repository}: source_file_sha256 does not match the authoritative blob at the stated commit")
-        if stated.get("source_path") != current_revision["source_path"]:
-            errors.append(f"{repository}: authoritative source path disagrees with current owner path")
+        else:
+            # The observed branch tip is freshness metadata, not the authority
+            # identity. A squash/rebase may make that commit unavailable while
+            # the checked current path/blob/semantic identity remains exact.
+            # `source_observation_kind` and the three equal observation fields
+            # above keep this explicitly bounded rather than silently treating
+            # an arbitrary ancestor as current authority.
+            pass
         if stated.get("source_file_sha256") != current_revision.get("source_file_sha256") and not historical:
             errors.append(
                 f"{repository}: authoritative source fingerprint drifted; regenerate from {current_revision['source_path']}"
             )
         if stated.get("missing_source_state") is True or stated.get("dangling_reference_state") is True:
             errors.append(f"{repository}: snapshot records missing or dangling authority source")
-        allowed_freshness = {"CURRENT", "CURRENT_SELF_REFERENTIAL"} if repository == "hoxline" else {"CURRENT"}
+        allowed_freshness = {"CURRENT"}
         if current_authority and stated.get("source_freshness_state") not in allowed_freshness:
             errors.append(
                 f"{repository}: current snapshot source_freshness_state must be one of {sorted(allowed_freshness)}, "
@@ -1120,6 +1135,22 @@ def verify_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> tu
     stated_hash = snapshot.get("reproducibility_sha256")
     if stated_hash != _reproducibility_hash(snapshot):
         errors.append("snapshot reproducibility_sha256 does not reproduce from its normalized content")
+    stated_source_manifest = snapshot.get("source_manifest_digest")
+    if stated_source_manifest != _source_manifest_digest(stated_revisions):
+        errors.append("snapshot source_manifest_digest does not reproduce from its authority identities")
+    if current_authority and stated_source_manifest != current.get("source_manifest_digest"):
+        errors.append("current snapshot source_manifest_digest disagrees with checked authority content")
+    snapshot_state = snapshot.get("snapshot_state") if isinstance(snapshot.get("snapshot_state"), dict) else {}
+    if snapshot_state.get("identity_model") != (
+        "repo_path_git_blob_and_semantic_fingerprint_with_separate_head_observation"
+    ):
+        errors.append("snapshot identity model is missing or unsupported")
+    if snapshot_state.get("generated_consumers_are_authority") is not False:
+        errors.append("generated consumers must not be classified as authority")
+    if snapshot_state.get("historical_snapshot") is not historical:
+        errors.append("snapshot_state historical classification disagrees with snapshot")
+    if snapshot_state.get("current_authority") is not current_authority:
+        errors.append("snapshot_state current authority classification disagrees with snapshot")
 
     if current_authority:
         if snapshot.get("summary") != current.get("summary"):
@@ -1190,14 +1221,22 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
     for current_revision in current["source_revisions"]:
         repository = current_revision["repository"]
         before = before_revisions.get(repository, {})
-        for field in ("source_commit_sha", "source_file_sha256", "source_path"):
+        for field in (
+            "source_commit_sha",
+            "source_observed_head_sha",
+            "current_observed_head_sha",
+            "source_file_sha256",
+            "authoritative_git_blob_sha",
+            "authoritative_content_fingerprint",
+            "source_path",
+        ):
             if before.get(field) != current_revision[field]:
-                expected_self_reference = (
-                    repository == "hoxline"
-                    and field == "source_commit_sha"
-                    and before.get("self_referential") is True
-                    and before.get("revision_scope") == "authoritative_sources_excluding_snapshot"
-                    and before.get(field) == current_revision.get("source_parent_sha")
+                observation_only_content_current = (
+                    field in {"source_commit_sha", "source_observed_head_sha", "current_observed_head_sha"}
+                    and before.get("authoritative_git_blob_sha")
+                    == current_revision.get("authoritative_git_blob_sha")
+                    and before.get("authoritative_content_fingerprint")
+                    == current_revision.get("authoritative_content_fingerprint")
                 )
                 changes.append(
                     {
@@ -1211,15 +1250,15 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
                         "classification": (
                             "EXPECTED_HISTORICAL_CONTEXT"
                             if historical
-                            else "EXPECTED_SELF_REFERENTIAL_CONTEXT"
-                            if expected_self_reference
+                            else "OBSERVATION_ONLY_CONTENT_CURRENT"
+                            if observation_only_content_current
                             else "ACTIONABLE_DRIFT"
                         ),
                         "next_remediation": (
                             "retain as historical context"
                             if historical
-                            else "none; the snapshot commit intentionally follows its cited engine commit"
-                            if expected_self_reference
+                            else "refresh observed-head metadata when producing the next reviewer snapshot; no authority-content regeneration required"
+                            if observation_only_content_current
                             else "regenerate the current snapshot from the owning source"
                         ),
                     }
@@ -1252,7 +1291,7 @@ def diff_case_growth_snapshot(repo_root: Path, snapshot: dict[str, Any]) -> dict
         "next_legal_action": (
             current["next_legal_action"]
             if actionable_changes or current["drift"]
-            else "none; snapshot converges with expected self-reference"
+            else "none; authority content converges and only observed-head metadata changed"
             if changes
             else "none; snapshot converges"
         ),

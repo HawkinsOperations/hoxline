@@ -23,7 +23,7 @@
   "endpoint_mutation": false,
   "expected_event_ids": [],
   "expected_event_keys": [
-    "risky_authentication_change"
+    "mfa_push_fatigue_volume"
   ],
   "expected_rule_ids": [],
   "field_mapping": {
@@ -57,7 +57,7 @@
   "telemetry_contract": {
     "event_ids": [],
     "event_keys": [
-      "risky_authentication_change"
+      "mfa_push_fatigue_volume"
     ],
     "event_key_field": "event_key",
     "required_fields": [

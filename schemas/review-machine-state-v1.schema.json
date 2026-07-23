@@ -3,18 +3,88 @@
   "$id": "https://hawkinsoperations.example/schemas/review-machine-state-v1.schema.json",
   "title": "Hoxline Review Machine State v1",
   "type": "object",
-  "required": ["schema_version", "engine_version", "run_id", "artifact_id", "manifest_path", "stages", "outputs", "final_status", "requested_claims", "blocked_claims", "proof_boundary", "runtime_boundary", "signal_boundary", "public_safe_status", "human_review_required", "ai_disposition_authority", "endpoint_mutation", "wazuh_mutation", "private_evidence_committed", "public_proof_promoted", "lifetime_ledger_changed", "next_gate", "created_at"],
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "engine_version",
+    "run_id",
+    "artifact_id",
+    "manifest_path",
+    "stages",
+    "outputs",
+    "output_digests",
+    "state_integrity_digest",
+    "final_status",
+    "block_reason",
+    "allowed_claim",
+    "requested_claims",
+    "blocked_claims",
+    "proof_boundary",
+    "runtime_boundary",
+    "signal_boundary",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "endpoint_mutation",
+    "wazuh_mutation",
+    "runtime_proof",
+    "private_evidence_committed",
+    "public_proof_promoted",
+    "lifetime_ledger_changed",
+    "next_gate",
+    "created_at",
+    "product"
+  ],
   "properties": {
     "schema_version": { "const": "review-machine-state-v1" },
     "engine_version": { "const": "hoxline-review-engine-v1" },
+    "run_id": { "type": "string" },
+    "artifact_id": { "type": "string" },
+    "manifest_path": { "type": "string" },
+    "stages": { "type": "array", "minItems": 11, "maxItems": 11 },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "output_digests": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "state_integrity_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "input_digests": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    },
+    "source_manifest_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "authority_binding": { "type": "object" },
     "final_status": { "enum": ["PASS", "BLOCKED"] },
+    "block_reason": { "type": ["string", "null"] },
+    "allowed_claim": { "type": ["string", "null"] },
+    "requested_claims": { "type": "array" },
+    "blocked_claims": { "type": "array" },
+    "proof_boundary": { "type": "string" },
+    "runtime_boundary": { "type": "string" },
+    "signal_boundary": { "type": "string" },
     "public_safe_status": { "const": "NOT_PUBLIC_SAFE" },
     "human_review_required": { "const": true },
     "ai_disposition_authority": { "const": false },
     "endpoint_mutation": { "const": false },
     "wazuh_mutation": { "const": false },
+    "runtime_proof": { "const": false },
+    "private_evidence_committed": { "const": false },
     "public_proof_promoted": { "const": false },
-    "lifetime_ledger_changed": { "const": false }
+    "lifetime_ledger_changed": { "const": false },
+    "next_gate": { "type": "string" },
+    "created_at": { "type": "string" },
+    "product": { "type": "string" }
   },
-  "additionalProperties": true
+  "allOf": [
+    {
+      "if": { "properties": { "final_status": { "const": "PASS" } } },
+      "then": {
+        "required": ["input_digests", "source_manifest_digest", "authority_binding"],
+        "properties": { "block_reason": { "type": "null" } }
+      }
+    }
+  ]
 }

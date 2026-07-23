@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from claimfirewall.policy import load_policy
 from claimfirewall.scanner import scan_paths
@@ -36,3 +37,25 @@ def test_docs_scan_cleanly() -> None:
     findings = scan_paths([ROOT / "README.md", ROOT / "CLAIM_BOUNDARY.md"], policy)
 
     assert findings == []
+
+
+def test_ci_uses_immutable_sibling_revisions_and_all_required_trust_checks() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    refs = re.findall(r"^\s+ref:\s+([0-9a-f]{40})\s*$", workflow, flags=re.MULTILINE)
+    assert len(refs) == 6
+    assert len(set(refs)) == 6
+    assert "ref: main" not in workflow
+    assert "ref: feature/" not in workflow
+    assert "persist-credentials: false" in workflow
+    assert "permissions:\n  contents: read" in workflow
+    for required in (
+        "python -B -m unittest discover -s tests",
+        "python -B -m pytest",
+        "case-growth index",
+        "case-growth verify",
+        "case-growth diff",
+        "review batch run",
+        "review batch verify",
+        "git diff --check",
+    ):
+        assert required in workflow

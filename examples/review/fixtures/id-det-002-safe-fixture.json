@@ -3,7 +3,7 @@
   "endpoint_mutation": false,
   "events": [
     {
-      "event_key": "risky_authentication_change",
+      "event_key": "mfa_push_fatigue_volume",
       "channel": "Identity fixture",
       "action": "authentication_control_change",
       "actor": "synthetic-review-actor"

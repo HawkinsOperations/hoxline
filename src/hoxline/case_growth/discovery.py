@@ -24,16 +24,52 @@ REPO_NAMES = (
     "hoxline",
 )
 
+CASE_AUTHORITY_COLLECTIONS = (
+    ("hawkinsoperations-detections", "detections/DETECTION_PROMOTION_MATRIX.yml", "entries"),
+    ("hawkinsoperations-validation", "validation/VALIDATION_REGISTRY.yml", "packages"),
+    ("hawkinsoperations-proof", "proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml", "entries"),
+)
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
+    pairs = loader.construct_pairs(node, deep=deep)
+    result: dict[Any, Any] = {}
+    seen: set[str] = set()
+    for key, value in pairs:
+        normalized = str(key).casefold()
+        if normalized in seen:
+            raise ValueError("structured authority source contains a duplicate key")
+        seen.add(normalized)
+        result[key] = value
+    return result
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    seen: set[str] = set()
+    for key, value in pairs:
+        normalized = key.casefold()
+        if normalized in seen:
+            raise ValueError("structured authority source contains a duplicate key")
+        seen.add(normalized)
+        result[key] = value
+    return result
+
 
 def resolve_repo_paths(repo_root: Path) -> dict[str, Path | None]:
     root = repo_root.resolve()
     paths: dict[str, Path | None] = {}
-    github_candidates = (
-        root / ".github",
-        root / "HawkinsOperations.github",
-        root.parent / "HawkinsOperations.github",
-    )
-    paths[".github"] = next((path for path in github_candidates if path.exists()), None)
+    paths[".github"] = root / ".github" if (root / ".github").is_dir() else None
     for name in REPO_NAMES:
         if name == ".github":
             continue
@@ -124,6 +160,51 @@ def git_blob_sha256(repo_path: Path, sha: str, repo_relative_path: str) -> str |
     return hashlib.sha256(result.stdout).hexdigest()
 
 
+def git_blob_identity(repo_path: Path, sha: str, repo_relative_path: str) -> tuple[str, bytes] | None:
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return None
+    normalized_path = repo_relative_path.replace("\\", "/").lstrip("/")
+    if (
+        not normalized_path
+        or normalized_path.startswith("/")
+        or "\\" in normalized_path
+        or any(part in {"", ".", ".."} for part in normalized_path.split("/"))
+    ):
+        return None
+    blob = git_lines(repo_path, ["rev-parse", f"{sha}:{normalized_path}"])
+    if len(blob) != 1 or not re.fullmatch(r"[0-9a-f]{40}", blob[0]):
+        return None
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_path), "cat-file", "blob", blob[0]],
+            check=False,
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return blob[0], result.stdout
+
+
+def semantic_fingerprint(repo_relative_path: str, raw: bytes) -> str:
+    suffix = Path(repo_relative_path).suffix.casefold()
+    if suffix == ".json":
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_json_object)
+        canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    elif suffix in {".yml", ".yaml"}:
+        value = yaml.load(raw.decode("utf-8"), Loader=_UniqueKeyLoader)
+        canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    else:
+        canonical = raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def repo_origin(repo_path: Path) -> str:
+    lines = git_lines(repo_path, ["remote", "get-url", "origin"])
+    return lines[0] if lines else "UNKNOWN"
+
+
 def file_sha256(path: Path) -> str | None:
     try:
         return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -174,27 +255,32 @@ def repo_relative(repo_name: str, repo_path: Path, path: Path) -> str:
 def load_structured(path: Path) -> Any:
     text = path.read_text(encoding="utf-8")
     if path.suffix.lower() == ".json":
-        return json.loads(text)
+        return json.loads(text, object_pairs_hook=_unique_json_object)
     if path.suffix.lower() in {".yml", ".yaml"}:
-        return yaml.safe_load(text)
+        return yaml.load(text, Loader=_UniqueKeyLoader)
     raise ValueError(f"unsupported structured file: {path}")
 
 
 def discover_case_ids(repo_paths: dict[str, Path | None]) -> tuple[set[str], int]:
     ids: set[str] = set()
     scanned = 0
-    for repo_name, repo_path in repo_paths.items():
+    for repo_name, relative_path, collection_name in CASE_AUTHORITY_COLLECTIONS:
+        repo_path = repo_paths.get(repo_name)
         if repo_path is None:
             continue
-        for path in case_growth_files(repo_name, repo_path):
-            scanned += 1
-            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".avif", ".zip", ".sqlite"}:
+        path = repo_path / relative_path
+        if not path.is_file():
+            continue
+        scanned += 1
+        data = load_structured(path)
+        if not isinstance(data, dict) or not isinstance(data.get(collection_name), list):
+            continue
+        for entry in data[collection_name]:
+            if not isinstance(entry, dict):
                 continue
-            try:
-                text = path.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                continue
-            ids.update(CASE_ID_PATTERN.findall(text))
+            case_id = entry.get("detection_id")
+            if isinstance(case_id, str) and CASE_ID_PATTERN.fullmatch(case_id):
+                ids.add(case_id)
     return ids, scanned
 
 
