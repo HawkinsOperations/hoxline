@@ -1,11 +1,11 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-23T00:11:42Z`
+Generated: `2026-07-23T00:32:37Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
-Reproducibility SHA-256: `85b30834147614510b1a1a42f7c5652821adeae05e487811e5d2c52ea41d990b`
+Reproducibility SHA-256: `d2b500c8db243e40366512e14393ce0e0f2cf4ff3ee9304b3c0b2f5938d5cdac`
 
 ## Summary
 
@@ -36,11 +36,11 @@ Reproducibility SHA-256: `85b30834147614510b1a1a42f7c5652821adeae05e487811e5d2c5
 | --- | --- | --- | --- | --- | --- |
 | `.github` | `org command-center routing` | `scripts/verify-command-center-invariants.py` | `b051aa3981e52a56b45a3078fcbf32ac34a99f92` | `CURRENT` | `CURRENT` |
 | `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `c2790ab007279faff6130a60dc68818343c255ee` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `a3a2f6938412f3012bea1bc447bb084d82ed1936` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `7ed8f08c9c3e4bc07797961ba84292ec96978da6` | `CURRENT` | `CURRENT` |
+| `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `d150cf172a4cb6065fd54c19c59beb9b581ba629` | `CURRENT` | `CURRENT` |
+| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `d1ea495f2b010fbaefc2dccf22986526958ba424` | `CURRENT` | `CURRENT` |
 | `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `042a918ad4a8473cd5abcfd575072fc094639682` | `CURRENT` | `CURRENT` |
-| `hawkinsoperations-website` | `rendering-only public status` | `public/data/public-status.json` | `771c90515d687eb0ce86fd438d664a9234912f67` | `CURRENT` | `CURRENT` |
-| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `4c96f52f28a3f0af767a94529cff165fc2042ca2` | `CURRENT_SELF_REFERENTIAL` | `CURRENT` |
+| `hawkinsoperations-website` | `rendering-only public status` | `public/data/public-status.json` | `ef7ad97279c06634e153be6e8ecee1959b9f7d78` | `CURRENT` | `CURRENT` |
+| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `ab42606514011c3fe0ede9772d4a03b41e03e4e4` | `CURRENT_SELF_REFERENTIAL` | `CURRENT` |
 
 ## Convergence Findings
 
