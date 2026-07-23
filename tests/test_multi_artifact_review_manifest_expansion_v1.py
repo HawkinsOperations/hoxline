@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 from hoxline.cli import main
-from hoxline.review_engine import verify_batch_run
+from hoxline.review_engine import _review_repo_root, verify_batch_run
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,6 +30,10 @@ BLOCKED_MANIFEST = ROOT / "examples" / "review" / "ho-ndr-001-artifact-manifest-
 def _json(path: Path) -> dict[str, object]:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def test_review_repo_root_is_derived_from_index_not_installed_module() -> None:
+    assert _review_repo_root(INDEX) == ROOT
 
 
 def test_single_artifact_manifests_pass(tmp_path) -> None:

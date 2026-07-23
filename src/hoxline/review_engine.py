@@ -157,10 +157,20 @@ def default_batch_dir(repo_root: Path | None = None) -> Path:
     return root / ".hoxline" / "batch-runs" / stamp
 
 
+def _review_repo_root(input_path: Path, explicit_root: Path | None = None) -> Path:
+    if explicit_root is not None:
+        return explicit_root.resolve()
+    resolved = input_path.resolve()
+    for candidate in (resolved.parent, *resolved.parents):
+        if (candidate / "pyproject.toml").is_file() and (candidate / "examples" / "review").is_dir():
+            return candidate
+    return Path.cwd().resolve()
+
+
 def run_review(artifact_path: Path, output_dir: Path | None = None, force: bool = False, repo_root: Path | None = None) -> dict[str, Any]:
-    root = repo_root or Path(__file__).resolve().parents[2]
     out_dir = output_dir or default_run_dir(Path.cwd())
     manifest_path = _resolve_path(artifact_path, Path.cwd())
+    root = _review_repo_root(manifest_path, repo_root)
     manifest: dict[str, Any] = {}
     try:
         manifest = _load_json(manifest_path)
@@ -275,9 +285,9 @@ def render_run_console(run: dict[str, Any]) -> str:
 
 
 def run_batch_review(index_path: Path, output_dir: Path | None = None, force: bool = False, repo_root: Path | None = None) -> dict[str, Any]:
-    root = repo_root or Path(__file__).resolve().parents[2]
     out_dir = output_dir or default_batch_dir(Path.cwd())
     resolved_index = _resolve_path(index_path, Path.cwd())
+    root = _review_repo_root(resolved_index, repo_root)
     index: dict[str, Any] = {}
     try:
         index = _load_json(resolved_index)
