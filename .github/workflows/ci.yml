@@ -11,7 +11,7 @@ jobs:
   hoxline-trust-boundaries:
     runs-on: ubuntu-latest
     env:
-      HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: a93f3b99477507063c8321fdc20a64ef57d0a801
+      HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: e806e91e3047a9ec235b2aa83c19a340034eb578
     strategy:
       fail-fast: false
       matrix:
@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/.github
-          ref: a93f3b99477507063c8321fdc20a64ef57d0a801
+          ref: e806e91e3047a9ec235b2aa83c19a340034eb578
           path: org/.github
           fetch-depth: 0
           persist-credentials: false
@@ -98,7 +98,7 @@ jobs:
               "hoxline",
           ]
           immutable = {
-              ".github": "a93f3b99477507063c8321fdc20a64ef57d0a801",
+              ".github": "e806e91e3047a9ec235b2aa83c19a340034eb578",
               "hawkinsoperations-detections": "11a481afbc739c994ce19cdb12052a307a6eec77",
               "hawkinsoperations-validation": "2e833f340e183e8e2357c860314509c6d1cc2dd3",
               "hawkinsoperations-platform": "bca89adb3222c34b81458e319e5272402256ec6f",
