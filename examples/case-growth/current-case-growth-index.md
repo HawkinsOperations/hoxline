@@ -1,12 +1,12 @@
 # Hoxline Case Growth Index v1
 
-Generated: `2026-07-24T03:18:49Z`
+Generated: `2026-07-24T14:15:03Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
 Historical snapshot: `false`
 Current authority: `true`
-Source manifest digest: `5b7604e896e479e38ab3667c4c21ed1ab720788d40a65136edf375f96135c917`
-Reproducibility SHA-256: `1713167b4863ae8cde338852af5c056a5b4b3023d9a474f6c2a14fe7a6e9e1f4`
+Source manifest digest: `3ca3a84be0f35e80260a48e92181bbcad88b3726b74afc24e134900e0ff0b858`
+Reproducibility SHA-256: `0c161a7f04a6b3ec43ec14d18adce47a23f55118319afa15e680cf2bb6660797`
 
 ## Summary
 
@@ -36,7 +36,7 @@ Reproducibility SHA-256: `1713167b4863ae8cde338852af5c056a5b4b3023d9a474f6c2a14f
 | Repository | Authority role | Authority path | Observed head | Git blob | Semantic fingerprint | Source freshness |
 | --- | --- | --- | --- | --- | --- | --- |
 | `.github` | `org command-center routing` | `governance/COMMAND_CENTER_INVARIANTS.json` | `6e6763a81d6af09c2e4588462b56117ce82c2f88` | `623e3f9e813b0599618a7df41dee1c9a40fb7a18` | `45cfa989c3f742b546f7f8a497632b43c928029bcaa09e80e04c7c894dba660c` | `CURRENT` |
-| `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `c2790ab007279faff6130a60dc68818343c255ee` | `e1d040134f139d2598c527c3584e1859e9c9553d` | `7ca1a5d76ed11de08832dbd074d120295d71d5935be3f10ed3d874d0198bf3e3` | `CURRENT` |
+| `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `f8bc0a0925113ca815bf5692081b5216162cc918` | `3123d4f2a9dabdaa31d7e1d20698a17e7854491c` | `d5214ccc882ac68eb56b3018b3c37799b7c5851e37c7b76e34cda570f0e061f1` | `CURRENT` |
 | `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `ebf52f7c6c9b78de767272cc56fccdc584f5c4e0` | `6fac3ac3d048c3ef687faaf5ebef1b04e846aad1` | `de88ff4a621256cae51ec597a2cbb73f172d16c9d6e5109bcc42ff9a3b461cc3` | `CURRENT` |
 | `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `651a43a4dfe0776605d5bd7b85ef4f8381c42b64` | `577dd64c65324f45248ce36e4550cba04b9ff056` | `8381676118717c267039bb783a4540544a82e20c3e5df943bfc3eeae05cc5d95` | `CURRENT` |
 | `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `042a918ad4a8473cd5abcfd575072fc094639682` | `623b93e6e5ac141684978ff4dcdc6ed1dec55678` | `68e5de4749bfe34a6677331f6116fab82987c88e999ae14eaf706e9b33536170` | `CURRENT` |
