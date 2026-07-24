@@ -43,18 +43,18 @@ def test_ci_uses_immutable_sibling_revisions_and_all_required_trust_checks() -> 
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     refs = re.findall(r"^\s+ref:\s+([0-9a-f]{40})\s*$", workflow, flags=re.MULTILINE)
     reviewed_refs = {
-        "b87acd4487ff779bc0cb8b96c783ada0d712a0ed",
-        "015a9dc359b3fa4c4853cd1b18372c3e44eacec9",
-        "03d8b909b2304a9a570129a559f9cd44e98dc2b1",
-        "26ae0fd0112d2123f90197b9aa5078db0d35db65",
+        "b93fb586fccf80dd40c714281086fe2a940506a7",
+        "48de1240a8437432f35aee77654b568704627a68",
+        "5840c517bbacf845acdbbcca10c5c09953dbb595",
+        "bc489b6c1549288909a6d19cd96f3fa731059ce9",
         "79d4bff2dccb24c2b29a68f4a3be7a1e916414b4",
-        "5ee3fe553e78ca35b3a2422b2231c627c1ee1f99",
+        "0c16f2a97ae73910633daf6193a51918f26d1798",
     }
     assert len(refs) == 6
     assert set(refs) == reviewed_refs
     assert (
         "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: "
-        "b87acd4487ff779bc0cb8b96c783ada0d712a0ed"
+        "b93fb586fccf80dd40c714281086fe2a940506a7"
     ) in workflow
     assert "ref: main" not in workflow
     assert "ref: feature/" not in workflow
