@@ -1,6 +1,6 @@
 {
   "schema_version": "case-growth-index-v1",
-  "generated_at": "2026-07-24T01:08:19Z",
+  "generated_at": "2026-07-24T01:17:06Z",
   "repo_root": "HawkinsOperations",
   "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
   "historical_snapshot": false,
@@ -19,7 +19,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
       "source_observed_head_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
-      "current_observed_head_sha": "b86cc465faa375a8bc4bd78dbb9954a9620f922f",
+      "current_observed_head_sha": "4e6995774daba161c032e573634607afe807c8ef",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -115,7 +115,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "651a43a4dfe0776605d5bd7b85ef4f8381c42b64",
       "source_observed_head_sha": "651a43a4dfe0776605d5bd7b85ef4f8381c42b64",
-      "current_observed_head_sha": "13c31e4eb60885420564e411965bfdb17b46f491",
+      "current_observed_head_sha": "f2f1517c40669c621830ab3dcd00dd4d60b60cbc",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -211,7 +211,7 @@
       "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
       "source_commit_sha": "b0945c4c3db7312f7d50a51d4abab9e65ac454da",
       "source_observed_head_sha": "b0945c4c3db7312f7d50a51d4abab9e65ac454da",
-      "current_observed_head_sha": "193f929633635f351b2ef0e2ca5d8c0166e595ff",
+      "current_observed_head_sha": "6616877345c169ed3201ffeb951d2f710b04bba8",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -2024,5 +2024,5 @@
     "website_rendering_treated_as_proof": false,
     "green_ci_treated_as_approval": false
   },
-  "reproducibility_sha256": "27b09115fa4db447b7bb467f12a18d60ecdc5a9eade78c0d6f8129da8ba36024"
+  "reproducibility_sha256": "4cc222d41c706d812029dd7f64c715492069fe58e8228bc62bd2ed6506420289"
 }
