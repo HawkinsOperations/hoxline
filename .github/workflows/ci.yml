@@ -11,7 +11,7 @@ jobs:
   hoxline-trust-boundaries:
     runs-on: ubuntu-latest
     env:
-      HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: 657b041e55cb1c8e31e1ba4ebf0c620ab8a00cc7
+      HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: b87acd4487ff779bc0cb8b96c783ada0d712a0ed
       HAWKINS_HOXLINE_EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     strategy:
       fail-fast: false
@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/.github
-          ref: 657b041e55cb1c8e31e1ba4ebf0c620ab8a00cc7
+          ref: b87acd4487ff779bc0cb8b96c783ada0d712a0ed
           path: org/.github
           fetch-depth: 0
           persist-credentials: false
@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-detections
-          ref: 11a481afbc739c994ce19cdb12052a307a6eec77
+          ref: 015a9dc359b3fa4c4853cd1b18372c3e44eacec9
           path: org/hawkinsoperations-detections
           fetch-depth: 0
           persist-credentials: false
@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-validation
-          ref: 46a7ed39e3c0ea74ad102a1547a8bca2d00f3b4a
+          ref: 03d8b909b2304a9a570129a559f9cd44e98dc2b1
           path: org/hawkinsoperations-validation
           fetch-depth: 0
           persist-credentials: false
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-platform
-          ref: c624877d5e61d02ca4593f50b92655e318d25830
+          ref: 26ae0fd0112d2123f90197b9aa5078db0d35db65
           path: org/hawkinsoperations-platform
           fetch-depth: 0
           persist-credentials: false
@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/hawkinsoperations-website
-          ref: c23b03a3f3f5373c1d2d918f43ca65eb8ac74e6c
+          ref: 5ee3fe553e78ca35b3a2422b2231c627c1ee1f99
           path: org/hawkinsoperations-website
           fetch-depth: 0
           persist-credentials: false
@@ -101,12 +101,12 @@ jobs:
               "hoxline",
           ]
           immutable = {
-              ".github": "657b041e55cb1c8e31e1ba4ebf0c620ab8a00cc7",
-              "hawkinsoperations-detections": "11a481afbc739c994ce19cdb12052a307a6eec77",
-              "hawkinsoperations-validation": "46a7ed39e3c0ea74ad102a1547a8bca2d00f3b4a",
-              "hawkinsoperations-platform": "c624877d5e61d02ca4593f50b92655e318d25830",
+              ".github": "b87acd4487ff779bc0cb8b96c783ada0d712a0ed",
+              "hawkinsoperations-detections": "015a9dc359b3fa4c4853cd1b18372c3e44eacec9",
+              "hawkinsoperations-validation": "03d8b909b2304a9a570129a559f9cd44e98dc2b1",
+              "hawkinsoperations-platform": "26ae0fd0112d2123f90197b9aa5078db0d35db65",
               "hawkinsoperations-proof": "79d4bff2dccb24c2b29a68f4a3be7a1e916414b4",
-              "hawkinsoperations-website": "c23b03a3f3f5373c1d2d918f43ca65eb8ac74e6c",
+              "hawkinsoperations-website": "5ee3fe553e78ca35b3a2422b2231c627c1ee1f99",
               "hoxline": os.environ["HAWKINS_HOXLINE_EVENT_SHA"],
           }
           actual = sorted(path.name for path in root.iterdir() if (path / ".git").exists())
