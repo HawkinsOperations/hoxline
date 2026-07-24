@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlsplit
 import yaml
 
 from .case_growth.collector import verify_selected_source_checkout
+from .case_growth.discovery import repo_origin
 from .demo import (
     BLOCKED_CLAIM_FAMILIES,
     PRODUCT,
@@ -1123,7 +1124,7 @@ def _owned_authority_binding(manifest: dict[str, Any], repo_root: Path) -> dict[
     ):
         if repo.parent != org_root or not (repo / ".git").exists():
             raise ReviewBlocked("required authority repository is missing")
-        origin = _canonical_origin(_git(repo, "remote", "get-url", "origin"))
+        origin = _canonical_origin(repo_origin(repo))
         if origin != _canonical_origin(CANONICAL_ORIGINS[repo_name]):
             raise ReviewBlocked("authority repository origin is not canonical")
         selection_errors = verify_selected_source_checkout(org_root, repo_name)

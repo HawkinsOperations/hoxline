@@ -4,6 +4,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,7 +28,7 @@ from hoxline.case_growth.collector import (
     verify_selected_source_checkout,
     verify_case_growth_snapshot,
 )
-from hoxline.case_growth.discovery import REPO_NAMES
+from hoxline.case_growth.discovery import REPO_NAMES, repo_origin
 from hoxline.case_growth.render import render_case_growth_markdown
 from hoxline.cli import main
 
@@ -211,6 +212,39 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
 
         merge_ref_attack = workflow.replace(f"ref: {pr_head}", "ref: ${{ github.sha }}", 1)
         self.assertNotEqual([], issues(merge_ref_attack))
+
+    def test_repo_origin_rejects_ambient_instead_of_laundering(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            repo.mkdir()
+            _git(repo, "init")
+            stored_origin = "C:/hostile/local-hoxline"
+            canonical = "https://github.com/HawkinsOperations/hoxline.git"
+            _git(repo, "remote", "add", "origin", stored_origin)
+            hostile_env = {
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": f"url.{canonical}.insteadOf",
+                "GIT_CONFIG_VALUE_0": stored_origin,
+            }
+            with mock.patch.dict(os.environ, hostile_env, clear=False):
+                effective = _git(repo, "remote", "get-url", "origin")
+                self.assertEqual(effective, canonical)
+                self.assertEqual(repo_origin(repo), stored_origin)
+
+    def test_repo_origin_rejects_empty_duplicate_in_both_orders(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            repo.mkdir()
+            _git(repo, "init")
+            canonical = "https://github.com/HawkinsOperations/hoxline.git"
+            _git(repo, "config", "--add", "remote.origin.url", canonical)
+            _git(repo, "config", "--add", "remote.origin.url", "")
+            self.assertEqual(repo_origin(repo), "UNKNOWN")
+
+            _git(repo, "config", "--unset-all", "remote.origin.url")
+            _git(repo, "config", "--add", "remote.origin.url", "")
+            _git(repo, "config", "--add", "remote.origin.url", canonical)
+            self.assertEqual(repo_origin(repo), "UNKNOWN")
 
     @classmethod
     def setUpClass(cls) -> None:

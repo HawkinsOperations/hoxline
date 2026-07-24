@@ -201,8 +201,34 @@ def semantic_fingerprint(repo_relative_path: str, raw: bytes) -> str:
 
 
 def repo_origin(repo_path: Path) -> str:
-    lines = git_lines(repo_path, ["remote", "get-url", "origin"])
-    return lines[0] if lines else "UNKNOWN"
+    # Inspect only the value physically stored in this repository. `git remote
+    # get-url` applies ambient url.*.insteadOf rewriting and can conceal a
+    # non-canonical stored owner.
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_path),
+                "config",
+                "--local",
+                "--null",
+                "--get-all",
+                "remote.origin.url",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "UNKNOWN"
+    values = result.stdout.split("\0")
+    if values and values[-1] == "":
+        values.pop()
+    stripped = [value.strip() for value in values]
+    return stripped[0] if len(stripped) == 1 and stripped[0] else "UNKNOWN"
 
 
 def file_sha256(path: Path) -> str | None:
