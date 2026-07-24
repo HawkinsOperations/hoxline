@@ -46,7 +46,7 @@ def test_ci_uses_immutable_sibling_revisions_and_all_required_trust_checks() -> 
         "cf2769104bfe585b9115eb16bef799f2ee31ff21",
         "48de1240a8437432f35aee77654b568704627a68",
         "5840c517bbacf845acdbbcca10c5c09953dbb595",
-        "eaf9f45c7c4fc3f79cf952eecfb813de7a6cce11",
+        "6ab0e6029fb76168f05150819a44e537397ca631",
         "79d4bff2dccb24c2b29a68f4a3be7a1e916414b4",
         "a4c91273da4770b79b1e71a844b71a9e981bc606",
     }
