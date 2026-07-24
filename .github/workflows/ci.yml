@@ -11,7 +11,7 @@ jobs:
   hoxline-trust-boundaries:
     runs-on: ubuntu-latest
     env:
-      HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: f6d88acac2cbb2ab95482bb4b09dc70bd939a06f
+      HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: 5c6127f5acc1031bae2528df3ce1f197da882100
       HAWKINS_HOXLINE_EVENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     strategy:
       fail-fast: false
@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: HawkinsOperations/.github
-          ref: f6d88acac2cbb2ab95482bb4b09dc70bd939a06f
+          ref: 5c6127f5acc1031bae2528df3ce1f197da882100
           path: org/.github
           fetch-depth: 0
           persist-credentials: false
