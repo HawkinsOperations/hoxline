@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -33,6 +34,17 @@ CASE_AUTHORITY_COLLECTIONS = (
 
 class _UniqueKeyLoader(yaml.SafeLoader):
     pass
+
+
+def sanitized_git_env() -> dict[str, str]:
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.casefold().startswith("git_")
+    }
+    env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
 
 
 def _construct_unique_mapping(loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
@@ -87,6 +99,7 @@ def git_lines(repo_path: Path, args: list[str]) -> list[str]:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env=sanitized_git_env(),
         )
     except (OSError, subprocess.CalledProcessError):
         return []
@@ -135,6 +148,7 @@ def git_commit_exists(repo_path: Path, sha: str) -> bool:
             check=False,
             capture_output=True,
             text=True,
+            env=sanitized_git_env(),
         )
     except OSError:
         return False
@@ -152,6 +166,7 @@ def git_blob_sha256(repo_path: Path, sha: str, repo_relative_path: str) -> str |
             ["git", "-C", str(repo_path), "show", f"{sha}:{normalized_path}"],
             check=False,
             capture_output=True,
+            env=sanitized_git_env(),
         )
     except OSError:
         return None
@@ -179,6 +194,7 @@ def git_blob_identity(repo_path: Path, sha: str, repo_relative_path: str) -> tup
             ["git", "-C", str(repo_path), "cat-file", "blob", blob[0]],
             check=False,
             capture_output=True,
+            env=sanitized_git_env(),
         )
     except OSError:
         return None
@@ -221,6 +237,7 @@ def repo_origin(repo_path: Path) -> str:
             text=True,
             encoding="utf-8",
             errors="replace",
+            env=sanitized_git_env(),
         )
     except (OSError, subprocess.CalledProcessError):
         return "UNKNOWN"

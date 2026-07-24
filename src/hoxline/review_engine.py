@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlsplit
 import yaml
 
 from .case_growth.collector import verify_selected_source_checkout
-from .case_growth.discovery import repo_origin
+from .case_growth.discovery import repo_origin, sanitized_git_env
 from .demo import (
     BLOCKED_CLAIM_FAMILIES,
     PRODUCT,
@@ -978,6 +978,7 @@ def _git(repo: Path, *args: str) -> str:
         check=False,
         capture_output=True,
         text=True,
+        env=sanitized_git_env(),
     )
     if result.returncode != 0:
         raise ReviewBlocked("authority repository Git identity could not be verified")
@@ -3187,6 +3188,7 @@ def verify_tracked_vocabulary(repo_root: Path) -> list[str]:
             ],
             check=False,
             capture_output=True,
+            env=sanitized_git_env(),
         )
     except OSError as exc:
         return [f"tracked vocabulary inventory failed: {exc}"]
@@ -3197,6 +3199,7 @@ def verify_tracked_vocabulary(repo_root: Path) -> list[str]:
         ["git", "-C", str(root), "ls-files", "--deleted", "-z"],
         check=False,
         capture_output=True,
+        env=sanitized_git_env(),
     )
     if deleted_result.returncode != 0:
         detail = deleted_result.stderr.decode("utf-8", errors="replace").strip()

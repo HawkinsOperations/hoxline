@@ -28,7 +28,7 @@ from hoxline.case_growth.collector import (
     verify_selected_source_checkout,
     verify_case_growth_snapshot,
 )
-from hoxline.case_growth.discovery import REPO_NAMES, repo_origin
+from hoxline.case_growth.discovery import REPO_NAMES, repo_dirty, repo_head_sha, repo_origin
 from hoxline.case_growth.render import render_case_growth_markdown
 from hoxline.cli import main
 
@@ -240,11 +240,58 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             _git(repo, "config", "--add", "remote.origin.url", canonical)
             _git(repo, "config", "--add", "remote.origin.url", "")
             self.assertEqual(repo_origin(repo), "UNKNOWN")
-
             _git(repo, "config", "--unset-all", "remote.origin.url")
             _git(repo, "config", "--add", "remote.origin.url", "")
             _git(repo, "config", "--add", "remote.origin.url", canonical)
             self.assertEqual(repo_origin(repo), "UNKNOWN")
+
+    def test_git_identity_ignores_ambient_repository_and_index_redirection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            target = base / "target"
+            decoy = base / "decoy"
+            for repo, origin, content in (
+                (target, "C:/hostile/target", "target\n"),
+                (decoy, "https://github.com/HawkinsOperations/hoxline.git", "decoy\n"),
+            ):
+                repo.mkdir()
+                _git(repo, "init")
+                _git(repo, "config", "user.name", "Hoxline Test")
+                _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+                _git(repo, "remote", "add", "origin", origin)
+                (repo / "tracked.txt").write_text(content, encoding="utf-8")
+                _git(repo, "add", "tracked.txt")
+                _git(repo, "commit", "-m", "fixture")
+
+            target_head = _git(target, "rev-parse", "HEAD")
+            decoy_head = _git(decoy, "rev-parse", "HEAD")
+            self.assertNotEqual(target_head, decoy_head)
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "GIT_DIR": str(decoy / ".git"),
+                    "GIT_WORK_TREE": str(decoy),
+                    "GIT_INDEX_FILE": str(decoy / ".git" / "index"),
+                    "GIT_CONFIG_COUNT": "1",
+                    "GIT_CONFIG_KEY_0": "core.repositoryformatversion",
+                    "GIT_CONFIG_VALUE_0": "0",
+                },
+                clear=False,
+            ):
+                self.assertEqual(repo_origin(target), "C:/hostile/target")
+                self.assertEqual(repo_head_sha(target), target_head)
+
+            clean_index = base / "clean-index"
+            shutil.copy2(target / ".git" / "index", clean_index)
+            (target / "tracked.txt").write_text("changed\n", encoding="utf-8")
+            _git(target, "add", "tracked.txt")
+            (target / "tracked.txt").write_text("target\n", encoding="utf-8")
+            with mock.patch.dict(
+                os.environ,
+                {"GIT_INDEX_FILE": str(clean_index)},
+                clear=False,
+            ):
+                self.assertTrue(repo_dirty(target))
 
     @classmethod
     def setUpClass(cls) -> None:

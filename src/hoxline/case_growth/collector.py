@@ -26,6 +26,7 @@ from .discovery import (
     repo_origin,
     repo_relative,
     resolve_repo_paths,
+    sanitized_git_env,
     semantic_fingerprint,
 )
 
@@ -241,6 +242,7 @@ def _git_output(repo: Path, *args: str) -> str | None:
             check=False,
             capture_output=True,
             text=True,
+            env=sanitized_git_env(),
         )
     except OSError:
         return None
@@ -254,6 +256,7 @@ def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
             check=False,
             capture_output=True,
             text=True,
+            env=sanitized_git_env(),
         )
     except OSError:
         return False
