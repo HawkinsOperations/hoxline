@@ -12,7 +12,7 @@ ai_disposition_authority: false
 
 ## Purpose
 
-This demo lets a reviewer clone Hoxline, run one command from the repo root, and see the governed ProofOps loop in about 30 seconds. It uses a bundled synthetic HO-DET-010 fixture for a local Administrators membership-change pattern. It does not create users, change groups, touch endpoints, connect to Wazuh, publish private evidence, or claim live runtime proof.
+This demo lets a reviewer clone Hoxline, run one command from the repo root, and see the governed ProofOps loop in about 30 seconds. It uses a bundled controlled-test HO-DET-010 fixture for a local Administrators membership-change pattern. It does not create users, change groups, touch endpoints, connect to Wazuh, publish private evidence, or claim live runtime proof.
 
 ## Command
 
@@ -37,7 +37,7 @@ The command writes `.hoxline/demo-runs/<timestamp-or-demo-id>/` with:
 - `evidence-graph.json`
 - `telemetry-contract-check.json`
 - `validation-result.json`
-- `synthetic-signal.json`
+- `controlled-test-signal.json`
 - `enrichment.json`
 - `triage-summary.md`
 - `proofcard.json`
@@ -64,7 +64,7 @@ The command writes `.hoxline/demo-runs/<timestamp-or-demo-id>/` with:
 
 ## Supported Artifact
 
-The demo supports `HO-DET-010` with a synthetic local Administrators membership-change fixture:
+The demo supports `HO-DET-010` with a controlled-test local Administrators membership-change fixture:
 
 - positive fixture: `examples/demo/ho-det-010-safe-fixture.json`
 - negative fixture: `examples/demo/ho-det-010-safe-negative-fixture.json`
@@ -73,7 +73,7 @@ The telemetry contract represents Windows Security EventChannel assumptions for 
 
 ## What It Proves
 
-- Hoxline can generate the reviewer path locally from synthetic fixtures approved for public demo use.
+- Hoxline can generate the reviewer path locally from controlled-test fixtures approved for public demo use.
 - The demo produces structured records for intake, graph linkage, telemetry assumptions, validation, signal simulation, enrichment, triage, ProofCard, Claim Authority, and reviewer packaging.
 - Claim Authority allows bounded demo wording and blocks unsupported public claims.
 

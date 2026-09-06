@@ -2,12 +2,22 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import base64
+import binascii
+import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import shutil
+import subprocess
 from typing import Any
+import unicodedata
+from urllib.parse import unquote, urlsplit
 
+import yaml
+
+from .case_growth.collector import verify_selected_source_checkout
+from .case_growth.discovery import repo_origin, sanitized_git_env
 from .demo import (
     BLOCKED_CLAIM_FAMILIES,
     PRODUCT,
@@ -24,13 +34,14 @@ MACHINE_STATE_VERSION = "review-machine-state-v1"
 BATCH_INDEX_VERSION = "multi-artifact-review-index-v1"
 BATCH_MACHINE_STATE_VERSION = "batch-machine-state-v1"
 ARTIFACT_ID = "HO-DET-010"
+ARTIFACT_ID_PATTERN = re.compile(r"^(?:HO-DET|HO-NDR|ID-DET|AWS-DET)-\d{3}$")
 EXPECTED_PASS_OUTPUTS = [
     "artifact-manifest.json",
     "intake.json",
     "evidence-graph.json",
     "telemetry-contract-check.json",
     "validation-result.json",
-    "synthetic-signal.json",
+    "controlled-test-signal.json",
     "enrichment.json",
     "triage-summary.md",
     "proofcard.json",
@@ -53,7 +64,7 @@ STAGE_REGISTRY = [
     "evidence_graph",
     "telemetry_contract_check",
     "controlled_validation",
-    "synthetic_signal",
+    "controlled_test_signal",
     "enrichment",
     "triage",
     "proofcard",
@@ -89,14 +100,35 @@ REQUIRED_MANIFEST_FIELDS = [
 ]
 PROHIBITED_CLAIM_PATTERNS = {
     "public-safe runtime proof": re.compile(r"public[- ]safe runtime proof", re.IGNORECASE),
+    "public-safe promotion": re.compile(
+        r"\bpublic[-_ ]safe(?:[-_ ](?:is[-_ ])?(?:approved|confirmed|promotion|promoted|proof|status|true))\b",
+        re.IGNORECASE,
+    ),
+    "runtime promotion": re.compile(
+        r"\bruntime(?:[-_ ]active|\s+(?:is|was)\s+active)\b",
+        re.IGNORECASE,
+    ),
+    "signal promotion": re.compile(
+        r"\bsignal(?:[-_ ](?:was[-_ ]?)?observed|[-_ ]proof|\s+(?:is|was)\s+observed)\b",
+        re.IGNORECASE,
+    ),
     "production": re.compile(r"\bproduction(?:[- ]ready| readiness)?\b", re.IGNORECASE),
     "customer deployment": re.compile(r"\bcustomer(?:[- ]deployed| deployment)?\b", re.IGNORECASE),
     "SOCaaS deployment": re.compile(r"\bSOCaaS(?:[- ]ready| deployed| deployment)?\b", re.IGNORECASE),
     "autonomous SOC": re.compile(r"\bautonomous SOC\b", re.IGNORECASE),
-    "AI-approved disposition": re.compile(r"\bAI[- ]approved\b", re.IGNORECASE),
-    "analyst-approved disposition": re.compile(r"\banalyst[- ]approved\b", re.IGNORECASE),
-    "final authorization": re.compile(r"\bfinal authorization\b", re.IGNORECASE),
-    "case closure": re.compile(r"\bcase closure\b|\bcase[- ]closed\b", re.IGNORECASE),
+    "AI-approved disposition": re.compile(
+        r"\bAI(?:[-_ ]approved|[-_ ](?:authority|disposition)(?:[-_ ](?:enabled|approved|true))?)\b",
+        re.IGNORECASE,
+    ),
+    "analyst-approved disposition": re.compile(
+        r"\banalyst(?:[-_ ]approved|[-_ ]approval(?:[-_ ](?:granted|approved|true))?)\b",
+        re.IGNORECASE,
+    ),
+    "final authorization": re.compile(r"\bfinal[-_ ]authorization\b", re.IGNORECASE),
+    "case closure": re.compile(r"\bcase[-_ ]closure\b|\bcase[-_ ]closed\b", re.IGNORECASE),
+    "live cloud claim": re.compile(r"\blive (?:AWS|cloud)(?: runtime| proof| signal)?\b", re.IGNORECASE),
+    "live identity runtime claim": re.compile(r"\blive (?:IdP|identity)(?: runtime| proof| signal)?\b", re.IGNORECASE),
+    "live Security Onion proof": re.compile(r"\blive Security Onion(?: proof| signal| runtime)?\b", re.IGNORECASE),
 }
 PRIVATE_FIELD_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
@@ -126,6 +158,267 @@ PRIVATE_VALUE_PATTERNS = [
         r"\bprivate execution ID\b",
     )
 ]
+PRIVATE_KEY_TOKENS = {
+    "customeridentifier",
+    "endpointlog",
+    "generatedpassword",
+    "password",
+    "privateevidence",
+    "privateexecutionid",
+    "privatepacket",
+    "privatepayload",
+    "rawalert",
+    "rawwazuh",
+    "secret",
+    "token",
+}
+RETIRED_VOCABULARY = "syn" + "thetic"
+TRACKED_TEXT_EXTENSIONS = {
+    ".cfg", ".css", ".csv", ".html", ".ini", ".js", ".json", ".md", ".mjs",
+    ".ps1", ".py", ".rst", ".sh", ".toml", ".ts", ".tsx", ".txt", ".yaml", ".yml",
+}
+TRACKED_BINARY_EXTENSIONS = {".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".webp"}
+TRACKED_TEXT_FILENAMES = {
+    ".editorconfig", ".gitattributes", ".gitignore", "LICENSE", "MANIFEST.in", "Makefile",
+}
+PASS_OUTPUT_ROLES = {
+    "artifact_manifest": "artifact-manifest.json",
+    "artifact_intake": "intake.json",
+    "evidence_graph": "evidence-graph.json",
+    "telemetry_contract_check": "telemetry-contract-check.json",
+    "controlled_validation": "validation-result.json",
+    "controlled_test_signal": "controlled-test-signal.json",
+    "enrichment": "enrichment.json",
+    "triage": "triage-summary.md",
+    "proofcard": "proofcard.json",
+    "proofcard_markdown": "proofcard.md",
+    "claim_authority": "claim-authority.json",
+    "reviewer_pack": "reviewer-pack.md",
+    "machine_state": "machine-state.json",
+    "run_summary": "run-summary.json",
+}
+BLOCKED_OUTPUT_ROLES = {
+    "artifact_manifest": "artifact-manifest.json",
+    "machine_state": "machine-state.json",
+    "blocked_review": "blocked-review.md",
+    "run_summary": "run-summary.json",
+}
+BATCH_OUTPUT_ROLES = {
+    "input_index": "input-index.json",
+    "machine_state": "batch-machine-state.json",
+    "summary": "batch-summary.md",
+    "reviewer_pack": "batch-reviewer-pack.md",
+    "run_summary": "batch-run-summary.json",
+}
+ABSOLUTE_LOCAL_PATH = re.compile(
+    r"(?i)(?:[A-Z]:[\\/]|(?<![\\/:])\\{2,}[^\\/\s]+[\\/]"
+    r"|(?<![\\/:])//[^/\s]+/|(?<![A-Za-z0-9_./:-])/(?!/)[^\s\"'<>]+)"
+)
+CANONICAL_ORIGINS = {
+    "hawkinsoperations-detections": "https://github.com/HawkinsOperations/hawkinsoperations-detections",
+    "hawkinsoperations-validation": "https://github.com/HawkinsOperations/hawkinsoperations-validation",
+}
+MANIFEST_ALLOWED_FIELDS = set(REQUIRED_MANIFEST_FIELDS) | {
+    "additional_telemetry_sources",
+    "attack_mapping",
+    "confidence",
+    "detection_family",
+    "endpoint_mutation",
+    "expected_block_reason",
+    "expected_event_keys",
+    "expected_review_outcome",
+    "field_mapping",
+    "lifetime_ledger_changed",
+    "public_proof_promoted",
+    "runtime_proof",
+    "severity",
+    "triage_what_happened",
+    "triage_why_it_matters",
+    "wazuh_mutation",
+}
+TELEMETRY_CONTRACT_ALLOWED_FIELDS = {
+    "event_ids",
+    "event_key_field",
+    "event_keys",
+    "required_fields",
+    "scope",
+    "source",
+    "source_control_note",
+    "wazuh_rule_ids",
+}
+BATCH_INDEX_ALLOWED_FIELDS = {
+    "index_version",
+    "index_id",
+    "description",
+    "artifacts",
+    "expected_pass_artifacts",
+    "expected_blocked_artifacts",
+    "batch_claim_boundary",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "runtime_boundary",
+    "signal_boundary",
+    "proof_boundary",
+    "generated_outputs",
+    "next_gate",
+}
+FIXTURE_ALLOWED_FIELDS = {
+    "artifact_id",
+    "endpoint_mutation",
+    "description",
+    "events",
+    "expected_detection",
+    "fixture_id",
+    "fixture_kind",
+    "host",
+    "network_required",
+    "runtime_required",
+    "safe_fixture",
+    "schema_version",
+}
+SECURITY_FALSE_FIELDS = {
+    "ai_disposition_authority",
+    "analyst_disposition_authority",
+    "analyst_approval",
+    "case_closed",
+    "case_closure",
+    "endpoint_mutation",
+    "final_authorization",
+    "lifetime_ledger_changed",
+    "private_evidence_committed",
+    "public_proof_promoted",
+    "public_safe",
+    "runtime_active",
+    "runtime_proof",
+    "signal_observed",
+    "wazuh_mutation",
+}
+SECURITY_FALSE_KEY_TOKENS = {
+    re.sub(r"[^a-z0-9]", "", value.casefold()) for value in SECURITY_FALSE_FIELDS
+} | {
+    "aiapproved",
+    "aiapproval",
+    "analystapproved",
+    "approvedbyanalyst",
+    "caseclosureapproved",
+    "finalapproved",
+    "publicsafeapproved",
+}
+SECURITY_FIXED_FIELDS: dict[str, Any] = {
+    "public_safe_status": PUBLIC_SAFE_STATUS,
+    "human_review_required": True,
+    "ai_disposition_authority": False,
+}
+REVIEW_OUTPUT_SECURITY_FIELDS: dict[str, Any] = {
+    **SECURITY_FIXED_FIELDS,
+    "endpoint_mutation": False,
+    "wazuh_mutation": False,
+    "runtime_proof": False,
+    "public_proof_promoted": False,
+    "lifetime_ledger_changed": False,
+    "private_evidence_committed": False,
+}
+COMPOSITIONAL_PROMOTION_KEYS = {
+    "aidisposition",
+    "aiauthority",
+    "analystapproval",
+    "analystauthority",
+    "productionlive",
+    "productionstatus",
+    "customerdeployment",
+    "customerstatus",
+    "socaasdeployment",
+    "socaasstatus",
+    "runtimestatus",
+    "signalstatus",
+    "approvalstatus",
+    "closurestatus",
+    "casestatus",
+    "publicsaferuntime",
+    "finalauthorized",
+    "finalauthorizationstatus",
+}
+BOUNDED_PROMOTION_VALUES = {
+    "blocked",
+    "controlledtestonly",
+    "false",
+    "notactive",
+    "notapproved",
+    "notauthorized",
+    "notclosed",
+    "notdeployed",
+    "notobserved",
+    "notpublicsafe",
+    "notready",
+    "unsupported",
+}
+REVIEW_MACHINE_STATE_BASE_FIELDS = {
+    "schema_version",
+    "engine_version",
+    "run_id",
+    "artifact_id",
+    "manifest_path",
+    "final_status",
+    "block_reason",
+    "stages",
+    "allowed_claim",
+    "requested_claims",
+    "blocked_claims",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "endpoint_mutation",
+    "wazuh_mutation",
+    "runtime_proof",
+    "private_evidence_committed",
+    "public_proof_promoted",
+    "lifetime_ledger_changed",
+    "proof_boundary",
+    "runtime_boundary",
+    "signal_boundary",
+    "next_gate",
+    "outputs",
+    "product",
+    "output_digests",
+    "state_integrity_digest",
+}
+BATCH_MACHINE_STATE_FIELDS = {
+    "schema_version",
+    "engine_version",
+    "batch_id",
+    "index_id",
+    "index_path",
+    "artifacts",
+    "expected_pass_artifacts",
+    "expected_blocked_artifacts",
+    "final_status",
+    "actual_pass_artifacts",
+    "actual_blocked_artifacts",
+    "block_reason",
+    "batch_claim_boundary",
+    "proof_boundary",
+    "runtime_boundary",
+    "signal_boundary",
+    "public_safe_status",
+    "human_review_required",
+    "ai_disposition_authority",
+    "endpoint_mutation",
+    "wazuh_mutation",
+    "runtime_proof",
+    "private_evidence_committed",
+    "public_proof_promoted",
+    "lifetime_ledger_changed",
+    "website_changed",
+    "outputs",
+    "next_gate",
+    "product",
+    "source_manifest_digest",
+    "input_index_sha256",
+    "output_digests",
+    "batch_state_integrity_digest",
+}
+_AUTHORITY_BINDING_CACHE: dict[tuple[str, ...], dict[str, Any]] = {}
 
 
 class ReviewEngineError(ValueError):
@@ -134,6 +427,624 @@ class ReviewEngineError(ValueError):
 
 class ReviewBlocked(ReviewEngineError):
     """Raised for governed BLOCKED review outcomes."""
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe YAML loader that rejects exact and case-folded duplicate keys."""
+
+
+def _construct_unique_mapping(loader: _UniqueKeyLoader, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
+    pairs = loader.construct_pairs(node, deep=deep)
+    result: dict[Any, Any] = {}
+    seen: set[str] = set()
+    for key, value in pairs:
+        normalized = _normalized_key_identity(key)
+        if normalized in seen:
+            raise ReviewBlocked("structured input contains a duplicate key")
+        seen.add(normalized)
+        result[key] = value
+    return result
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    seen: set[str] = set()
+    for key, value in pairs:
+        normalized = _normalized_key_identity(key)
+        if normalized in seen:
+            raise ReviewBlocked("structured input contains a duplicate key")
+        seen.add(normalized)
+        result[key] = value
+    return result
+
+
+def _require_exact_keys(value: dict[str, Any], allowed: set[str], label: str) -> None:
+    unknown = sorted(set(value) - allowed)
+    if unknown:
+        raise ReviewBlocked(f"{label} contains unsupported fields")
+
+
+def _normalize_security_key(value: Any) -> str:
+    decoded = _decoded_text_variants(
+        unicodedata.normalize("NFKC", str(value)),
+        strict_base64=False,
+    )[-1]
+    return re.sub(r"[^a-z0-9]", "", decoded.casefold())
+
+
+def _normalized_key_identity(value: Any) -> str:
+    return _normalize_security_key(unicodedata.normalize("NFKC", str(value)))
+
+
+def _security_scan_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    scanned: list[str] = []
+    for character in normalized:
+        if character in "\t\r\n":
+            scanned.append(" ")
+            continue
+        category = unicodedata.category(character)
+        if category.startswith(("C", "M")):
+            continue
+        scanned.append(character)
+    return "".join(scanned)
+
+
+def _is_promotion_key(normalized_key: str) -> bool:
+    if normalized_key == "finalstatus":
+        return False
+    if any(
+        token in normalized_key
+        for token in SECURITY_FALSE_KEY_TOKENS | COMPOSITIONAL_PROMOTION_KEYS
+    ):
+        return True
+    anchored_prefixes = ("ai", "analyst", "review", "final")
+    contained_prefixes = (
+        "production", "customer", "socaas", "runtime", "signal", "approval",
+        "closure", "case", "publicsafe",
+    )
+    promotion_indicators = (
+        "active",
+        "approved",
+        "authority",
+        "authorization",
+        "authorized",
+        "closed",
+        "decision",
+        "deployed",
+        "disposition",
+        "enabled",
+        "live",
+        "observed",
+        "proof",
+        "ready",
+        "state",
+        "status",
+    )
+    authority_match = any(normalized_key.startswith(prefix) for prefix in anchored_prefixes) or any(
+        prefix in normalized_key for prefix in contained_prefixes
+    )
+    return authority_match and any(
+        indicator in normalized_key for indicator in promotion_indicators
+    )
+
+
+def _is_promotion_path(path: str) -> bool:
+    segments = [
+        _normalize_security_key(segment)
+        for segment in re.split(r"\.|\[\d+\]", path)
+        if segment
+    ]
+    if any(_is_promotion_key(segment) for segment in segments):
+        return True
+    authority_segments = {
+        "ai", "analyst", "review", "final", "production", "customer", "socaas",
+        "runtime", "signal", "approval", "closure", "case", "publicsafe",
+    }
+    indicator_segments = {
+        "active", "approved", "authority", "authorization", "authorized", "closed",
+        "decision", "deployed", "disposition", "enabled", "live", "observed",
+        "proof", "ready", "state", "status",
+    }
+    return any(segment in authority_segments for segment in segments) and any(
+        segment in indicator_segments for segment in segments
+    )
+
+
+def _is_bounded_promotion_value(value: Any) -> bool:
+    if value in (False, None, 0, "", [], {}):
+        return True
+    if isinstance(value, str):
+        return _normalize_security_key(value) in BOUNDED_PROMOTION_VALUES
+    return False
+
+
+def _canonical_base64_text(value: str, *, strict: bool) -> str | None:
+    compact = value.strip()
+    if len(compact) < 8 or not re.fullmatch(r"[A-Za-z0-9+/=_-]+", compact):
+        return None
+    encoded_signal = "=" in compact or bool(
+        re.match(r"(?i)^(?:eyj|w3s|y2fz|chvi|chjp|zmlu|yw5h|quk|l3|qzpc)", compact)
+    )
+    unpadded = compact.rstrip("=")
+    if "=" in unpadded or len(compact) - len(unpadded) > 2:
+        if strict and encoded_signal:
+            raise ReviewBlocked("structured input contains non-canonical base64")
+        return None
+    remainder = len(unpadded) % 4
+    if remainder == 1:
+        # A one-character remainder can never be valid base64. Limit rejection
+        # to values that carry strong encoded-data signals so ordinary labels
+        # are not reclassified as encodings.
+        if encoded_signal:
+            if strict:
+                raise ReviewBlocked("structured input contains invalid base64 length")
+        return None
+    padded = unpadded + "=" * ((4 - remainder) % 4)
+    alphabet = "urlsafe" if re.search(r"[-_]", unpadded) else "standard"
+    try:
+        if alphabet == "urlsafe":
+            decoded_bytes = base64.b64decode(padded.translate(str.maketrans("-_", "+/")), validate=True)
+            canonical = base64.urlsafe_b64encode(decoded_bytes).decode("ascii").rstrip("=")
+        else:
+            decoded_bytes = base64.b64decode(padded, validate=True)
+            canonical = base64.b64encode(decoded_bytes).decode("ascii").rstrip("=")
+    except (binascii.Error, ValueError) as exc:
+        if strict and encoded_signal:
+            raise ReviewBlocked("structured input contains invalid base64") from exc
+        return None
+    if canonical != unpadded:
+        if strict and encoded_signal:
+            raise ReviewBlocked("structured input contains non-canonical base64")
+        return None
+    try:
+        decoded = decoded_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if not decoded or not all(char.isprintable() or char.isspace() for char in decoded):
+        return None
+    return decoded
+
+
+def _decoded_text_variants(value: str, *, strict_base64: bool = True) -> list[str]:
+    initial = _security_scan_text(value)
+    variants = [initial]
+    frontier = [initial]
+    for _ in range(3):
+        next_frontier: list[str] = []
+        for current in frontier:
+            decoded_url = _security_scan_text(unquote(current))
+            if decoded_url != current and decoded_url not in variants:
+                variants.append(decoded_url)
+                next_frontier.append(decoded_url)
+            decoded_b64 = _canonical_base64_text(current, strict=strict_base64)
+            if decoded_b64 is not None:
+                decoded_b64 = _security_scan_text(decoded_b64)
+                if decoded_b64 not in variants:
+                    variants.append(decoded_b64)
+                    next_frontier.append(decoded_b64)
+        if not next_frontier:
+            break
+        frontier = next_frontier
+    return variants
+
+
+def _string_has_unsafe_claim(value: str) -> bool:
+    for candidate in _decoded_text_variants(value):
+        if any(pattern.search(candidate) for pattern in PROHIBITED_CLAIM_PATTERNS.values()):
+            return True
+        stripped = candidate.strip()
+        if stripped.startswith(("{", "[")):
+            try:
+                nested = json.loads(stripped, object_pairs_hook=_unique_json_object)
+            except (json.JSONDecodeError, ReviewEngineError):
+                continue
+            try:
+                _validate_recursive_boundaries(nested, "encoded structured value")
+            except ReviewBlocked:
+                return True
+    return False
+
+
+def _validate_recursive_boundaries(value: Any, label: str, path: str = "") -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            key_path = f"{path}.{key}" if path else str(key)
+            normalized_key = _normalize_security_key(key)
+            canonical_final_status = normalized_key == "finalstatus" and item in {
+                "PASS", "MIXED", "BLOCKED",
+            }
+            if (
+                not canonical_final_status
+                and (_is_promotion_key(normalized_key) or _is_promotion_path(key_path))
+            ) and not isinstance(item, (dict, list)) and not _is_bounded_promotion_value(item):
+                raise ReviewBlocked(f"{label} contains prohibited authority promotion")
+            for canonical, expected in SECURITY_FIXED_FIELDS.items():
+                if normalized_key == _normalize_security_key(canonical) and item != expected:
+                    raise ReviewBlocked(f"{label} violates a fixed authority boundary")
+            _validate_recursive_boundaries(item, label, key_path)
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_recursive_boundaries(item, label, f"{path}[{index}]")
+        return
+    if isinstance(value, str):
+        if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+            raise ReviewBlocked(f"{label} contains prohibited authority promotion")
+        _validate_declared_string(value, label)
+        if _string_has_unsafe_claim(value):
+            raise ReviewBlocked(f"{label} contains an unsupported claim")
+        return
+    if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+        raise ReviewBlocked(f"{label} contains prohibited authority promotion")
+
+
+def _is_bounded_negative_claim(value: str, *, path: str = "", label: str = "") -> bool:
+    normalized_path = _normalized_key_identity(path)
+    if re.fullmatch(
+        r"\s*-?\s*public[_ -]?safe[_ -]?status(?:\s+remains|\s*:)?\s*`?NOT_PUBLIC_SAFE`?\.?\s*",
+        unicodedata.normalize("NFKC", value),
+        re.IGNORECASE,
+    ):
+        return True
+    blocked_context = any(
+        token in normalized_path
+        for token in (
+            "blockedclaims",
+            "blockedclaimclasses",
+            "missingevidence",
+            "saferwording",
+            "whathoxlineblocked",
+        )
+    )
+    if normalized_path.endswith(
+        ("path", "machinestate", "outputdir", "reviewerpack", "blockedreview", "runsummary")
+    ) and re.fullmatch(r"[A-Za-z0-9._/-]+", value):
+        return True
+
+    local_negative = re.compile(
+        r"\b(?:not asserted|not prove|does not prove|not public proof|not runtime proof|"
+        r"unsupported|prohibited|remain false|remains false|claims block|blocked claim|"
+        r"claim authority blocks|do not say)\b",
+        re.IGNORECASE,
+    )
+    inherited_negative = re.compile(
+        r"\b(?:not asserted|not prove|does not prove|claims block|blocked claim|"
+        r"claim authority blocks|do not say)\b",
+        re.IGNORECASE,
+    )
+    trailing_negative = re.compile(
+        r"^\s*:?\s*(?:is|are|remains?)\s+(?:unsupported|prohibited|false|not asserted|NOT_PUBLIC_SAFE)\b",
+        re.IGNORECASE,
+    )
+    clause_separator = re.compile(
+        r"[,;:/\u2013\u2014]|\b(?:while|but|however|and|plus|though)\b",
+        re.IGNORECASE,
+    )
+    hard_separator = re.compile(
+        r"[;:/\u2013\u2014]|\b(?:while|but|however|though)\b",
+        re.IGNORECASE,
+    )
+    authority_subject = (
+        r"(?:public[-_ ]safe(?:[-_ ](?:runtime|proof|status))?|runtime|signal|production|"
+        r"customer(?:[-_ ](?:environment|deployment))?|SOCaaS(?:[-_ ]deployment)?|"
+        r"AI[-_ ](?:authority|approval|disposition)|analyst[-_ ](?:authority|approval|disposition)|"
+        r"final[-_ ]authorization|case[-_ ]closure)"
+    )
+    affirmative_predicate = re.compile(
+        rf"\b{authority_subject}\b"
+        r"(?:\s+(?:is|are|was|were|has|have|becomes?|became))?\s+"
+        r"(?:enabled|granted|confirmed|received|approved|active|deployed|live|observed|closed|true)\b",
+        re.IGNORECASE,
+    )
+    blocked_suffix = re.compile(
+        r"\b(?:claim|claims|claim classes|claim families|identified claims)\s+"
+        r"(?:remain|remains|are)\s+(?:blocked|unsupported|prohibited|not asserted)\b",
+        re.IGNORECASE,
+    )
+    global_negative_predicate = re.compile(
+        r"\b(?:is|are|remains?)\s+"
+        r"(?:unsupported|prohibited|false|not asserted|NOT_PUBLIC_SAFE)\b",
+        re.IGNORECASE,
+    )
+    exact_bounded_nouns = {
+        *(_security_scan_text(item).strip().casefold() for item in BLOCKED_CLAIM_FAMILIES),
+        "public signal proof",
+        "human review gate completion",
+        "final authorization record",
+    }
+    unsafe_seen = False
+    for candidate in _decoded_text_variants(value):
+        normalized = unicodedata.normalize("NFKC", candidate)
+        canonical_value = re.sub(
+            r"\s+",
+            " ",
+            normalized.strip().strip(" \t`*_-.:;"),
+        ).casefold()
+        explicit_affirmative = affirmative_predicate.search(normalized)
+        if blocked_context and canonical_value in exact_bounded_nouns:
+            return True
+        if blocked_context and ":" in normalized:
+            claim_label, bounded_explanation = normalized.split(":", 1)
+            canonical_label = re.sub(
+                r"\s+",
+                " ",
+                claim_label.strip().strip(" \t`*_-.:;"),
+            ).casefold()
+            if (
+                canonical_label in exact_bounded_nouns
+                and global_negative_predicate.search(bounded_explanation) is not None
+            ):
+                return True
+        if explicit_affirmative is not None:
+            return False
+        if global_negative_predicate.search(normalized) is not None and any(
+            pattern.search(normalized) for pattern in PROHIBITED_CLAIM_PATTERNS.values()
+        ):
+            return True
+        if blocked_suffix.search(normalized) is not None and any(
+            pattern.search(normalized) for pattern in PROHIBITED_CLAIM_PATTERNS.values()
+        ):
+            return True
+        negative_intro = inherited_negative.search(normalized)
+        if (
+            negative_intro is not None
+            and affirmative_predicate.search(normalized, negative_intro.end()) is not None
+        ):
+            # A denial governs only the authority nouns it directly scopes. Any
+            # later explicit affirmative authority predicate is a new claim,
+            # regardless of the connector used to join the clauses.
+            return False
+        for pattern in PROHIBITED_CLAIM_PATTERNS.values():
+            for match in pattern.finditer(normalized):
+                unsafe_seen = True
+                normalized_folded = normalized.casefold()
+                token_start = normalized_folded.rfind("not_public_safe", 0, match.start() + 1)
+                if token_start >= 0 and token_start <= match.start() < token_start + len("not_public_safe"):
+                    continue
+                separators = [item for item in clause_separator.finditer(normalized) if item.end() <= match.start()]
+                clause_start = separators[-1].end() if separators else 0
+                prefix = normalized[clause_start : match.start()]
+                suffix = normalized[match.end() :]
+                if local_negative.search(prefix) or trailing_negative.search(suffix):
+                    continue
+                # A scoped denial such as "does not prove production readiness,
+                # deployment, or approval" can govern a comma-delimited list.
+                # Weak phrases such as "unsupported note" do not carry across
+                # punctuation, and hard delimiters always reset the scope.
+                if separators and separators[-1].group().casefold() in {",", "and", "plus"}:
+                    hard = [item for item in hard_separator.finditer(normalized) if item.end() <= match.start()]
+                    hard_start = hard[-1].end() if hard else 0
+                    next_separator = next(
+                        (
+                            item
+                            for item in clause_separator.finditer(normalized, match.end())
+                            if item.start() >= match.end()
+                        ),
+                        None,
+                    )
+                    fragment_end = next_separator.start() if next_separator else len(normalized)
+                    fragment = normalized[clause_start:fragment_end]
+                    if inherited_negative.search(
+                        normalized[hard_start : match.start()]
+                    ) and not affirmative_predicate.search(fragment):
+                        continue
+                return False
+    return unsafe_seen
+
+
+def _validate_generated_output_security(value: Any, label: str, path: str = "") -> None:
+    if isinstance(value, dict):
+        seen: set[str] = set()
+        for key, item in value.items():
+            normalized_key = _normalized_key_identity(key)
+            if normalized_key in seen:
+                raise ReviewBlocked(f"{label} contains normalized-key collision")
+            seen.add(normalized_key)
+            key_path = f"{path}.{key}" if path else str(key)
+            canonical_final_status = normalized_key == "finalstatus" and item in {
+                "PASS", "MIXED", "BLOCKED",
+            }
+            if (
+                not canonical_final_status
+                and (_is_promotion_key(normalized_key) or _is_promotion_path(key_path))
+            ) and not isinstance(item, (dict, list)) and not _is_bounded_promotion_value(item):
+                raise ReviewBlocked(f"{label} contains prohibited authority promotion")
+            for canonical, expected in REVIEW_OUTPUT_SECURITY_FIELDS.items():
+                if normalized_key == _normalized_key_identity(canonical) and item != expected:
+                    raise ReviewBlocked(f"{label} violates a fixed authority boundary")
+            _validate_generated_output_security(item, label, key_path)
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_generated_output_security(item, label, f"{path}[{index}]")
+        return
+    if isinstance(value, str):
+        if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+            raise ReviewBlocked(f"{label} contains prohibited authority promotion")
+        _validate_declared_string(value, label)
+        value_is_bounded = (
+            _string_has_unsafe_claim(value)
+            and _is_bounded_negative_claim(value, path=path, label=label)
+        )
+        lines = value.splitlines() if "\n" in value or "\r" in value else [value]
+        markdown_section = ""
+        for line in lines:
+            if line.lstrip().startswith("#"):
+                markdown_section = line.lstrip("#").strip()
+            elif re.fullmatch(r"[A-Za-z][A-Za-z ]+:", line.strip()):
+                markdown_section = line.strip().rstrip(":")
+            line_path = f"{path}.{markdown_section}" if markdown_section else path
+            if _string_has_unsafe_claim(line) and not _is_bounded_negative_claim(
+                line, path=line_path, label=label
+            ) and not value_is_bounded:
+                raise ReviewBlocked(f"{label} contains an unsupported claim")
+        return
+    if _is_promotion_path(path) and not _is_bounded_promotion_value(value):
+        raise ReviewBlocked(f"{label} contains prohibited authority promotion")
+
+
+def _expected_file_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, indent=2, sort_keys=True) + "\n"
+
+
+def _verify_generated_file(path: Path, expected: Any, label: str, errors: list[str]) -> None:
+    if not path.is_file() or path.is_symlink():
+        return
+    try:
+        actual_text = path.read_text(encoding="utf-8")
+        if actual_text != _expected_file_text(expected):
+            errors.append(f"{label} does not match deterministic engine output")
+        if path.suffix == ".json":
+            actual: Any = json.loads(actual_text, object_pairs_hook=_unique_json_object)
+        else:
+            actual = actual_text
+        _validate_generated_output_security(actual, label)
+        _validate_no_private_markers(actual, label)
+    except (OSError, UnicodeError, json.JSONDecodeError, ReviewEngineError) as exc:
+        errors.append(f"{label} security validation failed: {_sanitize_block_reason(str(exc))}")
+
+
+def _validate_declared_string(value: str, label: str) -> None:
+    for candidate in _decoded_text_variants(value):
+        if "\x00" in candidate or any(ord(char) < 32 and char not in "\t\r\n" for char in candidate):
+            raise ReviewBlocked(f"{label} contains an unsafe encoded value")
+        if _looks_like_local_or_escaping_path(candidate):
+            raise ReviewBlocked(f"{label} contains a prohibited local or escaping path")
+
+
+def _looks_like_local_or_escaping_path(value: str) -> bool:
+    candidate = value.strip()
+    if not candidate:
+        return False
+    if re.match(r"(?i)^file:", candidate):
+        return True
+    parsed = urlsplit(candidate)
+    if parsed.scheme and len(parsed.scheme) > 1 and parsed.scheme.casefold() != "https":
+        return True
+    if re.match(r"(?i)^[a-z]:", candidate):
+        return True
+    if candidate.startswith(("\\\\", "//", "/", "\\")):
+        return True
+    normalized = candidate.replace("\\", "/")
+    if "\\" in candidate and "/" in candidate:
+        return True
+    segments = normalized.split("/")
+    if any(segment in {".", ".."} for segment in segments):
+        return True
+    return False
+
+
+def _normalize_repo_relative_path(raw: Any, label: str) -> str:
+    if not isinstance(raw, str) or not raw.strip():
+        raise ReviewBlocked(f"{label} must be a non-empty repository-relative path")
+    variants = _decoded_text_variants(raw)
+    if len(variants) > 1:
+        raise ReviewBlocked(f"{label} must not use encoded path characters")
+    value = variants[0]
+    if _looks_like_local_or_escaping_path(value) or "\\" in value:
+        raise ReviewBlocked(f"{label} must be a contained POSIX repository-relative path")
+    pure = PurePosixPath(value)
+    normalized = pure.as_posix()
+    if normalized != value or pure.is_absolute() or any(part in {"", ".", ".."} for part in pure.parts):
+        raise ReviewBlocked(f"{label} is not canonical")
+    if PureWindowsPath(value).is_absolute() or PureWindowsPath(value).drive:
+        raise ReviewBlocked(f"{label} must not be a Windows path")
+    return normalized
+
+
+def _contained_file(base: Path, raw: Any, label: str, allowed_root: Path | None = None) -> Path:
+    normalized = _normalize_repo_relative_path(raw, label)
+    candidate = (base / normalized).resolve()
+    root = (allowed_root or base).resolve()
+    if not _is_relative_to(candidate, root):
+        raise ReviewBlocked(f"{label} escapes its allowed root")
+    if candidate.is_symlink():
+        raise ReviewBlocked(f"{label} must not be a symbolic link")
+    return candidate
+
+
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=sanitized_git_env(),
+    )
+    if result.returncode != 0:
+        raise ReviewBlocked("authority repository Git identity could not be verified")
+    return result.stdout.strip()
+
+
+def _canonical_origin(value: str) -> str:
+    normalized = value.strip().removesuffix(".git").replace("git@github.com:", "https://github.com/")
+    return normalized.casefold()
+
+
+def _authority_file_identity(repo: Path, relative_path: str) -> dict[str, str]:
+    path = _contained_file(repo, relative_path, "authority path")
+    if not path.is_file():
+        raise ReviewBlocked("authority path is missing")
+    tracked = _git(repo, "ls-files", "--error-unmatch", "--", relative_path)
+    if tracked.replace("\\", "/") != relative_path:
+        raise ReviewBlocked("authority path is not tracked at its canonical name")
+    blob = _git(repo, "rev-parse", f"HEAD:{relative_path}")
+    current_blob = _git(repo, "hash-object", "--", relative_path)
+    if blob != current_blob:
+        raise ReviewBlocked("authority source is dirty")
+    return {
+        "repository": repo.name,
+        "path": relative_path,
+        "git_blob_sha": blob,
+        "sha256": _sha256_file(path),
+    }
+
+
+def _semantic_digest(value: Any) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _state_integrity_digest(state: dict[str, Any], field: str) -> str:
+    payload = {key: value for key, value in state.items() if key != field}
+    return _semantic_digest(payload)
+
+
+def _sanitize_block_reason(reason: str) -> str:
+    lowered = reason.casefold()
+    if "private" in lowered or "raw" in lowered:
+        return "input rejected by private-data boundary"
+    if "path" in lowered or "absolute" in lowered or "escape" in lowered or "symbolic" in lowered:
+        return "input rejected by path-containment boundary"
+    if any(
+        marker in lowered
+        for marker in (
+            "claim",
+            "authority",
+            "approval",
+            "authorization",
+            "closure",
+            "customer",
+            "production",
+            "public_safe",
+            "public-safe",
+            "runtime",
+            "signal",
+        )
+    ):
+        return "input rejected by claim-authority boundary"
+    if "duplicate" in lowered or "unsupported field" in lowered or "structured" in lowered:
+        return "input rejected by strict-structure boundary"
+    return re.sub(r"(?i)(?:[A-Z]:[\\/]|\\\\|/home/|/users/)\S*", "[redacted]", reason)[:240]
 
 
 def default_run_dir(repo_root: Path | None = None) -> Path:
@@ -148,21 +1059,247 @@ def default_batch_dir(repo_root: Path | None = None) -> Path:
     return root / ".hoxline" / "batch-runs" / stamp
 
 
+def _review_repo_root(input_path: Path, explicit_root: Path | None = None) -> Path:
+    if explicit_root is not None:
+        return explicit_root.resolve()
+    resolved = input_path.resolve()
+    for candidate in (resolved.parent, *resolved.parents):
+        if (candidate / "pyproject.toml").is_file() and (candidate / "examples" / "review").is_dir():
+            return candidate
+    package_root = Path(__file__).resolve().parents[2]
+    if (
+        (package_root / "pyproject.toml").is_file()
+        and (package_root / "examples" / "review").is_dir()
+    ):
+        return package_root
+    return Path.cwd().resolve()
+
+
+def _load_yaml_object(path: Path) -> dict[str, Any]:
+    try:
+        value = yaml.load(path.read_text(encoding="utf-8"), Loader=_UniqueKeyLoader)
+    except (OSError, yaml.YAMLError, ReviewEngineError) as exc:
+        raise ReviewBlocked("authority YAML could not be parsed strictly") from exc
+    if not isinstance(value, dict):
+        raise ReviewBlocked("authority YAML must contain an object")
+    return value
+
+
+def _single_entry(items: Any, key: str, expected: str, label: str) -> dict[str, Any]:
+    if not isinstance(items, list):
+        raise ReviewBlocked(f"{label} inventory must be a list")
+    matches = [item for item in items if isinstance(item, dict) and item.get(key) == expected]
+    if len(matches) != 1:
+        raise ReviewBlocked(f"{label} must contain exactly one matching identity")
+    return matches[0]
+
+
+def _case_lists(value: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    cases = value.get("cases")
+    if isinstance(cases, dict):
+        positive = cases.get("positive")
+        negative = cases.get("negative")
+    else:
+        positive = value.get("positive")
+        negative = value.get("negative")
+    if not isinstance(positive, list) or not isinstance(negative, list) or not positive or not negative:
+        raise ReviewBlocked("validation-owned fixture contract must include positive and negative cases")
+    if not all(isinstance(item, dict) and isinstance(item.get("id"), str) for item in [*positive, *negative]):
+        raise ReviewBlocked("validation-owned fixture cases require explicit identifiers")
+    ids = [str(item["id"]).casefold() for item in [*positive, *negative]]
+    if len(ids) != len(set(ids)):
+        raise ReviewBlocked("validation-owned fixture case identifiers must be unique")
+    return positive, negative
+
+
+def _owned_authority_binding(manifest: dict[str, Any], repo_root: Path) -> dict[str, Any]:
+    artifact_id = str(manifest["artifact_id"])
+    if artifact_id.startswith("HO-NDR-"):
+        raise ReviewBlocked("boundary-contract artifact has no owned controlled-validation PASS authority")
+    org_root = repo_root.parent.resolve()
+    detection_repo = (org_root / "hawkinsoperations-detections").resolve()
+    validation_repo = (org_root / "hawkinsoperations-validation").resolve()
+    for repo_name, repo in (
+        ("hawkinsoperations-detections", detection_repo),
+        ("hawkinsoperations-validation", validation_repo),
+    ):
+        if repo.parent != org_root or not (repo / ".git").exists():
+            raise ReviewBlocked("required authority repository is missing")
+        origin = _canonical_origin(repo_origin(repo))
+        if origin != _canonical_origin(CANONICAL_ORIGINS[repo_name]):
+            raise ReviewBlocked("authority repository origin is not canonical")
+        selection_errors = verify_selected_source_checkout(org_root, repo_name)
+        if selection_errors:
+            raise ReviewBlocked(f"authority repository selection is invalid: {selection_errors[0]}")
+    cache_key = (
+        artifact_id,
+        str(detection_repo),
+        _git(detection_repo, "rev-parse", "HEAD"),
+        _git(detection_repo, "status", "--porcelain", "--untracked-files=no"),
+        str(validation_repo),
+        _git(validation_repo, "rev-parse", "HEAD"),
+        _git(validation_repo, "status", "--porcelain", "--untracked-files=no"),
+        _semantic_digest(
+            {
+                "expected_event_ids": manifest.get("expected_event_ids", []),
+                "expected_event_keys": manifest.get("expected_event_keys", []),
+                "expected_rule_ids": manifest.get("expected_rule_ids", []),
+            }
+        ),
+    )
+    if cache_key in _AUTHORITY_BINDING_CACHE:
+        return deepcopy(_AUTHORITY_BINDING_CACHE[cache_key])
+
+    matrix_path = "detections/DETECTION_PROMOTION_MATRIX.yml"
+    registry_path = "validation/VALIDATION_REGISTRY.yml"
+    matrix = _load_yaml_object(detection_repo / matrix_path)
+    registry = _load_yaml_object(validation_repo / registry_path)
+    source_entry = _single_entry(matrix.get("entries"), "detection_id", artifact_id, "detection matrix")
+    validation_entry = _single_entry(registry.get("packages"), "detection_id", artifact_id, "validation registry")
+
+    if source_entry.get("source_status") != "SOURCE_EXISTS":
+        raise ReviewBlocked("source-owned package is not SOURCE_EXISTS")
+    if source_entry.get("validation_expected_owner") != "hawkinsoperations-validation":
+        raise ReviewBlocked("source-owned validation handoff owner is invalid")
+    if source_entry.get("runtime_active") is not False or source_entry.get("signal_observed") is not False:
+        raise ReviewBlocked("source-owned entry exceeds the allowed runtime or signal boundary")
+    if source_entry.get("public_safe_status") != PUBLIC_SAFE_STATUS:
+        raise ReviewBlocked("source-owned entry exceeds the public-safe boundary")
+
+    package_path = _normalize_repo_relative_path(source_entry.get("package_path"), "source package path")
+    package = (detection_repo / package_path).resolve()
+    if not _is_relative_to(package, detection_repo) or not package.is_dir():
+        raise ReviewBlocked("source-owned package path is missing or outside its repository")
+    required_files = source_entry.get("required_files")
+    if not isinstance(required_files, list) or not required_files or not all(isinstance(item, str) for item in required_files):
+        raise ReviewBlocked("source-owned entry must declare required package files")
+    normalized_required: list[str] = []
+    for item in required_files:
+        relative = _normalize_repo_relative_path(f"{package_path}/{item}", "source required file")
+        if relative.casefold() in {path.casefold() for path in normalized_required}:
+            raise ReviewBlocked("source required files contain a normalized duplicate")
+        normalized_required.append(relative)
+        if not (detection_repo / relative).is_file():
+            raise ReviewBlocked("source required file is missing")
+    if f"{package_path}/rule.yml" not in normalized_required or f"{package_path}/status.yml" not in normalized_required:
+        raise ReviewBlocked("source package must include rule.yml and status.yml")
+    source_rule = _load_yaml_object(detection_repo / package_path / "rule.yml")
+    source_status = _load_yaml_object(detection_repo / package_path / "status.yml")
+    if source_rule.get("detection_id") != artifact_id or source_status.get("detection_id") != artifact_id:
+        raise ReviewBlocked("source package identity disagrees with the artifact identity")
+
+    exact_validation = {
+        "validation_owner": "hawkinsoperations-validation",
+        "source_owner": "hawkinsoperations-detections",
+        "expected_result": "PASS",
+        "actual_result": "PASS",
+        "human_review_required": True,
+        "ai_disposition_authority": False,
+        "validation_kind": "controlled_validation",
+        "public_safe_status": PUBLIC_SAFE_STATUS,
+        "runtime_status": False,
+        "signal_status": False,
+        "source_dependency_required": True,
+        "ci_source_dependency_mode": "required",
+    }
+    for key, expected in exact_validation.items():
+        if validation_entry.get(key) != expected:
+            raise ReviewBlocked("validation-owned registry entry is not eligible for fixture PASS")
+    expected_source_reference = f"hawkinsoperations-detections/{package_path}"
+    if validation_entry.get("source_reference") != expected_source_reference:
+        raise ReviewBlocked("validation-owned source handoff disagrees with the source package")
+
+    validation_paths: list[str] = []
+    for key in (
+        "fixture_file",
+        "report_json",
+        "report_markdown",
+        "validator_script",
+        "parity_script",
+        "claim_boundary_script",
+    ):
+        relative = _normalize_repo_relative_path(validation_entry.get(key), f"validation {key}")
+        if relative.casefold() in {path.casefold() for path in validation_paths}:
+            raise ReviewBlocked("validation registry paths contain a normalized duplicate")
+        validation_paths.append(relative)
+        if not (validation_repo / relative).is_file():
+            raise ReviewBlocked("validation-owned required file is missing")
+
+    validation_fixture = _load_json(validation_repo / str(validation_entry["fixture_file"]))
+    validation_report = _load_json(validation_repo / str(validation_entry["report_json"]))
+    for value, label in ((validation_fixture, "validation fixture"), (validation_report, "validation report")):
+        if value.get("detection_id") != artifact_id:
+            raise ReviewBlocked(f"{label} identity disagrees with the artifact identity")
+    positive, negative = _case_lists(validation_fixture)
+    report_status = str(validation_report.get("status") or validation_report.get("result") or "").casefold()
+    if report_status != "pass":
+        raise ReviewBlocked("validation-owned report does not record PASS")
+    expected_positive = validation_entry.get("expected_positive_count")
+    expected_negative = validation_entry.get("expected_negative_count")
+    if expected_positive != len(positive) or expected_negative != len(negative):
+        raise ReviewBlocked("validation-owned registry case counts disagree with its fixture")
+
+    searchable_source = "\n".join((detection_repo / path).read_text(encoding="utf-8") for path in normalized_required)
+    searchable_validation = json.dumps(validation_fixture, sort_keys=True)
+    for event_id in manifest.get("expected_event_ids", []):
+        if not re.search(rf"(?<!\d){re.escape(str(event_id))}(?!\d)", searchable_source + searchable_validation):
+            raise ReviewBlocked("manifest event identity is not supported by owned source and validation data")
+    for rule_id in manifest.get("expected_rule_ids", []):
+        if not re.search(rf"(?<!\d){re.escape(str(rule_id))}(?!\d)", searchable_source):
+            raise ReviewBlocked("manifest rule identity is not supported by owned source data")
+    for event_key in manifest.get("expected_event_keys", []):
+        if str(event_key) not in searchable_source and str(event_key) not in searchable_validation:
+            raise ReviewBlocked("manifest behavior identity is not supported by owned source and validation data")
+
+    identities = [
+        _authority_file_identity(detection_repo, matrix_path),
+        *(_authority_file_identity(detection_repo, path) for path in normalized_required),
+        _authority_file_identity(validation_repo, registry_path),
+        *(_authority_file_identity(validation_repo, path) for path in validation_paths),
+    ]
+    identities.sort(key=lambda item: (item["repository"], item["path"]))
+    manifest_digest = _semantic_digest(identities)
+    binding = {
+        "artifact_id": artifact_id,
+        "source_owner": "hawkinsoperations-detections",
+        "source_package_path": package_path,
+        "source_rule_blob_sha": next(
+            item["git_blob_sha"] for item in identities if item["repository"] == detection_repo.name and item["path"] == f"{package_path}/rule.yml"
+        ),
+        "validation_owner": "hawkinsoperations-validation",
+        "validation_fixture_path": validation_entry["fixture_file"],
+        "validation_report_path": validation_entry["report_json"],
+        "validation_report_identity": validation_entry["report_identity"],
+        "validation_parity_identity": validation_entry["parity_identity"],
+        "positive_case_ids": [item["id"] for item in positive],
+        "negative_case_ids": [item["id"] for item in negative],
+        "proof_ceiling": validation_entry.get("proof_ceiling"),
+        "public_safe_status": PUBLIC_SAFE_STATUS,
+        "human_review_required": True,
+        "ai_disposition_authority": False,
+        "authority_files": identities,
+        "source_manifest_digest": manifest_digest,
+    }
+    _AUTHORITY_BINDING_CACHE[cache_key] = deepcopy(binding)
+    return binding
+
+
 def run_review(artifact_path: Path, output_dir: Path | None = None, force: bool = False, repo_root: Path | None = None) -> dict[str, Any]:
-    root = repo_root or Path(__file__).resolve().parents[2]
     out_dir = output_dir or default_run_dir(Path.cwd())
     manifest_path = _resolve_path(artifact_path, Path.cwd())
+    root = _review_repo_root(manifest_path, repo_root)
     manifest: dict[str, Any] = {}
     try:
         manifest = _load_json(manifest_path)
         _validate_manifest(manifest, manifest_path, root)
         fixture_paths = _fixture_paths(manifest, root)
-        review_outputs = _build_review_outputs(manifest, fixture_paths)
-        run = _build_pass_run(manifest, manifest_path, out_dir, review_outputs)
+        authority_binding = _owned_authority_binding(manifest, root)
+        review_outputs = _build_review_outputs(manifest, fixture_paths, authority_binding)
+        run = _build_pass_run(manifest, manifest_path, out_dir, review_outputs, fixture_paths, authority_binding)
         _write_pass_outputs(out_dir, run, force)
         return run
     except ReviewBlocked as exc:
-        run = _build_blocked_run(manifest, manifest_path, out_dir, str(exc))
+        run = _build_blocked_run(manifest, manifest_path, out_dir, _sanitize_block_reason(str(exc)))
         _write_blocked_outputs(out_dir, run, force)
         return run
 
@@ -174,19 +1311,54 @@ def verify_review_run(machine_state_path: Path) -> list[str]:
     except (OSError, ReviewEngineError) as exc:
         return [str(exc)]
     run_dir = machine_state_path.parent
+    if machine_state_path.is_symlink() or not _is_relative_to(machine_state_path.resolve(), run_dir.resolve()):
+        return ["machine-state path escapes its run root"]
     final_status = state.get("final_status")
     if final_status not in {"PASS", "BLOCKED"}:
         errors.append("machine-state final_status must be PASS or BLOCKED")
+    expected_state_fields = set(REVIEW_MACHINE_STATE_BASE_FIELDS)
+    if final_status == "PASS":
+        expected_state_fields.update({"authority_binding", "input_digests", "source_manifest_digest"})
+    if set(state) != expected_state_fields:
+        errors.append("machine-state fields must exactly match the deterministic engine contract")
     if state.get("schema_version") != MACHINE_STATE_VERSION:
         errors.append(f"machine-state schema_version must be {MACHINE_STATE_VERSION}")
     if state.get("engine_version") != ENGINE_VERSION:
         errors.append(f"machine-state engine_version must be {ENGINE_VERSION}")
+    if state.get("run_id") != _safe_run_identity(run_dir.name):
+        errors.append("machine-state run_id must match the sanitized canonical run directory identity")
+    if final_status == "PASS" and state.get("block_reason") is not None:
+        errors.append("PASS machine-state block_reason must be null")
     if [stage.get("stage_name") for stage in state.get("stages", [])] != STAGE_REGISTRY:
         errors.append("machine-state stages must match review engine stage registry")
-    expected_outputs = EXPECTED_PASS_OUTPUTS if final_status == "PASS" else EXPECTED_BLOCKED_OUTPUTS
+    expected_roles = PASS_OUTPUT_ROLES if final_status == "PASS" else BLOCKED_OUTPUT_ROLES
+    expected_outputs = list(expected_roles.values())
+    output_refs = state.get("outputs")
+    if output_refs != expected_roles:
+        errors.append("machine-state output role-to-path mapping must exactly match the engine contract")
+    declared_output_names = set(state.get("output_digests", {}))
+    expected_digest_names = set(expected_outputs) - {"machine-state.json"}
+    if declared_output_names != expected_digest_names:
+        errors.append("machine-state output digest inventory must exactly match generated outputs")
     for name in expected_outputs:
-        if not (run_dir / name).is_file():
+        path = (run_dir / name).resolve()
+        if not _is_relative_to(path, run_dir.resolve()) or path.is_symlink():
+            errors.append(f"output path is not contained: {name}")
+        elif not path.is_file():
             errors.append(f"missing output file: {name}")
+    for name, expected_digest in state.get("output_digests", {}).items():
+        try:
+            normalized = _normalize_repo_relative_path(name, "machine-state output path")
+        except ReviewBlocked as exc:
+            errors.append(str(exc))
+            continue
+        path = (run_dir / normalized).resolve()
+        if not _is_relative_to(path, run_dir.resolve()) or path.is_symlink() or not path.is_file():
+            errors.append(f"bound output is missing or escapes the run root: {name}")
+        elif expected_digest != _sha256_file(path):
+            errors.append(f"output digest mismatch: {name}")
+    if state.get("state_integrity_digest") != _state_integrity_digest(state, "state_integrity_digest"):
+        errors.append("machine-state integrity digest mismatch")
     for field, expected in {
         "public_safe_status": PUBLIC_SAFE_STATUS,
         "human_review_required": True,
@@ -200,13 +1372,115 @@ def verify_review_run(machine_state_path: Path) -> list[str]:
     }.items():
         if state.get(field) != expected:
             errors.append(f"machine-state field {field} must be {expected!r}")
+    try:
+        _validate_generated_output_security(state, "machine-state")
+        _validate_no_private_markers(state, "machine-state")
+    except ReviewBlocked as exc:
+        errors.append(_sanitize_block_reason(str(exc)))
     if final_status == "PASS":
         non_pass = [stage["stage_name"] for stage in state["stages"] if stage.get("status") != "PASS"]
         if non_pass:
             errors.append(f"PASS run has non-PASS stages: {', '.join(non_pass)}")
         _verify_pass_outputs(run_dir, state, errors)
-    if final_status == "BLOCKED" and not state.get("block_reason"):
-        errors.append("BLOCKED run must include block_reason")
+        try:
+            manifest = _load_json(run_dir / "artifact-manifest.json")
+            _validate_manifest(manifest, run_dir / "artifact-manifest.json", Path(__file__).resolve().parents[2])
+            fixture_paths = _fixture_paths(manifest, Path(__file__).resolve().parents[2])
+            authority = _owned_authority_binding(manifest, Path(__file__).resolve().parents[2])
+            expected_inputs = {
+                "manifest": _semantic_digest(manifest),
+                "positive_fixture": _sha256_file(fixture_paths["positive"]),
+                "negative_fixture": _sha256_file(fixture_paths["negative"]),
+                "source_manifest": authority["source_manifest_digest"],
+            }
+            if state.get("input_digests") != expected_inputs:
+                errors.append("machine-state input digest contract does not match current owned inputs")
+            if state.get("source_manifest_digest") != authority["source_manifest_digest"]:
+                errors.append("machine-state source manifest digest mismatch")
+            if state.get("authority_binding") != authority:
+                errors.append("machine-state authority binding does not match current owned sources")
+            regenerated = _build_review_outputs(manifest, fixture_paths, authority)
+            expected_files: dict[str, Any] = {
+                "artifact-manifest.json": manifest,
+                "intake.json": regenerated["intake"],
+                "evidence-graph.json": regenerated["evidence_graph"],
+                "telemetry-contract-check.json": regenerated["telemetry_contract_check"],
+                "validation-result.json": regenerated["validation_result"],
+                "controlled-test-signal.json": regenerated["controlled_test_signal"],
+                "enrichment.json": regenerated["enrichment"],
+                "triage-summary.md": regenerated["triage_summary"],
+                "proofcard.json": regenerated["proofcard"],
+                "proofcard.md": regenerated["proofcard_markdown"],
+                "claim-authority.json": regenerated["claim_authority"],
+                "reviewer-pack.md": _reviewer_pack(manifest, state),
+                "run-summary.json": _run_summary(manifest, state, EXPECTED_PASS_OUTPUTS),
+            }
+            for name, expected in expected_files.items():
+                _verify_generated_file(run_dir / name, expected, name, errors)
+            expected_state_fields = {
+                "run_id": _safe_run_identity(run_dir.name),
+                "artifact_id": manifest["artifact_id"],
+                "stages": _pass_stages(PASS_OUTPUT_ROLES),
+                "outputs": PASS_OUTPUT_ROLES,
+                "final_status": "PASS",
+                "block_reason": None,
+                "allowed_claim": _allowed_claims_for(manifest)[0],
+                "requested_claims": manifest["requested_claims"],
+                "blocked_claims": _blocked_claims(),
+                "proof_boundary": manifest["proof_boundary"],
+                "runtime_boundary": manifest["runtime_boundary"],
+                "signal_boundary": manifest["signal_boundary"],
+                "next_gate": manifest["next_gate"],
+                "product": PRODUCT,
+            }
+            for key, expected in expected_state_fields.items():
+                if state.get(key) != expected:
+                    errors.append(f"machine-state field {key} does not match deterministic engine output")
+            try:
+                recorded_manifest_path = _normalize_repo_relative_path(
+                    state.get("manifest_path"), "machine-state manifest_path"
+                )
+                recorded_manifest = (Path(__file__).resolve().parents[2] / recorded_manifest_path).resolve()
+                if not recorded_manifest.is_file() or _semantic_digest(_load_json(recorded_manifest)) != _semantic_digest(manifest):
+                    errors.append("machine-state manifest_path does not identify the bound manifest content")
+            except (OSError, ReviewEngineError) as exc:
+                errors.append(f"machine-state manifest_path failed closed: {_sanitize_block_reason(str(exc))}")
+        except (OSError, ReviewEngineError) as exc:
+            errors.append(f"owned input replay failed closed: {_sanitize_block_reason(str(exc))}")
+    if final_status == "BLOCKED":
+        if not state.get("block_reason"):
+            errors.append("BLOCKED run must include block_reason")
+        else:
+            safe_manifest = _safe_blocked_manifest(
+                {"artifact_id": state.get("artifact_id")},
+                Path("blocked-input.json"),
+                state["block_reason"],
+            )
+            expected_state_fields = {
+                "run_id": _safe_run_identity(run_dir.name),
+                "artifact_id": safe_manifest["artifact_id"],
+                "manifest_path": "blocked-input.json",
+                "stages": _blocked_stages(state["block_reason"], BLOCKED_OUTPUT_ROLES),
+                "outputs": BLOCKED_OUTPUT_ROLES,
+                "final_status": "BLOCKED",
+                "allowed_claim": None,
+                "requested_claims": [],
+                "blocked_claims": _blocked_claims(),
+                "proof_boundary": "fixture-only; not public proof",
+                "runtime_boundary": "runtime prohibited",
+                "signal_boundary": "controlled-test fixture signal only",
+                "next_gate": "human_review_gate",
+                "product": PRODUCT,
+            }
+            for key, expected in expected_state_fields.items():
+                if state.get(key) != expected:
+                    errors.append(f"BLOCKED machine-state field {key} does not match deterministic engine output")
+            for name, expected in {
+                "artifact-manifest.json": safe_manifest,
+                "blocked-review.md": _blocked_review(state),
+                "run-summary.json": _run_summary(safe_manifest, state, EXPECTED_BLOCKED_OUTPUTS),
+            }.items():
+                _verify_generated_file(run_dir / name, expected, name, errors)
     private_hits = _private_output_hits(run_dir)
     if private_hits:
         errors.append(f"private/raw markers found in review outputs: {', '.join(private_hits)}")
@@ -266,9 +1540,9 @@ def render_run_console(run: dict[str, Any]) -> str:
 
 
 def run_batch_review(index_path: Path, output_dir: Path | None = None, force: bool = False, repo_root: Path | None = None) -> dict[str, Any]:
-    root = repo_root or Path(__file__).resolve().parents[2]
     out_dir = output_dir or default_batch_dir(Path.cwd())
     resolved_index = _resolve_path(index_path, Path.cwd())
+    root = _review_repo_root(resolved_index, repo_root)
     index: dict[str, Any] = {}
     try:
         index = _load_json(resolved_index)
@@ -282,18 +1556,25 @@ def run_batch_review(index_path: Path, output_dir: Path | None = None, force: bo
         for artifact_entry in index["artifacts"]:
             artifact_id = artifact_entry["artifact_id"]
             manifest_path = _resolve_path(Path(artifact_entry["manifest_path"]), root)
-            artifact_out = artifacts_root / artifact_id
+            artifact_out = (artifacts_root / artifact_id).resolve()
+            if not _is_relative_to(artifact_out, artifacts_root.resolve()):
+                raise ReviewBlocked(f"artifact output path escapes batch root: {artifact_id}")
             run = run_review(manifest_path, artifact_out, force=True, repo_root=root)
             state = run["machine_state"]
             artifact_runs.append(
                 {
                     "artifact_id": artifact_id,
-                    "manifest_path": str(manifest_path),
-                    "output_dir": str(artifact_out.resolve()),
-                    "machine_state": str((artifact_out / "machine-state.json").resolve()),
-                    "reviewer_pack": str((artifact_out / "reviewer-pack.md").resolve()) if state["final_status"] == "PASS" else None,
-                    "blocked_review": str((artifact_out / "blocked-review.md").resolve()) if state["final_status"] == "BLOCKED" else None,
-                    "run_summary": str((artifact_out / "run-summary.json").resolve()),
+                    "manifest_path": _display_path(manifest_path),
+                    "output_dir": f"artifacts/{artifact_id}",
+                    "machine_state": f"artifacts/{artifact_id}/machine-state.json",
+                    "machine_state_sha256": _sha256_file(artifact_out / "machine-state.json"),
+                    "manifest_sha256": state.get("input_digests", {}).get("manifest"),
+                    "source_manifest_digest": state.get("source_manifest_digest"),
+                    "state_integrity_digest": state.get("state_integrity_digest"),
+                    "output_digests": state.get("output_digests", {}),
+                    "reviewer_pack": f"artifacts/{artifact_id}/reviewer-pack.md" if state["final_status"] == "PASS" else None,
+                    "blocked_review": f"artifacts/{artifact_id}/blocked-review.md" if state["final_status"] == "BLOCKED" else None,
+                    "run_summary": f"artifacts/{artifact_id}/run-summary.json",
                     "final_status": state["final_status"],
                     "block_reason": state.get("block_reason"),
                     "public_safe_status": state["public_safe_status"],
@@ -305,6 +1586,7 @@ def run_batch_review(index_path: Path, output_dir: Path | None = None, force: bo
                     "private_evidence_committed": state["private_evidence_committed"],
                     "public_proof_promoted": state["public_proof_promoted"],
                     "lifetime_ledger_changed": state["lifetime_ledger_changed"],
+                    "next_gate": state["next_gate"],
                 }
             )
 
@@ -317,8 +1599,9 @@ def run_batch_review(index_path: Path, output_dir: Path | None = None, force: bo
         return {"output_dir": str(out_dir), "index": index, "batch_machine_state": batch_state}
     except ReviewBlocked as exc:
         _prepare_output_dir(out_dir, force)
-        safe_index = _safe_blocked_index(index, resolved_index, str(exc))
-        batch_state = _blocked_batch_machine_state(safe_index, resolved_index, out_dir, str(exc))
+        safe_reason = _sanitize_block_reason(str(exc))
+        safe_index = _safe_blocked_index(index, resolved_index, safe_reason)
+        batch_state = _blocked_batch_machine_state(safe_index, resolved_index, out_dir, safe_reason)
         _write_batch_outputs(out_dir, safe_index, batch_state)
         return {"output_dir": str(out_dir), "index": safe_index, "batch_machine_state": batch_state}
 
@@ -330,15 +1613,44 @@ def verify_batch_run(batch_machine_state_path: Path) -> list[str]:
     except (OSError, ReviewEngineError) as exc:
         return [str(exc)]
     run_dir = batch_machine_state_path.parent
+    if batch_machine_state_path.is_symlink() or not _is_relative_to(batch_machine_state_path.resolve(), run_dir.resolve()):
+        return ["batch-machine-state path escapes its run root"]
     if state.get("schema_version") != BATCH_MACHINE_STATE_VERSION:
         errors.append(f"batch-machine-state schema_version must be {BATCH_MACHINE_STATE_VERSION}")
     if state.get("engine_version") != BATCH_ENGINE_VERSION:
         errors.append(f"batch-machine-state engine_version must be {BATCH_ENGINE_VERSION}")
+    if set(state) != BATCH_MACHINE_STATE_FIELDS:
+        errors.append("batch-machine-state fields must exactly match the deterministic engine contract")
     if state.get("final_status") not in {"PASS", "MIXED", "BLOCKED"}:
         errors.append("batch-machine-state final_status must be PASS, MIXED, or BLOCKED")
+    if state.get("batch_id") != _safe_run_identity(run_dir.name):
+        errors.append("batch-machine-state batch_id must match the sanitized canonical run directory identity")
+    if state.get("final_status") != "BLOCKED" and state.get("block_reason") is not None:
+        errors.append("non-BLOCKED batch-machine-state block_reason must be null")
+    if state.get("outputs") != BATCH_OUTPUT_ROLES:
+        errors.append("batch output role-to-path mapping must exactly match the engine contract")
     for name in BATCH_EXPECTED_OUTPUTS:
-        if not (run_dir / name).is_file():
+        path = (run_dir / name).resolve()
+        if not _is_relative_to(path, run_dir.resolve()) or path.is_symlink():
+            errors.append(f"batch output path is not contained: {name}")
+        elif not path.is_file():
             errors.append(f"missing batch output file: {name}")
+    expected_digest_names = set(BATCH_EXPECTED_OUTPUTS) - {"batch-machine-state.json"}
+    if set(state.get("output_digests", {})) != expected_digest_names:
+        errors.append("batch output digest inventory must exactly match generated outputs")
+    for name, expected_digest in state.get("output_digests", {}).items():
+        try:
+            normalized = _normalize_repo_relative_path(name, "batch output path")
+        except ReviewBlocked as exc:
+            errors.append(str(exc))
+            continue
+        path = (run_dir / normalized).resolve()
+        if not _is_relative_to(path, run_dir.resolve()) or path.is_symlink() or not path.is_file():
+            errors.append(f"bound batch output is missing or escapes the run root: {name}")
+        elif expected_digest != _sha256_file(path):
+            errors.append(f"batch output digest mismatch: {name}")
+    if state.get("batch_state_integrity_digest") != _state_integrity_digest(state, "batch_state_integrity_digest"):
+        errors.append("batch-machine-state integrity digest mismatch")
     for field, expected in {
         "public_safe_status": PUBLIC_SAFE_STATUS,
         "human_review_required": True,
@@ -353,27 +1665,181 @@ def verify_batch_run(batch_machine_state_path: Path) -> list[str]:
     }.items():
         if state.get(field) != expected:
             errors.append(f"batch-machine-state field {field} must be {expected!r}")
+    try:
+        _validate_generated_output_security(state, "batch-machine-state")
+        _validate_no_private_markers(state, "batch-machine-state")
+    except ReviewBlocked as exc:
+        errors.append(_sanitize_block_reason(str(exc)))
     if state.get("final_status") == "BLOCKED" and not state.get("block_reason"):
         errors.append("BLOCKED batch run must include block_reason")
     artifacts = state.get("artifacts", [])
     if state.get("final_status") != "BLOCKED" and not artifacts:
         errors.append("non-BLOCKED batch run must include artifact states")
+    artifact_ids: set[str] = set()
+    source_digests: list[str] = []
     for artifact in artifacts:
         artifact_id = artifact.get("artifact_id", "UNKNOWN")
-        state_path = Path(str(artifact.get("machine_state", "")))
-        if not state_path.is_absolute():
-            state_path = run_dir / state_path
+        if artifact_id in artifact_ids:
+            errors.append(f"duplicate aggregate artifact identity: {artifact_id}")
+        artifact_ids.add(str(artifact_id))
+        try:
+            state_relative = _normalize_repo_relative_path(artifact.get("machine_state"), "artifact machine-state path")
+        except ReviewBlocked as exc:
+            errors.append(f"{artifact_id}: {exc}")
+            continue
+        state_path = (run_dir / state_relative).resolve()
+        if not _is_relative_to(state_path, (run_dir / "artifacts").resolve()) or state_path.is_symlink():
+            errors.append(f"{artifact_id}: child machine-state escapes artifacts root")
+            continue
         if not state_path.is_file():
             errors.append(f"missing artifact machine-state for {artifact_id}")
             continue
+        if artifact.get("machine_state_sha256") != _sha256_file(state_path):
+            errors.append(f"{artifact_id}: machine-state hash mismatch")
         artifact_errors = verify_review_run(state_path)
         errors.extend(f"{artifact_id}: {error}" for error in artifact_errors)
+        child_state = _load_json(state_path)
+        if child_state.get("artifact_id") != artifact_id:
+            errors.append(f"{artifact_id}: aggregate artifact_id does not match child machine-state artifact_id")
+        for key in (
+            "final_status",
+            "block_reason",
+            "public_safe_status",
+            "human_review_required",
+            "ai_disposition_authority",
+            "endpoint_mutation",
+            "wazuh_mutation",
+            "runtime_proof",
+            "private_evidence_committed",
+            "public_proof_promoted",
+            "lifetime_ledger_changed",
+            "next_gate",
+            "source_manifest_digest",
+            "state_integrity_digest",
+            "output_digests",
+        ):
+            if artifact.get(key) != child_state.get(key):
+                errors.append(f"{artifact_id}: aggregate {key} does not match child machine-state")
+        if artifact.get("manifest_sha256") != child_state.get("input_digests", {}).get("manifest"):
+            errors.append(f"{artifact_id}: aggregate manifest digest does not match child machine-state")
+        if child_state.get("source_manifest_digest"):
+            source_digests.append(str(child_state["source_manifest_digest"]))
         if artifact.get("public_safe_status") != PUBLIC_SAFE_STATUS:
             errors.append(f"{artifact_id}: public_safe_status must remain NOT_PUBLIC_SAFE")
         for false_field in ("endpoint_mutation", "wazuh_mutation", "runtime_proof", "public_proof_promoted", "lifetime_ledger_changed", "private_evidence_committed"):
             if artifact.get(false_field) is not False:
                 errors.append(f"{artifact_id}: {false_field} must be false")
+        expected_artifact_root = f"artifacts/{artifact_id}"
+        expected_paths = {
+            "output_dir": expected_artifact_root,
+            "machine_state": f"{expected_artifact_root}/machine-state.json",
+            "run_summary": f"{expected_artifact_root}/run-summary.json",
+            "reviewer_pack": f"{expected_artifact_root}/reviewer-pack.md"
+            if child_state.get("final_status") == "PASS"
+            else None,
+            "blocked_review": f"{expected_artifact_root}/blocked-review.md"
+            if child_state.get("final_status") == "BLOCKED"
+            else None,
+        }
+        for key, expected in expected_paths.items():
+            if artifact.get(key) != expected:
+                errors.append(f"{artifact_id}: aggregate {key} does not match canonical output role path")
     errors.extend(_batch_expectation_errors(state))
+    expected_aggregate = _semantic_digest(sorted(source_digests)) if source_digests else None
+    if state.get("source_manifest_digest") != expected_aggregate:
+        errors.append("batch source manifest digest does not match child authority bindings")
+    input_index = run_dir / "input-index.json"
+    if input_index.is_file() and state.get("input_index_sha256") != _sha256_file(input_index):
+        errors.append("batch input-index digest mismatch")
+    if state.get("final_status") != "BLOCKED":
+        try:
+            index = _load_json(input_index)
+            _validate_batch_index(index, input_index, Path(__file__).resolve().parents[2])
+            if state.get("index_id") != index.get("index_id"):
+                errors.append("batch index identity mismatch")
+            if state.get("expected_pass_artifacts") != index.get("expected_pass_artifacts"):
+                errors.append("batch expected PASS list does not match input index")
+            if state.get("expected_blocked_artifacts") != index.get("expected_blocked_artifacts"):
+                errors.append("batch expected BLOCKED list does not match input index")
+            expected_state_fields = {
+                "index_id": index["index_id"],
+                "batch_claim_boundary": index["batch_claim_boundary"],
+                "proof_boundary": index["proof_boundary"],
+                "runtime_boundary": index["runtime_boundary"],
+                "signal_boundary": index["signal_boundary"],
+                "next_gate": index["next_gate"],
+                "outputs": BATCH_OUTPUT_ROLES,
+                "product": PRODUCT,
+            }
+            for key, expected in expected_state_fields.items():
+                if state.get(key) != expected:
+                    errors.append(f"batch-machine-state field {key} does not match deterministic engine output")
+            recorded_index_path = _normalize_repo_relative_path(
+                state.get("index_path"), "batch-machine-state index_path"
+            )
+            recorded_index = (Path(__file__).resolve().parents[2] / recorded_index_path).resolve()
+            if not recorded_index.is_file() or _semantic_digest(_load_json(recorded_index)) != _semantic_digest(index):
+                errors.append("batch-machine-state index_path does not identify the bound index content")
+            indexed_paths = {
+                entry["artifact_id"]: _normalize_repo_relative_path(
+                    entry["manifest_path"], "batch artifact manifest path"
+                )
+                for entry in index["artifacts"]
+            }
+            if [artifact.get("artifact_id") for artifact in artifacts] != [
+                entry["artifact_id"] for entry in index["artifacts"]
+            ]:
+                errors.append("batch aggregate artifact order must match the bound input index")
+            for artifact in artifacts:
+                artifact_id = str(artifact.get("artifact_id"))
+                if artifact.get("manifest_path") != indexed_paths.get(artifact_id):
+                    errors.append(f"{artifact_id}: aggregate manifest_path does not match input index")
+            for name, expected in {
+                "input-index.json": index,
+                "batch-summary.md": _batch_summary_markdown(state),
+                "batch-reviewer-pack.md": _batch_reviewer_pack(state),
+                "batch-run-summary.json": _batch_run_summary(state),
+            }.items():
+                _verify_generated_file(run_dir / name, expected, name, errors)
+        except (OSError, ReviewEngineError) as exc:
+            errors.append(f"batch input-index replay failed closed: {_sanitize_block_reason(str(exc))}")
+    else:
+        try:
+            safe_index = _safe_blocked_index(
+                {"index_id": state.get("index_id")},
+                Path("blocked-input-index.json"),
+                str(state.get("block_reason")),
+            )
+            expected_state_fields = {
+                "batch_id": _safe_run_identity(run_dir.name),
+                "index_id": safe_index["index_id"],
+                "index_path": "blocked-input-index.json",
+                "artifacts": [],
+                "expected_pass_artifacts": [],
+                "expected_blocked_artifacts": [],
+                "actual_pass_artifacts": [],
+                "actual_blocked_artifacts": [],
+                "batch_claim_boundary": None,
+                "proof_boundary": safe_index["proof_boundary"],
+                "runtime_boundary": safe_index["runtime_boundary"],
+                "signal_boundary": safe_index["signal_boundary"],
+                "outputs": BATCH_OUTPUT_ROLES,
+                "next_gate": safe_index["next_gate"],
+                "product": PRODUCT,
+                "source_manifest_digest": None,
+            }
+            for key, expected in expected_state_fields.items():
+                if state.get(key) != expected:
+                    errors.append(f"blocked batch-machine-state field {key} does not match deterministic engine output")
+            for name, expected in {
+                "input-index.json": safe_index,
+                "batch-summary.md": _batch_summary_markdown(state),
+                "batch-reviewer-pack.md": _batch_reviewer_pack(state),
+                "batch-run-summary.json": _batch_run_summary(state),
+            }.items():
+                _verify_generated_file(run_dir / name, expected, name, errors)
+        except (OSError, ReviewEngineError) as exc:
+            errors.append(f"blocked batch replay failed closed: {_sanitize_block_reason(str(exc))}")
     private_hits = _private_output_hits(run_dir)
     if private_hits:
         errors.append(f"private/raw markers found in batch outputs: {', '.join(private_hits)}")
@@ -426,6 +1892,7 @@ def _validate_batch_index(index: dict[str, Any], index_path: Path, repo_root: Pa
     for field in required:
         if field not in index:
             raise ReviewBlocked(f"batch index missing required field: {field}")
+    _require_exact_keys(index, BATCH_INDEX_ALLOWED_FIELDS, "batch index")
     if index["index_version"] != BATCH_INDEX_VERSION:
         raise ReviewBlocked(f"index_version must be {BATCH_INDEX_VERSION}")
     if index.get("public_safe_status") != PUBLIC_SAFE_STATUS:
@@ -435,29 +1902,65 @@ def _validate_batch_index(index: dict[str, Any], index_path: Path, repo_root: Pa
     if index.get("ai_disposition_authority") is not False:
         raise ReviewBlocked("batch ai_disposition_authority must be false")
     _validate_claims({"requested_claims": [index.get("batch_claim_boundary", "")], "blocked_claim_classes": BLOCKED_CLAIM_FAMILIES})
+    _validate_recursive_boundaries(index, "batch index")
     _validate_no_private_markers(index, "batch index")
     artifacts = index.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         raise ReviewBlocked("batch index artifacts must be a non-empty list")
     seen: set[str] = set()
+    normalized_manifest_paths: set[str] = set()
     for item in artifacts:
         if not isinstance(item, dict):
             raise ReviewBlocked("batch index artifact entries must be objects")
+        _require_exact_keys(item, {"artifact_id", "manifest_path"}, "batch artifact entry")
         artifact_id = item.get("artifact_id")
         if not artifact_id:
             raise ReviewBlocked("batch index artifact entry missing artifact_id")
+        if not ARTIFACT_ID_PATTERN.fullmatch(str(artifact_id)):
+            raise ReviewBlocked(f"batch index artifact_id has invalid format: {artifact_id}")
         if artifact_id in seen:
             raise ReviewBlocked(f"duplicate artifact_id in batch index: {artifact_id}")
         seen.add(str(artifact_id))
         manifest_path = item.get("manifest_path")
         if not manifest_path:
             raise ReviewBlocked(f"batch index artifact {artifact_id} missing manifest_path")
-        resolved = _resolve_path(Path(str(manifest_path)), repo_root)
+        canonical_manifest_path = _normalize_repo_relative_path(manifest_path, "batch manifest path")
+        if canonical_manifest_path.casefold() in normalized_manifest_paths:
+            raise ReviewBlocked("batch index contains a duplicate normalized manifest path")
+        normalized_manifest_paths.add(canonical_manifest_path.casefold())
+        resolved = _contained_file(
+            repo_root,
+            canonical_manifest_path,
+            "batch manifest path",
+            repo_root / "examples" / "review",
+        )
         if not resolved.is_file():
-            raise ReviewBlocked(f"batch index manifest path missing for {artifact_id}: {resolved}")
+            raise ReviewBlocked("batch index manifest path is missing")
         allowed_root = (repo_root / "examples" / "review").resolve()
         if not _is_relative_to(resolved.resolve(), allowed_root):
             raise ReviewBlocked(f"batch index manifest path outside examples/review for {artifact_id}")
+        manifest = _load_json(resolved)
+        if manifest.get("artifact_id") != artifact_id:
+            raise ReviewBlocked(
+                f"batch index artifact_id {artifact_id} does not match manifest artifact_id {manifest.get('artifact_id')}"
+            )
+    expected_pass = index.get("expected_pass_artifacts")
+    expected_blocked = index.get("expected_blocked_artifacts")
+    if not isinstance(expected_pass, list) or not isinstance(expected_blocked, list):
+        raise ReviewBlocked("batch expectations must be arrays")
+    if not all(isinstance(item, str) and ARTIFACT_ID_PATTERN.fullmatch(item) for item in [*expected_pass, *expected_blocked]):
+        raise ReviewBlocked("batch expectation identities are malformed")
+    if len({item.casefold() for item in expected_pass}) != len(expected_pass) or len(
+        {item.casefold() for item in expected_blocked}
+    ) != len(expected_blocked):
+        raise ReviewBlocked("batch expectations contain duplicate normalized identities")
+    if set(expected_pass) & set(expected_blocked):
+        raise ReviewBlocked("batch PASS and BLOCKED expectations must be disjoint")
+    if set(expected_pass) | set(expected_blocked) != seen:
+        raise ReviewBlocked("batch expectations must classify every declared artifact exactly once")
+    expected_generated = [name for name in BATCH_EXPECTED_OUTPUTS if name != "input-index.json"]
+    if index.get("generated_outputs") != expected_generated:
+        raise ReviewBlocked("batch generated_outputs must match the engine output contract")
 
 
 def _batch_machine_state(index: dict[str, Any], index_path: Path, output_dir: Path, artifacts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -466,13 +1969,19 @@ def _batch_machine_state(index: dict[str, Any], index_path: Path, output_dir: Pa
     return {
         "schema_version": BATCH_MACHINE_STATE_VERSION,
         "engine_version": BATCH_ENGINE_VERSION,
-        "batch_id": output_dir.name,
+        "batch_id": _safe_run_identity(output_dir.name),
         "index_id": index.get("index_id"),
-        "index_path": str(index_path),
+        "index_path": _display_path(index_path),
         "artifacts": artifacts,
         "expected_pass_artifacts": list(index.get("expected_pass_artifacts", [])),
         "expected_blocked_artifacts": list(index.get("expected_blocked_artifacts", [])),
         "final_status": final_status,
+        "actual_pass_artifacts": sorted(
+            artifact["artifact_id"] for artifact in artifacts if artifact.get("final_status") == "PASS"
+        ),
+        "actual_blocked_artifacts": sorted(
+            artifact["artifact_id"] for artifact in artifacts if artifact.get("final_status") == "BLOCKED"
+        ),
         "block_reason": None,
         "batch_claim_boundary": index.get("batch_claim_boundary"),
         "proof_boundary": index.get("proof_boundary"),
@@ -488,15 +1997,24 @@ def _batch_machine_state(index: dict[str, Any], index_path: Path, output_dir: Pa
         "public_proof_promoted": False,
         "lifetime_ledger_changed": False,
         "website_changed": False,
-        "outputs": BATCH_EXPECTED_OUTPUTS,
+        "outputs": deepcopy(BATCH_OUTPUT_ROLES),
         "next_gate": index.get("next_gate"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
         "product": PRODUCT,
+        "source_manifest_digest": _semantic_digest(
+            sorted(
+                str(artifact["source_manifest_digest"])
+                for artifact in artifacts
+                if artifact.get("source_manifest_digest")
+            )
+        )
+        if artifacts
+        else None,
     }
 
 
 def _blocked_batch_machine_state(index: dict[str, Any], index_path: Path, output_dir: Path, block_reason: str) -> dict[str, Any]:
     state = _batch_machine_state(index, index_path, output_dir, [])
+    state["index_path"] = "blocked-input-index.json"
     state["final_status"] = "BLOCKED"
     state["block_reason"] = block_reason
     return state
@@ -513,20 +2031,28 @@ def _batch_expectation_errors(state: dict[str, Any]) -> list[str]:
         errors.append(f"expected PASS artifacts {sorted(expected_pass)} but saw {sorted(actual_pass)}")
     if expected_blocked != actual_blocked:
         errors.append(f"expected BLOCKED artifacts {sorted(expected_blocked)} but saw {sorted(actual_blocked)}")
+    if state.get("actual_pass_artifacts") != sorted(actual_pass):
+        errors.append("recorded actual PASS artifacts do not match child states")
+    if state.get("actual_blocked_artifacts") != sorted(actual_blocked):
+        errors.append("recorded actual BLOCKED artifacts do not match child states")
+    expected_status = "PASS" if actual_pass and not actual_blocked else "MIXED" if actual_pass and actual_blocked else "BLOCKED"
+    if not errors and state.get("final_status") != expected_status:
+        errors.append(f"aggregate final status must be {expected_status}")
     return errors
 
 
 def _write_batch_outputs(output_dir: Path, index: dict[str, Any], state: dict[str, Any]) -> None:
-    _write_file_map(
-        output_dir,
-        {
-            "input-index.json": index,
-            "batch-machine-state.json": state,
-            "batch-summary.md": _batch_summary_markdown(state),
-            "batch-reviewer-pack.md": _batch_reviewer_pack(state),
-            "batch-run-summary.json": _batch_run_summary(state),
-        },
-    )
+    file_map = {
+        "input-index.json": index,
+        "batch-summary.md": _batch_summary_markdown(state),
+        "batch-reviewer-pack.md": _batch_reviewer_pack(state),
+        "batch-run-summary.json": _batch_run_summary(state),
+    }
+    _write_file_map(output_dir, file_map)
+    state["input_index_sha256"] = _sha256_file(output_dir / "input-index.json")
+    state["output_digests"] = {name: _sha256_file(output_dir / name) for name in sorted(file_map)}
+    state["batch_state_integrity_digest"] = _state_integrity_digest(state, "batch_state_integrity_digest")
+    _write_file_map(output_dir, {"batch-machine-state.json": state})
 
 
 def _batch_summary_markdown(state: dict[str, Any]) -> str:
@@ -623,7 +2149,7 @@ def _batch_run_summary(state: dict[str, Any]) -> dict[str, Any]:
         "final_status": state["final_status"],
         "block_reason": state.get("block_reason"),
         "artifacts": state.get("artifacts", []),
-        "outputs": BATCH_EXPECTED_OUTPUTS,
+        "outputs": deepcopy(BATCH_OUTPUT_ROLES),
         "public_safe_status": state["public_safe_status"],
         "human_review_required": state["human_review_required"],
         "ai_disposition_authority": state["ai_disposition_authority"],
@@ -638,10 +2164,12 @@ def _batch_run_summary(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def _safe_blocked_index(index: dict[str, Any], index_path: Path, block_reason: str) -> dict[str, Any]:
+    index_id = index.get("index_id") if index else None
+    safe_index_id = index_id if isinstance(index_id, str) and re.fullmatch(r"[A-Za-z0-9._-]{1,96}", index_id) else "UNKNOWN"
     return {
         "schema_version": "blocked-batch-index-v1",
-        "index_path": str(index_path),
-        "index_id": index.get("index_id", "UNKNOWN") if index else "UNKNOWN",
+        "index_path": "blocked-input-index.json",
+        "index_id": safe_index_id,
         "final_status": "BLOCKED",
         "block_reason": block_reason,
         "redaction": "Original hostile batch index content is not copied into blocked outputs.",
@@ -651,29 +2179,22 @@ def _safe_blocked_index(index: dict[str, Any], index_path: Path, block_reason: s
         "human_review_required": True,
         "ai_disposition_authority": False,
         "runtime_boundary": "runtime prohibited",
-        "signal_boundary": "synthetic fixture signal only",
+        "signal_boundary": "controlled-test fixture signal only",
         "proof_boundary": "not public proof",
         "next_gate": "index_fix_required",
     }
 
 
-def _build_pass_run(manifest: dict[str, Any], manifest_path: Path, output_dir: Path, review_outputs: dict[str, Any]) -> dict[str, Any]:
-    run_id = output_dir.name
-    output_refs = {
-        "artifact_manifest": "artifact-manifest.json",
-        "artifact_intake": "intake.json",
-        "evidence_graph": "evidence-graph.json",
-        "telemetry_contract_check": "telemetry-contract-check.json",
-        "controlled_validation": "validation-result.json",
-        "synthetic_signal": "synthetic-signal.json",
-        "enrichment": "enrichment.json",
-        "triage": "triage-summary.md",
-        "proofcard": "proofcard.json",
-        "claim_authority": "claim-authority.json",
-        "reviewer_pack": "reviewer-pack.md",
-        "machine_state": "machine-state.json",
-        "run_summary": "run-summary.json",
-    }
+def _build_pass_run(
+    manifest: dict[str, Any],
+    manifest_path: Path,
+    output_dir: Path,
+    review_outputs: dict[str, Any],
+    fixture_paths: dict[str, Path],
+    authority_binding: dict[str, Any],
+) -> dict[str, Any]:
+    run_id = _safe_run_identity(output_dir.name)
+    output_refs = deepcopy(PASS_OUTPUT_ROLES)
     state = _machine_state(
         manifest=manifest,
         manifest_path=manifest_path,
@@ -682,6 +2203,14 @@ def _build_pass_run(manifest: dict[str, Any], manifest_path: Path, output_dir: P
         stages=_pass_stages(output_refs),
         outputs=output_refs,
     )
+    state["source_manifest_digest"] = authority_binding["source_manifest_digest"]
+    state["authority_binding"] = authority_binding
+    state["input_digests"] = {
+        "manifest": _semantic_digest(manifest),
+        "positive_fixture": _sha256_file(fixture_paths["positive"]),
+        "negative_fixture": _sha256_file(fixture_paths["negative"]),
+        "source_manifest": authority_binding["source_manifest_digest"],
+    }
     reviewer_pack = _reviewer_pack(manifest, state)
     summary = _run_summary(manifest, state, EXPECTED_PASS_OUTPUTS)
     return {
@@ -695,16 +2224,12 @@ def _build_pass_run(manifest: dict[str, Any], manifest_path: Path, output_dir: P
 
 
 def _build_blocked_run(manifest: dict[str, Any], manifest_path: Path, output_dir: Path, block_reason: str) -> dict[str, Any]:
-    run_id = output_dir.name
-    output_refs = {
-        "artifact_manifest": "artifact-manifest.json",
-        "machine_state": "machine-state.json",
-        "blocked_review": "blocked-review.md",
-        "run_summary": "run-summary.json",
-    }
+    run_id = _safe_run_identity(output_dir.name)
+    output_refs = deepcopy(BLOCKED_OUTPUT_ROLES)
+    safe_manifest = _safe_blocked_manifest(manifest, manifest_path, block_reason)
     state = _machine_state(
-        manifest=manifest,
-        manifest_path=manifest_path,
+        manifest=safe_manifest,
+        manifest_path=Path("blocked-input.json"),
         run_id=run_id,
         final_status="BLOCKED",
         stages=_blocked_stages(block_reason, output_refs),
@@ -713,7 +2238,7 @@ def _build_blocked_run(manifest: dict[str, Any], manifest_path: Path, output_dir
     )
     return {
         "output_dir": str(output_dir),
-        "manifest": _safe_blocked_manifest(manifest, manifest_path, block_reason),
+        "manifest": safe_manifest,
         "blocked_review": _blocked_review(state),
         "machine_state": state,
         "run_summary": _run_summary(manifest, state, EXPECTED_BLOCKED_OUTPUTS),
@@ -722,10 +2247,12 @@ def _build_blocked_run(manifest: dict[str, Any], manifest_path: Path, output_dir
 
 
 def _safe_blocked_manifest(manifest: dict[str, Any], manifest_path: Path, block_reason: str) -> dict[str, Any]:
+    artifact_id = manifest.get("artifact_id") if manifest else None
+    safe_artifact_id = artifact_id if isinstance(artifact_id, str) and ARTIFACT_ID_PATTERN.fullmatch(artifact_id) else "UNKNOWN"
     return {
         "schema_version": "blocked-artifact-manifest-v1",
-        "manifest_path": str(manifest_path),
-        "artifact_id": manifest.get("artifact_id", "UNKNOWN") if manifest else "UNKNOWN",
+        "manifest_path": "blocked-input.json",
+        "artifact_id": safe_artifact_id,
         "final_status": "BLOCKED",
         "block_reason": block_reason,
         "redaction": "Original hostile manifest content is not copied into blocked outputs.",
@@ -744,37 +2271,54 @@ def _write_pass_outputs(output_dir: Path, run: dict[str, Any], force: bool) -> N
         "evidence-graph.json": outputs["evidence_graph"],
         "telemetry-contract-check.json": outputs["telemetry_contract_check"],
         "validation-result.json": outputs["validation_result"],
-        "synthetic-signal.json": outputs["synthetic_signal"],
+        "controlled-test-signal.json": outputs["controlled_test_signal"],
         "enrichment.json": outputs["enrichment"],
         "triage-summary.md": outputs["triage_summary"],
         "proofcard.json": outputs["proofcard"],
         "proofcard.md": outputs["proofcard_markdown"],
         "claim-authority.json": outputs["claim_authority"],
         "reviewer-pack.md": run["reviewer_pack"],
-        "machine-state.json": run["machine_state"],
-        "run-summary.json": run["run_summary"],
     }
     _write_file_map(output_dir, file_map)
+    state = run["machine_state"]
+    state["output_digests"] = {
+        name: _sha256_file(output_dir / name)
+        for name in sorted(file_map)
+    }
+    summary = _run_summary(run["manifest"], state, EXPECTED_PASS_OUTPUTS)
+    _write_file_map(output_dir, {"run-summary.json": summary})
+    state["output_digests"]["run-summary.json"] = _sha256_file(output_dir / "run-summary.json")
+    state["state_integrity_digest"] = _state_integrity_digest(state, "state_integrity_digest")
+    _write_file_map(output_dir, {"machine-state.json": state})
+    run["run_summary"] = summary
 
 
 def _write_blocked_outputs(output_dir: Path, run: dict[str, Any], force: bool) -> None:
     _prepare_output_dir(output_dir, force)
-    _write_file_map(
-        output_dir,
-        {
-            "artifact-manifest.json": run["manifest"],
-            "machine-state.json": run["machine_state"],
-            "blocked-review.md": run["blocked_review"],
-            "run-summary.json": run["run_summary"],
-        },
-    )
+    file_map = {
+        "artifact-manifest.json": run["manifest"],
+        "blocked-review.md": run["blocked_review"],
+    }
+    _write_file_map(output_dir, file_map)
+    state = run["machine_state"]
+    state["output_digests"] = {name: _sha256_file(output_dir / name) for name in sorted(file_map)}
+    summary = _run_summary(run["manifest"], state, EXPECTED_BLOCKED_OUTPUTS)
+    _write_file_map(output_dir, {"run-summary.json": summary})
+    state["output_digests"]["run-summary.json"] = _sha256_file(output_dir / "run-summary.json")
+    state["state_integrity_digest"] = _state_integrity_digest(state, "state_integrity_digest")
+    _write_file_map(output_dir, {"machine-state.json": state})
+    run["run_summary"] = summary
 
 
 def _node(node_id: str, node_type: str, owner: str, status: str) -> dict[str, str]:
     return {"id": node_id, "type": node_type, "owner": owner, "status": status}
 
 
-def _build_review_outputs(manifest: dict[str, Any], fixture_paths: dict[str, Path]) -> dict[str, Any]:
+def _build_review_outputs(
+    manifest: dict[str, Any],
+    fixture_paths: dict[str, Path],
+    authority_binding: dict[str, Any],
+) -> dict[str, Any]:
     positive_fixture = _load_json(fixture_paths["positive"])
     negative_fixture = _load_json(fixture_paths["negative"])
     _validate_review_fixture(positive_fixture, manifest, True)
@@ -782,8 +2326,8 @@ def _build_review_outputs(manifest: dict[str, Any], fixture_paths: dict[str, Pat
 
     intake = _artifact_intake(manifest)
     telemetry = _telemetry_contract_check(manifest, positive_fixture)
-    validation = _controlled_validation(manifest, positive_fixture, negative_fixture, telemetry)
-    signal = _synthetic_signal(manifest, positive_fixture, validation)
+    validation = _controlled_validation(manifest, positive_fixture, negative_fixture, telemetry, authority_binding)
+    signal = _controlled_test_signal(manifest, positive_fixture, validation)
     enrichment = _enrichment(manifest, positive_fixture)
     triage = _triage(manifest, signal, enrichment, validation)
     proofcard = _proofcard(manifest, intake, telemetry, validation, signal, enrichment, triage)
@@ -794,7 +2338,7 @@ def _build_review_outputs(manifest: dict[str, Any], fixture_paths: dict[str, Pat
         "evidence_graph": evidence_graph,
         "telemetry_contract_check": telemetry,
         "validation_result": validation,
-        "synthetic_signal": signal,
+        "controlled_test_signal": signal,
         "enrichment": enrichment,
         "triage_summary": _triage_markdown(manifest, triage),
         "proofcard": proofcard,
@@ -818,7 +2362,7 @@ def _artifact_intake(manifest: dict[str, Any]) -> dict[str, Any]:
         "human_review_required": True,
         "ai_disposition_authority": False,
         "notes": [
-            "Fixture is synthetic and local-only.",
+            "Fixture is controlled-test and local-only.",
             "No users, groups, endpoints, Wazuh systems, or private infrastructure are touched.",
         ],
     }
@@ -826,15 +2370,19 @@ def _artifact_intake(manifest: dict[str, Any]) -> dict[str, Any]:
 
 def _telemetry_contract_check(manifest: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
     contract = manifest["telemetry_contract"]
-    observed_event_ids = sorted({int(event["event_id"]) for event in fixture["events"]})
+    observed_event_ids = sorted({int(event["event_id"]) for event in fixture["events"] if "event_id" in event})
+    event_key_field = str(contract.get("event_key_field") or "event_key")
+    observed_event_keys = sorted({str(event[event_key_field]) for event in fixture["events"] if event_key_field in event})
     return {
         "schema_version": "telemetry-contract-check-v0",
         "artifact_id": manifest["artifact_id"],
         "required_source": contract["source"],
         "event_ids": list(manifest["expected_event_ids"]),
         "fixture_event_ids": observed_event_ids,
+        "event_keys": list(manifest.get("expected_event_keys", [])),
+        "fixture_event_keys": observed_event_keys,
         "wazuh_rule_family": list(manifest["expected_rule_ids"]),
-        "required_fields": list(contract.get("required_fields", ["event_id", "channel", "action", "actor"])),
+        "required_fields": list(contract.get("required_fields", [_manifest_event_selector(manifest), "channel", "action", "actor"])),
         "missing_required_fields": [],
         "result": "pass",
         "scope": "pass for fixture only",
@@ -848,6 +2396,7 @@ def _controlled_validation(
     fixture: dict[str, Any],
     negative_fixture: dict[str, Any],
     telemetry: dict[str, Any],
+    authority_binding: dict[str, Any],
 ) -> dict[str, Any]:
     positive_match = _fixture_matches_manifest(fixture, manifest)
     negative_match = _fixture_matches_manifest(negative_fixture, manifest)
@@ -862,19 +2411,21 @@ def _controlled_validation(
         "matched_positive_cases": 1 if positive_match else 0,
         "false_positive_negative_cases": 1 if negative_match else 0,
         "result": result,
+        "owned_authority_binding": authority_binding,
+        "source_manifest_digest": authority_binding["source_manifest_digest"],
         "endpoint_mutation": False,
         "runtime_rerun": False,
         "wazuh_mutation": False,
-        "explanation": "Validation evaluates bundled synthetic fixture records only.",
+        "explanation": "Validation evaluates bundled controlled-test fixture records only.",
     }
 
 
-def _synthetic_signal(manifest: dict[str, Any], fixture: dict[str, Any], validation: dict[str, Any]) -> dict[str, Any]:
+def _controlled_test_signal(manifest: dict[str, Any], fixture: dict[str, Any], validation: dict[str, Any]) -> dict[str, Any]:
     artifact_id = manifest["artifact_id"]
     return {
-        "schema_version": "synthetic-signal-v0",
+        "schema_version": "controlled-test-signal-v0",
         "artifact_id": artifact_id,
-        "signal_id": f"synthetic-signal-{artifact_id.lower()}-review-v1",
+        "signal_id": f"controlled-test-signal-{artifact_id.lower()}-review-v1",
         "source": "safe bundled fixture",
         "detection_fired": validation["result"] == "pass" and _fixture_matches_manifest(fixture, manifest),
         "simulation_only": True,
@@ -885,18 +2436,19 @@ def _synthetic_signal(manifest: dict[str, Any], fixture: dict[str, Any], validat
 
 
 def _enrichment(manifest: dict[str, Any], fixture: dict[str, Any]) -> dict[str, Any]:
-    event_mapping = {str(event_id): f"fixture event metadata for {manifest['artifact_id']}" for event_id in manifest["expected_event_ids"]}
+    selectors = [str(event_id) for event_id in manifest["expected_event_ids"]] + [str(key) for key in manifest.get("expected_event_keys", [])]
+    event_mapping = {selector: f"fixture event metadata for {manifest['artifact_id']}" for selector in selectors}
     return {
         "schema_version": "enrichment-v0",
         "artifact_id": manifest["artifact_id"],
-        "attack_mapping": list(manifest.get("attack_mapping", [{"technique_id": "T0000", "technique": "synthetic fixture review", "scope": "review mapping only"}])),
+        "attack_mapping": list(manifest.get("attack_mapping", [{"technique_id": "T0000", "technique": "controlled-test fixture review", "scope": "review mapping only"}])),
         "event_id_mapping": event_mapping,
         "source_mapping": {
             "channel": manifest["telemetry_contract"]["source"],
             "fixture_host": fixture["host"],
-            "fixture_scope": "synthetic demo host",
+            "fixture_scope": "controlled-test demo host",
         },
-        "field_mapping": dict(manifest.get("field_mapping", {"event_id": "event identifier", "action": "review action", "actor": "synthetic actor label"})),
+        "field_mapping": dict(manifest.get("field_mapping", {"event_id": "event identifier", "action": "review action", "actor": "controlled-test actor label"})),
         "confidence": manifest.get("confidence", "bounded-demo-high"),
         "severity": manifest.get("severity", "medium"),
     }
@@ -907,14 +2459,14 @@ def _triage(manifest: dict[str, Any], signal: dict[str, Any], enrichment: dict[s
     return {
         "schema_version": "triage-summary-v0",
         "artifact_id": artifact_id,
-        "what_happened": manifest.get("triage_what_happened", f"A synthetic fixture represented the {artifact_id} review pattern."),
+        "what_happened": manifest.get("triage_what_happened", f"A controlled-test fixture represented the {artifact_id} review pattern."),
         "why_it_matters": manifest.get("triage_why_it_matters", "The pattern can matter during security review when backed by appropriate evidence."),
         "evidence_exists": [
             "artifact intake record",
             "evidence graph",
             "telemetry contract check",
-            "positive and negative synthetic fixtures",
-            "fixture-derived synthetic signal",
+            "positive and negative controlled-test fixtures",
+            "fixture-derived controlled-test signal",
             "enrichment mapping",
             "ProofCard",
             "Claim Authority decision",
@@ -949,14 +2501,14 @@ def _proofcard(
         "review_version": "v1",
         "owner_split": {
             "source_truth": manifest["source_owner"],
-            "behavior_truth": "bundled synthetic fixture",
+            "behavior_truth": "bundled controlled-test fixture",
             "platform_runtime_truth": "not asserted",
             "proof_authority": "not asserted by review engine",
             "rendering": "local generated files only",
         },
         "telemetry_contract": telemetry,
         "controlled_validation": validation,
-        "synthetic_signal": signal,
+        "controlled_test_signal": signal,
         "enrichment": enrichment,
         "triage": triage,
         "allowed_claims": _allowed_claims_for(manifest),
@@ -1002,7 +2554,7 @@ def _evidence_graph(
         _node("artifact-intake", "artifact_intake", intake["source_owner"], "PASS"),
         _node("telemetry-contract-check", "telemetry_contract_check", "hoxline-review-fixture", telemetry["result"].upper()),
         _node("controlled-validation", "controlled_validation", "hoxline-review-fixture", validation["result"].upper()),
-        _node("synthetic-signal", "synthetic_signal", "hoxline-review-fixture", "PASS"),
+        _node("controlled-test-signal", "controlled_test_signal", "hoxline-review-fixture", "PASS"),
         _node("proofcard", "proofcard", proofcard["proof_owner"], "PASS"),
         _node("claim-authority", "claim_authority", "hoxline", "PASS"),
     ]
@@ -1015,8 +2567,8 @@ def _evidence_graph(
         "edges": [
             {"from": "artifact-intake", "to": "telemetry-contract-check", "relationship": "declares assumptions"},
             {"from": "telemetry-contract-check", "to": "controlled-validation", "relationship": "bounds fixture validation"},
-            {"from": "controlled-validation", "to": "synthetic-signal", "relationship": "creates fixture-only signal"},
-            {"from": "synthetic-signal", "to": "proofcard", "relationship": "summarized by"},
+            {"from": "controlled-validation", "to": "controlled-test-signal", "relationship": "creates fixture-only signal"},
+            {"from": "controlled-test-signal", "to": "proofcard", "relationship": "summarized by"},
             {"from": "proofcard", "to": "claim-authority", "relationship": "constrains claims"},
         ],
         "missing_evidence": proofcard["missing_evidence"],
@@ -1072,7 +2624,7 @@ def _validate_review_fixture(fixture: dict[str, Any], manifest: dict[str, Any], 
     expected = {
         "schema_version": "hoxline-demo-fixture-v0",
         "artifact_id": manifest["artifact_id"],
-        "fixture_kind": "synthetic-demo-only",
+        "fixture_kind": "controlled-test-demo-only",
         "safe_fixture": True,
         "endpoint_mutation": False,
         "runtime_required": False,
@@ -1089,7 +2641,10 @@ def _validate_review_fixture(fixture: dict[str, Any], manifest: dict[str, Any], 
     for event in events:
         if not isinstance(event, dict):
             raise ReviewBlocked("fixture events must be objects")
-        for field in ("event_id", "channel", "action", "actor"):
+        required_fields = manifest.get("telemetry_contract", {}).get(
+            "required_fields", [_manifest_event_selector(manifest), "channel", "action", "actor"]
+        )
+        for field in required_fields:
             if field not in event:
                 raise ReviewBlocked(f"fixture event missing field: {field}")
     if expected_detection and not _fixture_matches_manifest(fixture, manifest):
@@ -1102,12 +2657,22 @@ def _fixture_matches_manifest(fixture: dict[str, Any], manifest: dict[str, Any])
     if fixture.get("expected_detection") is not True:
         return False
     expected_ids = {int(event_id) for event_id in manifest.get("expected_event_ids", [])}
+    expected_keys = {str(value) for value in manifest.get("expected_event_keys", [])}
+    event_key_field = _manifest_event_selector(manifest)
     for event in fixture.get("events", []):
         if not isinstance(event, dict):
             continue
-        if int(event.get("event_id", 0)) in expected_ids and event.get("channel") in {"Windows Security", "Windows System", "TaskScheduler Operational"}:
+        event_id = event.get("event_id")
+        if event_id is not None and expected_ids and int(event_id) in expected_ids:
+            return True
+        if expected_keys and str(event.get(event_key_field, "")) in expected_keys:
             return True
     return False
+
+
+def _manifest_event_selector(manifest: dict[str, Any]) -> str:
+    contract = manifest.get("telemetry_contract") if isinstance(manifest.get("telemetry_contract"), dict) else {}
+    return "event_id" if manifest.get("expected_event_ids") else str(contract.get("event_key_field") or "event_key")
 
 
 def _allowed_claims_for(manifest: dict[str, Any]) -> list[str]:
@@ -1123,26 +2688,50 @@ def _validate_manifest(manifest: dict[str, Any], manifest_path: Path, repo_root:
     for field in REQUIRED_MANIFEST_FIELDS:
         if field not in manifest:
             raise ReviewBlocked(f"manifest missing required field: {field}")
+    _require_exact_keys(manifest, MANIFEST_ALLOWED_FIELDS, "artifact manifest")
     if manifest["manifest_version"] != MANIFEST_VERSION:
         raise ReviewBlocked(f"manifest_version must be {MANIFEST_VERSION}")
-    if manifest["artifact_id"] != ARTIFACT_ID and manifest.get("artifact_family") != "synthetic-review-only":
-        raise ReviewBlocked("unknown artifact requires explicit synthetic-review-only artifact_family")
+    if manifest["artifact_id"] != ARTIFACT_ID and manifest.get("artifact_family") != "controlled-test-review-only":
+        raise ReviewBlocked("unknown artifact requires explicit controlled-test-review-only artifact_family")
     if manifest.get("public_safe_status") != PUBLIC_SAFE_STATUS:
         raise ReviewBlocked("public_safe_status must remain NOT_PUBLIC_SAFE")
     if manifest.get("human_review_required") is not True:
         raise ReviewBlocked("human_review_required must be true")
     if manifest.get("ai_disposition_authority") is not False:
         raise ReviewBlocked("ai_disposition_authority must be false")
+    if manifest.get("expected_review_outcome") not in {None, "BLOCKED"}:
+        raise ReviewBlocked("expected_review_outcome may only declare BLOCKED")
     _validate_manifest_flags(manifest)
-    _validate_telemetry_contract(manifest)
     _validate_claims(manifest)
+    scan_manifest = {
+        key: value
+        for key, value in manifest.items()
+        if key != "blocked_claim_classes"
+        and not (key == "expected_block_reason" and manifest.get("expected_review_outcome") == "BLOCKED")
+    }
+    _validate_recursive_boundaries(scan_manifest, "artifact manifest")
     _validate_no_private_markers(manifest, "manifest")
+    if manifest.get("expected_review_outcome") == "BLOCKED":
+        raise ReviewBlocked("boundary-contract artifact remains expected BLOCKED")
+    _validate_telemetry_contract(manifest)
     paths = _fixture_paths(manifest, repo_root)
     for label, path in paths.items():
         if not path.is_file():
-            raise ReviewBlocked(f"{label} fixture path missing: {path}")
+            declared = (manifest.get("fixture_paths") or {}).get(label, "missing")
+            raise ReviewBlocked(f"{label} fixture path missing: {declared}")
         _validate_fixture_path(path, repo_root)
         fixture = _load_json(path)
+        _require_exact_keys(fixture, FIXTURE_ALLOWED_FIELDS, f"{label} fixture")
+        if not isinstance(fixture.get("events"), list) or not fixture["events"]:
+            raise ReviewBlocked(f"{label} fixture events must be a non-empty list")
+        if not all(
+            isinstance(event, dict)
+            and event
+            and all(isinstance(key, str) and isinstance(value, (str, int, float, bool, type(None))) for key, value in event.items())
+            for event in fixture["events"]
+        ):
+            raise ReviewBlocked(f"{label} fixture event shape is unsupported")
+        _validate_recursive_boundaries(fixture, f"{label} fixture")
         _validate_no_private_markers(fixture, f"{label} fixture")
 
 
@@ -1163,18 +2752,25 @@ def _validate_telemetry_contract(manifest: dict[str, Any]) -> None:
     contract = manifest.get("telemetry_contract")
     if not isinstance(contract, dict):
         raise ReviewBlocked("telemetry_contract must be an object")
-    if contract.get("source") != "Windows Security EventChannel":
-        raise ReviewBlocked("telemetry_contract.source must be Windows Security EventChannel")
+    _require_exact_keys(contract, TELEMETRY_CONTRACT_ALLOWED_FIELDS, "telemetry_contract")
+    if not isinstance(contract.get("source"), str) or not contract.get("source"):
+        raise ReviewBlocked("telemetry_contract.source must be a non-empty fixture metadata source")
     event_ids = contract.get("event_ids")
     expected_event_ids = manifest.get("expected_event_ids")
-    if not isinstance(event_ids, list) or not event_ids:
-        raise ReviewBlocked("telemetry_contract.event_ids must be a non-empty list")
+    event_keys = contract.get("event_keys", [])
+    expected_event_keys = manifest.get("expected_event_keys", [])
+    if not isinstance(event_ids, list):
+        raise ReviewBlocked("telemetry_contract.event_ids must be a list")
     if sorted(event_ids) != sorted(expected_event_ids or []):
         raise ReviewBlocked("telemetry_contract.event_ids must match expected_event_ids")
+    if not isinstance(event_keys, list) or sorted(event_keys) != sorted(expected_event_keys or []):
+        raise ReviewBlocked("telemetry_contract.event_keys must match expected_event_keys")
+    if not event_ids and not event_keys:
+        raise ReviewBlocked("telemetry contract must declare event_ids or event_keys")
     rule_ids = contract.get("wazuh_rule_ids")
     expected_rule_ids = manifest.get("expected_rule_ids")
-    if not isinstance(rule_ids, list) or not rule_ids:
-        raise ReviewBlocked("telemetry_contract.wazuh_rule_ids must be a non-empty list")
+    if not isinstance(rule_ids, list):
+        raise ReviewBlocked("telemetry_contract.wazuh_rule_ids must be a list")
     if sorted(rule_ids) != sorted(expected_rule_ids or []):
         raise ReviewBlocked("telemetry_contract.wazuh_rule_ids must match expected_rule_ids")
 
@@ -1183,7 +2779,17 @@ def _validate_claims(manifest: dict[str, Any]) -> None:
     requested_claims = manifest.get("requested_claims")
     if not isinstance(requested_claims, list):
         raise ReviewBlocked("requested_claims must be a list")
-    requested_text = "\n".join(str(item) for item in requested_claims)
+    expected_owners = {
+        "source_owner": "hawkinsoperations-detections",
+        "validation_owner": "hawkinsoperations-validation",
+        "platform_owner": "hawkinsoperations-platform",
+        "proof_owner": "hawkinsoperations-proof",
+        "product_owner": "hoxline",
+    }
+    for field, expected in expected_owners.items():
+        if field in manifest and manifest.get(field) != expected:
+            raise ReviewBlocked(f"{field} must be the exact source-owned repository {expected}")
+    requested_text = json.dumps(requested_claims, sort_keys=True)
     for label, pattern in PROHIBITED_CLAIM_PATTERNS.items():
         if pattern.search(requested_text):
             raise ReviewBlocked(f"requested claim is unsupported and blocked: {label}")
@@ -1197,37 +2803,71 @@ def _fixture_paths(manifest: dict[str, Any], repo_root: Path) -> dict[str, Path]
     raw = manifest.get("fixture_paths")
     if not isinstance(raw, dict):
         raise ReviewBlocked("fixture_paths must be an object")
+    _require_exact_keys(raw, {"positive", "negative"}, "fixture_paths")
     try:
-        return {
-            "positive": _resolve_path(Path(str(raw["positive"])), repo_root),
-            "negative": _resolve_path(Path(str(raw["negative"])), repo_root),
+        paths = {
+            "positive": _contained_file(
+                repo_root,
+                raw["positive"],
+                "positive fixture path",
+                repo_root / "examples",
+            ),
+            "negative": _contained_file(
+                repo_root,
+                raw["negative"],
+                "negative fixture path",
+                repo_root / "examples",
+            ),
         }
     except KeyError as exc:
         raise ReviewBlocked(f"fixture_paths missing key: {exc.args[0]}") from exc
+    if paths["positive"] == paths["negative"]:
+        raise ReviewBlocked("positive and negative fixtures must be different files")
+    return paths
 
 
 def _validate_fixture_path(path: Path, repo_root: Path) -> None:
     resolved = path.resolve()
     allowed_roots = [(repo_root / "examples" / "demo").resolve(), (repo_root / "examples" / "review").resolve()]
     if not any(_is_relative_to(resolved, allowed) for allowed in allowed_roots):
-        raise ReviewBlocked(f"fixture path outside allowed example roots: {path}")
+        raise ReviewBlocked("fixture path outside allowed example roots")
 
 
 def _validate_no_private_markers(value: Any, label: str, path: str = "") -> None:
     if isinstance(value, dict):
         for key, item in value.items():
             full = f"{path}.{key}" if path else str(key)
-            for pattern in PRIVATE_FIELD_PATTERNS:
-                if pattern.search(str(key)):
-                    raise ReviewBlocked(f"{label} contains prohibited private/raw field marker")
+            normalized_key = _normalize_security_key(key)
+            private_key = any(token in normalized_key for token in PRIVATE_KEY_TOKENS) or any(
+                pattern.search(candidate)
+                for candidate in _decoded_text_variants(str(key), strict_base64=False)
+                for pattern in PRIVATE_FIELD_PATTERNS
+            )
+            if private_key and not (
+                _is_promotion_key(normalized_key) and _is_bounded_promotion_value(item)
+            ):
+                raise ReviewBlocked(f"{label} contains prohibited private/raw field marker")
             _validate_no_private_markers(item, label, full)
     elif isinstance(value, list):
         for index, item in enumerate(value):
             _validate_no_private_markers(item, label, f"{path}[{index}]")
     elif isinstance(value, str):
-        for pattern in PRIVATE_VALUE_PATTERNS:
-            if pattern.search(value):
+        for candidate in _decoded_text_variants(value):
+            if ABSOLUTE_LOCAL_PATH.search(candidate) or _looks_like_local_or_escaping_path(candidate):
+                raise ReviewBlocked(f"{label} contains an absolute local path")
+            normalized_candidate = _normalize_security_key(candidate)
+            if any(token in normalized_candidate for token in PRIVATE_KEY_TOKENS):
                 raise ReviewBlocked(f"{label} contains prohibited private/raw value marker")
+            for pattern in PRIVATE_VALUE_PATTERNS:
+                if pattern.search(candidate):
+                    raise ReviewBlocked(f"{label} contains prohibited private/raw value marker")
+            stripped = candidate.strip()
+            if stripped.startswith(("{", "[")):
+                try:
+                    nested = json.loads(stripped, object_pairs_hook=_unique_json_object)
+                except (json.JSONDecodeError, ReviewEngineError):
+                    continue
+                _validate_no_private_markers(nested, label, path)
 
 
 def _machine_state(
@@ -1245,7 +2885,7 @@ def _machine_state(
         "engine_version": ENGINE_VERSION,
         "run_id": run_id,
         "artifact_id": manifest.get("artifact_id", "UNKNOWN") if manifest else "UNKNOWN",
-        "manifest_path": str(manifest_path),
+        "manifest_path": _display_path(manifest_path),
         "stages": stages,
         "outputs": outputs,
         "final_status": final_status,
@@ -1255,7 +2895,7 @@ def _machine_state(
         "blocked_claims": _blocked_claims(),
         "proof_boundary": manifest.get("proof_boundary", "fixture-only; not public proof") if manifest else "manifest blocked before proof boundary established",
         "runtime_boundary": manifest.get("runtime_boundary", "runtime prohibited") if manifest else "runtime prohibited",
-        "signal_boundary": manifest.get("signal_boundary", "synthetic fixture signal only") if manifest else "synthetic fixture signal only",
+        "signal_boundary": manifest.get("signal_boundary", "controlled-test fixture signal only") if manifest else "controlled-test fixture signal only",
         "public_safe_status": PUBLIC_SAFE_STATUS,
         "human_review_required": True,
         "ai_disposition_authority": False,
@@ -1266,7 +2906,6 @@ def _machine_state(
         "public_proof_promoted": False,
         "lifetime_ledger_changed": False,
         "next_gate": manifest.get("next_gate", "human_review_gate") if manifest else "manifest_fix_required",
-        "created_at": datetime.now(timezone.utc).isoformat(),
         "product": PRODUCT,
     }
 
@@ -1279,7 +2918,7 @@ def _stage(stage_name: str, status: str, output_ref: str | None, summary: str, f
         "output_ref": output_ref,
         "proof_boundary": "fixture-only; NOT_PUBLIC_SAFE; not runtime proof",
         "failure_mode": failure_mode,
-        "claim_boundary": "unsupported public, runtime, production, customer, SOCaaS, autonomous, approval, authorization, and case-closure claims block",
+        "claim_boundary": "claims block unsupported public, runtime, production, customer, SOCaaS, autonomous, approval, authorization, and case-closure wording",
         "summary": summary,
     }
 
@@ -1288,9 +2927,9 @@ def _pass_stages(outputs: dict[str, str]) -> list[dict[str, Any]]:
     summaries = {
         "artifact_intake": "manifest accepted and intake created",
         "evidence_graph": "evidence graph linked local fixture review nodes",
-        "telemetry_contract_check": "Windows Security EventChannel event and rule metadata checked",
+        "telemetry_contract_check": "declared fixture selector and source metadata checked",
         "controlled_validation": "positive and negative bundled fixtures validated",
-        "synthetic_signal": "safe fixture signal simulated without endpoint mutation",
+        "controlled_test_signal": "safe fixture signal simulated without endpoint mutation",
         "enrichment": "ATT&CK, event, source, and field mapping attached",
         "triage": "reviewer-readable triage summary generated",
         "proofcard": "ProofCard rendered under fixture-only ceiling",
@@ -1323,7 +2962,7 @@ def _reviewer_pack(manifest: dict[str, Any], state: dict[str, Any]) -> str:
         "",
         "## What Happened",
         "",
-        f"Artifact `{state['artifact_id']}` ran through artifact intake, evidence graph, telemetry contract check, controlled validation, synthetic signal, enrichment, triage, ProofCard, Claim Authority, reviewer pack, and machine-state stages.",
+        f"Artifact `{state['artifact_id']}` ran through artifact intake, evidence graph, telemetry contract check, controlled validation, controlled-test signal, enrichment, triage, ProofCard, Claim Authority, reviewer pack, and machine-state stages.",
         "",
         "## Stage Table",
         "",
@@ -1349,7 +2988,7 @@ def _reviewer_pack(manifest: dict[str, Any], state: dict[str, Any]) -> str:
             "## What This Proves",
             "",
             "- The artifact manifest can be reviewed by deterministic local Hoxline stages.",
-            "- The engine can generate replayable machine-state and reviewer artifacts from public-safe synthetic fixtures.",
+            "- The engine can generate replayable machine-state and reviewer artifacts from public-safe controlled-test fixtures.",
             "- Claim Authority blocks unsupported public, runtime, production, customer, SOCaaS, autonomous, approval, authorization, and case-closure claims.",
             "",
             "## What This Does Not Prove",
@@ -1426,20 +3065,22 @@ def _verify_pass_outputs(run_dir: Path, state: dict[str, Any], errors: list[str]
     manifest = _load_json(run_dir / "artifact-manifest.json")
     telemetry = _load_json(run_dir / "telemetry-contract-check.json")
     validation = _load_json(run_dir / "validation-result.json")
-    signal = _load_json(run_dir / "synthetic-signal.json")
+    signal = _load_json(run_dir / "controlled-test-signal.json")
     proofcard = _load_json(run_dir / "proofcard.json")
     claim_authority = _load_json(run_dir / "claim-authority.json")
     reviewer_pack = (run_dir / "reviewer-pack.md").read_text(encoding="utf-8")
-    if telemetry.get("required_source") != "Windows Security EventChannel":
-        errors.append("telemetry contract must use Windows Security EventChannel")
+    if telemetry.get("required_source") != manifest.get("telemetry_contract", {}).get("source"):
+        errors.append("telemetry contract source must match artifact manifest")
     if sorted(telemetry.get("event_ids", [])) != sorted(manifest.get("expected_event_ids", [])):
         errors.append("telemetry contract event IDs must match artifact manifest")
+    if sorted(telemetry.get("event_keys", [])) != sorted(manifest.get("expected_event_keys", [])):
+        errors.append("telemetry contract event keys must match artifact manifest")
     if sorted(telemetry.get("wazuh_rule_family", [])) != sorted(manifest.get("expected_rule_ids", [])):
         errors.append("telemetry contract Wazuh rule metadata must match artifact manifest")
     if validation.get("result") != "pass" or validation.get("endpoint_mutation") is not False:
         errors.append("controlled validation must pass without endpoint mutation")
     if signal.get("source") != "safe bundled fixture" or signal.get("detection_fired") is not True:
-        errors.append("synthetic signal must fire only from safe bundled fixture")
+        errors.append("controlled-test signal must fire only from safe bundled fixture")
     if proofcard.get("public_safe_status") != PUBLIC_SAFE_STATUS:
         errors.append("ProofCard must preserve NOT_PUBLIC_SAFE")
     blocked = {item.get("claim") for item in claim_authority.get("blocked_claims", [])}
@@ -1475,16 +3116,33 @@ def _blocked_claims() -> list[dict[str, str]]:
 
 
 def _prepare_output_dir(output_dir: Path, force: bool) -> None:
+    resolved = output_dir.resolve()
+    if resolved == Path(resolved.anchor) or resolved == Path.cwd().resolve():
+        raise ReviewEngineError("output directory must be a dedicated run directory")
+    if output_dir.is_symlink():
+        raise ReviewEngineError("output directory must not be a symbolic link")
+    marker = output_dir / ".hoxline-review-output-v1"
     if output_dir.exists():
         if not force:
-            raise ReviewEngineError(f"output directory already exists: {output_dir}")
+            raise ReviewEngineError(f"output directory already exists: {_display_path(output_dir)}")
+        if not marker.is_file():
+            raise ReviewEngineError("refusing to replace a directory not created by Hoxline Review Engine")
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=False)
+    marker.write_text("generated review output; safe to replace with --force\n", encoding="utf-8")
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _write_file_map(output_dir: Path, file_map: dict[str, Any]) -> None:
     for name, value in file_map.items():
-        path = output_dir / name
+        normalized = _normalize_repo_relative_path(name, "generated output path")
+        path = (output_dir / normalized).resolve()
+        if not _is_relative_to(path, output_dir.resolve()):
+            raise ReviewEngineError("generated output path escapes its run root")
+        path.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(value, str):
             path.write_text(value, encoding="utf-8")
         else:
@@ -1493,14 +3151,102 @@ def _write_file_map(output_dir: Path, file_map: dict[str, Any]) -> None:
 
 def _private_output_hits(run_dir: Path) -> list[str]:
     hits: list[str] = []
-    for path in run_dir.iterdir():
+    for path in run_dir.rglob("*"):
         if not path.is_file() or path.suffix not in {".json", ".md"}:
             continue
         text = path.read_text(encoding="utf-8")
+        if ABSOLUTE_LOCAL_PATH.search(text):
+            hits.append(f"{path.name}:absolute-local-path")
         for pattern in PRIVATE_VALUE_PATTERNS:
             if pattern.search(text):
                 hits.append(f"{path.name}:{pattern.pattern}")
     return hits
+
+
+def _display_path(path: Path) -> str:
+    resolved = path.resolve()
+    repo_root = Path(__file__).resolve().parents[2]
+    if _is_relative_to(resolved, repo_root):
+        return resolved.relative_to(repo_root).as_posix()
+    return resolved.name
+
+
+def _safe_run_identity(name: str) -> str:
+    normalized = _normalize_security_key(name)
+    if any(token in normalized for token in PRIVATE_KEY_TOKENS) or _string_has_unsafe_claim(name):
+        return f"sanitized-run-{hashlib.sha256(name.encode('utf-8')).hexdigest()[:12]}"
+    return name
+
+
+def verify_tracked_vocabulary(repo_root: Path) -> list[str]:
+    root = repo_root.resolve()
+    try:
+        result = subprocess.run(
+            [
+                "git", "-C", str(root), "ls-files", "--cached", "--others",
+                "--exclude-standard", "-z",
+            ],
+            check=False,
+            capture_output=True,
+            env=sanitized_git_env(),
+        )
+    except OSError as exc:
+        return [f"tracked vocabulary inventory failed: {exc}"]
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        return [f"tracked vocabulary inventory failed: {detail or 'git ls-files failed'}"]
+    deleted_result = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--deleted", "-z"],
+        check=False,
+        capture_output=True,
+        env=sanitized_git_env(),
+    )
+    if deleted_result.returncode != 0:
+        detail = deleted_result.stderr.decode("utf-8", errors="replace").strip()
+        return [f"tracked deleted-path inventory failed: {detail or 'git ls-files --deleted failed'}"]
+    try:
+        tracked = result.stdout.decode("utf-8", errors="strict").split("\0")
+        deleted = {
+            item
+            for item in deleted_result.stdout.decode("utf-8", errors="strict").split("\0")
+            if item
+        }
+    except UnicodeDecodeError as exc:
+        return [f"tracked filename inventory is not strict UTF-8: {exc}"]
+
+    errors: list[str] = []
+    for relative in sorted(item for item in tracked if item):
+        if relative in deleted:
+            continue
+        normalized_relative = _security_scan_text(relative)
+        if RETIRED_VOCABULARY in normalized_relative.casefold():
+            errors.append(f"tracked filename contains retired vocabulary: {relative}")
+        path = root / Path(relative)
+        try:
+            if not path.is_file():
+                errors.append(f"tracked path is missing or not a regular file: {relative}")
+                continue
+            suffix = path.suffix.casefold()
+            if suffix in TRACKED_BINARY_EXTENSIONS:
+                continue
+            if suffix not in TRACKED_TEXT_EXTENSIONS and path.name not in TRACKED_TEXT_FILENAMES:
+                errors.append(f"tracked file type is not explicitly classified: {relative}")
+                continue
+            payload = path.read_bytes()
+        except OSError as exc:
+            errors.append(f"tracked file read failed: {relative}: {exc}")
+            continue
+        if b"\0" in payload:
+            errors.append(f"tracked text file contains NUL bytes: {relative}")
+            continue
+        try:
+            text = payload.decode("utf-8", errors="strict")
+        except UnicodeDecodeError as exc:
+            errors.append(f"tracked text file is not strict UTF-8: {relative}: {exc}")
+            continue
+        if RETIRED_VOCABULARY in _security_scan_text(text).casefold():
+            errors.append(f"tracked file contains retired vocabulary: {relative}")
+    return errors
 
 
 def _resolve_path(path: Path, base: Path) -> Path:
@@ -1518,8 +3264,11 @@ def _is_relative_to(path: Path, parent: Path) -> bool:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    with path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle, object_pairs_hook=_unique_json_object)
+    except json.JSONDecodeError as exc:
+        raise ReviewEngineError(f"input is not valid JSON: {_display_path(path)}") from exc
     if not isinstance(data, dict):
-        raise ReviewEngineError(f"input must be a JSON object: {path}")
+        raise ReviewEngineError(f"input must be a JSON object: {_display_path(path)}")
     return deepcopy(data)

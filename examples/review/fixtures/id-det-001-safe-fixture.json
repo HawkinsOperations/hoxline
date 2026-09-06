@@ -1,0 +1,20 @@
+{
+  "artifact_id": "ID-DET-001",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "event_key": "impossible_travel",
+      "channel": "Identity fixture",
+      "action": "identity_session_context",
+      "actor": "controlled-test-review-actor"
+    }
+  ],
+  "expected_detection": true,
+  "fixture_id": "id-det-001-positive-fixture-v1",
+  "fixture_kind": "controlled-test-demo-only",
+  "host": "controlled-test-fixture-host",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

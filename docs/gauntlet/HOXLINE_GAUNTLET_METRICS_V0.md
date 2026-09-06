@@ -6,9 +6,9 @@ Proof ceiling: `CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY`.
 
 ## What Is Measured
 
-The metrics engine evaluates the controlled synthetic event fixture for the browser-cache / script-interpreter detection-review scenario. It emits numeric JSON for:
+The metrics engine evaluates the controlled controlled-test event fixture for the browser-cache / script-interpreter detection-review scenario. It emits numeric JSON for:
 
-* synthetic event volume
+* controlled-test event volume
 * expected positive and negative counts
 * true positive, true negative, false positive, and false negative counts
 * precision, recall, F1, and false-positive rate
@@ -22,7 +22,7 @@ The metrics engine evaluates the controlled synthetic event fixture for the brow
 
 | Metric | Value | Meaning |
 | --- | ---: | --- |
-| events_total | 12 | synthetic events evaluated |
+| events_total | 12 | controlled-test events evaluated |
 | expected_positive | 4 | events expected to match the controlled review rule |
 | expected_negative | 8 | events expected not to match the controlled review rule |
 | true_positive | 4 | expected positive events matched |
@@ -64,7 +64,7 @@ proof_ceiling: CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY
 
 ## What The Numbers Prove
 
-The numbers prove that Hoxline can run a deterministic controlled-fixture evaluation for this one synthetic detection-review artifact and emit measurable JSON. They also show that the fixture has all required telemetry fields, that Claim Authority blocks unsupported wording in the bad release note, and that the ProofCard has all required sections.
+The numbers prove that Hoxline can run a deterministic controlled-fixture evaluation for this one controlled-test detection-review artifact and emit measurable JSON. They also show that the fixture has all required telemetry fields, that Claim Authority blocks unsupported wording in the bad release note, and that the ProofCard has all required sections.
 
 ## What The Numbers Do Not Prove
 
@@ -74,7 +74,7 @@ This artifact does not prove runtime evidence, signal evidence, customer deploym
 
 ```powershell
 python -B -m hoxline.cli gauntlet metrics `
-  --events examples/gauntlet/synthetic-events.json `
+  --events examples/gauntlet/controlled-test-events.json `
   --artifact examples/gauntlet/sample-artifact.json `
   --proofcard examples/gauntlet/sample-proofcard.json `
   --claim-output examples/gauntlet/sample-claim-authority-output.json `
@@ -85,7 +85,7 @@ To write the report:
 
 ```powershell
 python -B -m hoxline.cli gauntlet metrics `
-  --events examples/gauntlet/synthetic-events.json `
+  --events examples/gauntlet/controlled-test-events.json `
   --artifact examples/gauntlet/sample-artifact.json `
   --proofcard examples/gauntlet/sample-proofcard.json `
   --claim-output examples/gauntlet/sample-claim-authority-output.json `

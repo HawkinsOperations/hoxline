@@ -37,9 +37,9 @@
   "index_id": "hoxline-multi-artifact-review-index-v1",
   "index_version": "multi-artifact-review-index-v1",
   "next_gate": "human_review_gate",
-  "private_evidence_attempt": "blocked synthetic hostile field marker",
+  "private_evidence_attempt": "blocked controlled-test hostile field marker",
   "proof_boundary": "Batch output is local reviewer evidence of engine behavior only; it is not public proof.",
   "public_safe_status": "NOT_PUBLIC_SAFE",
   "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
-  "signal_boundary": "Synthetic fixture signals only; not public signal observation."
+  "signal_boundary": "Controlled-test fixture signals only; not public signal observation."
 }

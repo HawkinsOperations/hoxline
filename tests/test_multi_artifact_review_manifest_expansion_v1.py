@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
 
 from hoxline.cli import main
-from hoxline.review_engine import verify_batch_run
+from hoxline.review_engine import _review_repo_root, verify_batch_run
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,12 +18,23 @@ MANIFESTS = {
     "HO-DET-010": ROOT / "examples" / "review" / "ho-det-010-artifact-manifest-v1.json",
     "HO-DET-011": ROOT / "examples" / "review" / "ho-det-011-artifact-manifest-v1.json",
     "HO-DET-012": ROOT / "examples" / "review" / "ho-det-012-artifact-manifest-v1.json",
+    "HO-DET-013": ROOT / "examples" / "review" / "ho-det-013-artifact-manifest-v1.json",
+    "AWS-DET-001": ROOT / "examples" / "review" / "aws-det-001-artifact-manifest-v1.json",
+    "ID-DET-001": ROOT / "examples" / "review" / "id-det-001-artifact-manifest-v1.json",
+    "ID-DET-002": ROOT / "examples" / "review" / "id-det-002-artifact-manifest-v1.json",
+    "ID-DET-003": ROOT / "examples" / "review" / "id-det-003-artifact-manifest-v1.json",
+    "ID-DET-004": ROOT / "examples" / "review" / "id-det-004-artifact-manifest-v1.json",
 }
+BLOCKED_MANIFEST = ROOT / "examples" / "review" / "ho-ndr-001-artifact-manifest-v1.json"
 
 
 def _json(path: Path) -> dict[str, object]:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def test_review_repo_root_is_derived_from_index_not_installed_module() -> None:
+    assert _review_repo_root(INDEX) == ROOT
 
 
 def test_single_artifact_manifests_pass(tmp_path) -> None:
@@ -63,10 +75,10 @@ def test_batch_machine_state_contains_all_artifacts_and_boundaries(tmp_path) -> 
 
     state = _json(output_dir / "batch-machine-state.json")
     artifacts = {item["artifact_id"]: item for item in state["artifacts"]}
-    assert set(artifacts) == {"HO-DET-009", "HO-DET-010", "HO-DET-011", "HO-DET-012"}
-    assert state["final_status"] == "PASS"
-    assert state["expected_pass_artifacts"] == ["HO-DET-009", "HO-DET-010", "HO-DET-011", "HO-DET-012"]
-    assert state["expected_blocked_artifacts"] == []
+    assert set(artifacts) == {*MANIFESTS, "HO-NDR-001"}
+    assert state["final_status"] == "MIXED"
+    assert set(state["expected_pass_artifacts"]) == set(MANIFESTS)
+    assert state["expected_blocked_artifacts"] == ["HO-NDR-001"]
     assert state["public_safe_status"] == "NOT_PUBLIC_SAFE"
     assert state["human_review_required"] is True
     assert state["ai_disposition_authority"] is False
@@ -76,9 +88,128 @@ def test_batch_machine_state_contains_all_artifacts_and_boundaries(tmp_path) -> 
     assert state["public_proof_promoted"] is False
     assert state["lifetime_ledger_changed"] is False
     for artifact_id, artifact in artifacts.items():
-        assert Path(artifact["machine_state"]).is_file(), artifact_id
-        assert Path(artifact["reviewer_pack"]).is_file(), artifact_id
-        assert artifact["final_status"] == "PASS"
+        assert (output_dir / artifact["machine_state"]).is_file(), artifact_id
+        assert len(artifact["machine_state_sha256"]) == 64
+        if artifact_id == "HO-NDR-001":
+            assert (output_dir / artifact["blocked_review"]).is_file(), artifact_id
+            assert artifact["reviewer_pack"] is None
+            assert artifact["final_status"] == "BLOCKED"
+        else:
+            assert (output_dir / artifact["reviewer_pack"]).is_file(), artifact_id
+            assert artifact["final_status"] == "PASS"
+
+
+def test_batch_replay_rejects_tampered_artifact_hash(tmp_path) -> None:
+    output_dir = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(INDEX), "--output", str(output_dir), "--force"]) == 0
+    state_path = output_dir / "batch-machine-state.json"
+    state = _json(state_path)
+    state["artifacts"][0]["machine_state_sha256"] = "0" * 64
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    errors = verify_batch_run(state_path)
+    assert any("machine-state hash mismatch" in error for error in errors)
+
+
+def test_batch_rejects_path_traversal_without_deleting_outside_file(tmp_path) -> None:
+    sentinel = tmp_path / "sentinel.txt"
+    sentinel.write_text("preserve", encoding="utf-8")
+    index = _json(INDEX)
+    index["artifacts"][0]["artifact_id"] = "../sentinel"
+    hostile = tmp_path / "traversal.json"
+    hostile.write_text(json.dumps(index), encoding="utf-8")
+    output_dir = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(hostile), "--output", str(output_dir), "--force"]) == 1
+    assert sentinel.read_text(encoding="utf-8") == "preserve"
+    state = _json(output_dir / "batch-machine-state.json")
+    assert state["block_reason"] == "input rejected by path-containment boundary"
+
+
+def test_batch_rejects_index_manifest_artifact_id_mismatch(tmp_path) -> None:
+    index = _json(INDEX)
+    index["artifacts"][0]["artifact_id"] = "HO-DET-008"
+    hostile = tmp_path / "mismatch.json"
+    hostile.write_text(json.dumps(index), encoding="utf-8")
+    output_dir = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(hostile), "--output", str(output_dir), "--force"]) == 1
+    state = _json(output_dir / "batch-machine-state.json")
+    assert "does not match manifest artifact_id" in state["block_reason"]
+
+
+def test_boundary_contract_artifact_is_honestly_blocked(tmp_path) -> None:
+    output_dir = tmp_path / "ho-ndr-001"
+    assert main(["review", "run", "--artifact", str(BLOCKED_MANIFEST), "--output", str(output_dir), "--force"]) == 1
+    state = _json(output_dir / "machine-state.json")
+    assert state["final_status"] == "BLOCKED"
+    assert state["block_reason"] == "boundary-contract artifact remains expected BLOCKED"
+    assert state["public_safe_status"] == "NOT_PUBLIC_SAFE"
+    assert state["human_review_required"] is True
+    assert state["ai_disposition_authority"] is False
+
+
+def test_named_cross_domain_fixture_selector_is_replayable(tmp_path) -> None:
+    output_dir = tmp_path / "aws"
+    assert main(["review", "run", "--artifact", str(MANIFESTS["AWS-DET-001"]), "--output", str(output_dir), "--force"]) == 0
+    telemetry = _json(output_dir / "telemetry-contract-check.json")
+    assert telemetry["event_ids"] == []
+    assert telemetry["event_keys"] == ["CreateUser"]
+    assert telemetry["fixture_event_keys"] == ["CreateUser"]
+
+
+def test_absolute_path_and_cross_domain_live_claims_fail_closed(tmp_path) -> None:
+    base = _json(MANIFESTS["AWS-DET-001"])
+    attacks = {
+        "absolute-path": r"C:\Raylee\private\fixture.json",
+        "drive-absolute-path": r"D:\private\evidence.json",
+        "unc-absolute-path": r"\\private-host\share\evidence.json",
+        "posix-absolute-path": "/home/reviewer/private/evidence.json",
+        "live-cloud": "live AWS proof",
+        "live-identity": "live identity runtime",
+        "live-security-onion": "live Security Onion proof",
+        "unsafe-next-gate": "analyst-approved disposition",
+    }
+    for name, claim in attacks.items():
+        hostile = json.loads(json.dumps(base))
+        if name == "unsafe-next-gate":
+            hostile["next_gate"] = claim
+        else:
+            hostile["requested_claims"] = [claim]
+        manifest = tmp_path / f"{name}.json"
+        manifest.write_text(json.dumps(hostile), encoding="utf-8")
+        output_dir = tmp_path / f"run-{name}"
+        assert main(["review", "run", "--artifact", str(manifest), "--output", str(output_dir), "--force"]) == 1
+        assert _json(output_dir / "machine-state.json")["final_status"] == "BLOCKED"
+
+
+def test_prohibited_claims_in_owner_and_nested_rendered_fields_fail_closed(tmp_path) -> None:
+    base = _json(MANIFESTS["AWS-DET-001"])
+    hostile_values = {
+        "source-owner": ("source_owner", "ANALYST_APPROVED final authorization"),
+        "detection-family": ("detection_family", "case closure"),
+        "telemetry-source": ("telemetry_contract.source", "live AWS proof"),
+        "nested-field-mapping": ("field_mapping.actor", "AI-approved disposition"),
+    }
+    for name, (field_path, claim) in hostile_values.items():
+        hostile = json.loads(json.dumps(base))
+        target = hostile
+        parts = field_path.split(".")
+        for part in parts[:-1]:
+            target = target[part]
+        target[parts[-1]] = claim
+        manifest = tmp_path / f"hostile-{name}.json"
+        manifest.write_text(json.dumps(hostile), encoding="utf-8")
+        output_dir = tmp_path / f"run-hostile-{name}"
+        assert main(["review", "run", "--artifact", str(manifest), "--output", str(output_dir), "--force"]) == 1
+        assert _json(output_dir / "machine-state.json")["final_status"] == "BLOCKED"
+
+
+def test_generated_batch_artifacts_do_not_leak_absolute_workstation_paths(tmp_path) -> None:
+    output_dir = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(INDEX), "--output", str(output_dir), "--force"]) == 0
+    for path in output_dir.rglob("*"):
+        if path.is_file() and path.suffix in {".json", ".md"}:
+            text = path.read_text(encoding="utf-8")
+            assert "C:\\Raylee\\" not in text
+            assert "C:\\Users\\" not in text
 
 
 def test_aggregate_reviewer_pack_explains_pass_and_block_sections(tmp_path) -> None:
@@ -113,8 +244,8 @@ def test_hostile_batch_indexes_fail_closed(tmp_path) -> None:
 
 def test_expected_pass_artifact_blocking_causes_nonzero(tmp_path) -> None:
     index = _json(INDEX)
-    hostile_manifest = ROOT / "examples" / "review" / "hostile" / "missing-telemetry-contract.json"
-    index["artifacts"] = [{"artifact_id": "HO-DET-010", "manifest_path": str(hostile_manifest)}]
+    hostile_manifest = "examples/review/hostile/missing-telemetry-contract.json"
+    index["artifacts"] = [{"artifact_id": "HO-DET-010", "manifest_path": hostile_manifest}]
     index["expected_pass_artifacts"] = ["HO-DET-010"]
     index["expected_blocked_artifacts"] = []
     temp_index = tmp_path / "expected-pass-blocks.json"
@@ -175,3 +306,229 @@ def test_batch_generated_outputs_remain_ignored() -> None:
     )
 
     assert result.returncode == 0
+
+
+def _semantic_digest(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def test_batch_index_rejects_duplicate_keys_unknown_shapes_and_nested_authority(tmp_path) -> None:
+    original = INDEX.read_text(encoding="utf-8")
+    duplicate = original.replace(
+        '"ai_disposition_authority": false,',
+        '"ai_disposition_authority": false, "AI_Disposition_Authority": true,',
+        1,
+    )
+    duplicate_path = tmp_path / "duplicate-index.json"
+    duplicate_path.write_text(duplicate, encoding="utf-8")
+    duplicate_out = tmp_path / "duplicate"
+    assert main(["review", "batch", "run", "--index", str(duplicate_path), "--output", str(duplicate_out), "--force"]) == 1
+    assert _json(duplicate_out / "batch-machine-state.json")["block_reason"] == "input rejected by strict-structure boundary"
+
+    for name, mutator in {
+        "top-extension": lambda value: value.update({"metadata": {"public_safe_approved": True}}),
+        "artifact-extension": lambda value: value["artifacts"][0].update(
+            {"metadata": {"approvedByAnalyst": True}}
+        ),
+        "encoded-claim": lambda value: value.update(
+            {"next_gate": "final%2520authorization"}
+        ),
+    }.items():
+        index = _json(INDEX)
+        mutator(index)
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(index), encoding="utf-8")
+        output = tmp_path / name
+        assert main(["review", "batch", "run", "--index", str(path), "--output", str(output), "--force"]) == 1
+        assert _json(output / "batch-machine-state.json")["final_status"] == "BLOCKED"
+
+    for index_number, attack in enumerate(
+        (
+            {"final": {"review": {"authorization": True}}},
+            {"ai": {"metadata": {"authority": True}}},
+            {"review": {"metadata": {"disposition": "APPROVED"}}},
+        )
+    ):
+        index = _json(INDEX)
+        index["batch_claim_boundary"] = json.dumps(attack, separators=(",", ":"))
+        path = tmp_path / f"neutral-wrapper-index-{index_number}.json"
+        path.write_text(json.dumps(index), encoding="utf-8")
+        output = tmp_path / f"neutral-wrapper-index-{index_number}"
+        assert main(["review", "batch", "run", "--index", str(path), "--output", str(output), "--force"]) == 1
+        assert _json(output / "batch-machine-state.json")["final_status"] == "BLOCKED"
+
+    for index_number, attack in enumerate(
+        (
+            {"production_live": [True]},
+            {"ai_authority": ["APPROVED"]},
+            {"review_disposition": [True]},
+            {"final_authorization": [1]},
+        )
+    ):
+        index = _json(INDEX)
+        index["batch_claim_boundary"] = json.dumps(attack, separators=(",", ":"))
+        path = tmp_path / f"promotion-array-index-{index_number}.json"
+        path.write_text(json.dumps(index), encoding="utf-8")
+        output = tmp_path / f"promotion-array-index-{index_number}"
+        assert main(["review", "batch", "run", "--index", str(path), "--output", str(output), "--force"]) == 1
+        assert _json(output / "batch-machine-state.json")["final_status"] == "BLOCKED"
+
+
+def test_batch_replay_rescans_tampered_input_even_after_hash_recalculation(tmp_path) -> None:
+    output = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(INDEX), "--output", str(output), "--force"]) == 0
+    state_path = output / "batch-machine-state.json"
+    state = _json(state_path)
+    input_path = output / "input-index.json"
+    hostile = _json(input_path)
+    hostile["metadata"] = {"approvedByAnalyst": True}
+    input_path.write_text(json.dumps(hostile, sort_keys=True), encoding="utf-8")
+    state["input_index_sha256"] = hashlib.sha256(input_path.read_bytes()).hexdigest()
+    state["output_digests"]["input-index.json"] = state["input_index_sha256"]
+    state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    errors = verify_batch_run(state_path)
+    assert any("input-index replay failed closed" in error for error in errors)
+
+
+def test_batch_replay_rejects_child_path_escape_and_aggregate_laundering(tmp_path) -> None:
+    output = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(INDEX), "--output", str(output), "--force"]) == 0
+    state_path = output / "batch-machine-state.json"
+    baseline = _json(state_path)
+    for field, value in {
+        "machine_state": "../batch-machine-state.json",
+        "final_status": "BLOCKED",
+        "public_safe_status": "PUBLIC_SAFE",
+        "ai_disposition_authority": True,
+        "next_gate": "case closure",
+    }.items():
+        hostile = json.loads(json.dumps(baseline))
+        hostile["artifacts"][0][field] = value
+        hostile["batch_state_integrity_digest"] = _semantic_digest(
+            {key: item for key, item in hostile.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(hostile), encoding="utf-8")
+        assert verify_batch_run(state_path), field
+    state_path.write_text(json.dumps(baseline), encoding="utf-8")
+    assert verify_batch_run(state_path) == []
+
+
+def test_batch_replay_rejects_rehashed_output_and_role_laundering(tmp_path) -> None:
+    output = tmp_path / "batch"
+    assert main(["review", "batch", "run", "--index", str(INDEX), "--output", str(output), "--force"]) == 0
+    state_path = output / "batch-machine-state.json"
+    baseline = _json(state_path)
+
+    for name in baseline["output_digests"]:
+        path = output / name
+        original = path.read_text(encoding="utf-8")
+        if path.suffix == ".json":
+            hostile = json.loads(original)
+            hostile["replay_extension"] = {"approvedByAnalyst": True}
+            path.write_text(json.dumps(hostile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        else:
+            path.write_text(original + "\nproduction ready\n", encoding="utf-8")
+        state = json.loads(json.dumps(baseline))
+        state["output_digests"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        state["batch_state_integrity_digest"] = _semantic_digest(
+            {key: value for key, value in state.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        assert verify_batch_run(state_path), name
+        path.write_text(original, encoding="utf-8")
+        state_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["outputs"]["summary"] = "batch-reviewer-pack.md"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["replay_extension"] = "bounded-looking extra field"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    for field, value in {
+        "created_at": "2099-01-01T00:00:00Z",
+        "batch_id": "laundered-batch",
+        "block_reason": "unexpected non-blocked reason",
+    }.items():
+        hostile_state = json.loads(json.dumps(baseline))
+        hostile_state[field] = value
+        hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+            {key: item for key, item in hostile_state.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        assert verify_batch_run(state_path), field
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["artifacts"] = list(reversed(hostile_state["artifacts"]))
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+
+def test_blocked_batch_replay_rejects_rehashed_output_and_role_laundering(tmp_path) -> None:
+    index = HOSTILE_BATCH_DIR / "unsafe-batch-public-safe-claim-index.json"
+    output = tmp_path / "blocked-batch"
+    assert main(["review", "batch", "run", "--index", str(index), "--output", str(output), "--force"]) == 1
+    state_path = output / "batch-machine-state.json"
+    baseline = _json(state_path)
+    assert baseline["final_status"] == "BLOCKED"
+    assert verify_batch_run(state_path) == []
+
+    for name in baseline["output_digests"]:
+        path = output / name
+        original = path.read_text(encoding="utf-8")
+        if path.suffix == ".json":
+            hostile = json.loads(original)
+            hostile["replay_extension"] = {"approvedByAnalyst": True}
+            path.write_text(json.dumps(hostile, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        else:
+            path.write_text(original + "\ncase closure\n", encoding="utf-8")
+        state = json.loads(json.dumps(baseline))
+        state["output_digests"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        state["batch_state_integrity_digest"] = _semantic_digest(
+            {key: value for key, value in state.items() if key != "batch_state_integrity_digest"}
+        )
+        state_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        assert verify_batch_run(state_path), name
+        path.write_text(original, encoding="utf-8")
+        state_path.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["outputs"]["summary"] = "batch-reviewer-pack.md"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["replay_extension"] = "bounded-looking extra field"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)
+
+    hostile_state = json.loads(json.dumps(baseline))
+    hostile_state["created_at"] = "2099-01-01T00:00:00Z"
+    hostile_state["batch_state_integrity_digest"] = _semantic_digest(
+        {key: value for key, value in hostile_state.items() if key != "batch_state_integrity_digest"}
+    )
+    state_path.write_text(json.dumps(hostile_state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert verify_batch_run(state_path)

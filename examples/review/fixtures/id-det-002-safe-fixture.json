@@ -1,0 +1,20 @@
+{
+  "artifact_id": "ID-DET-002",
+  "endpoint_mutation": false,
+  "events": [
+    {
+      "event_key": "mfa_push_fatigue_volume",
+      "channel": "Identity fixture",
+      "action": "authentication_control_change",
+      "actor": "controlled-test-review-actor"
+    }
+  ],
+  "expected_detection": true,
+  "fixture_id": "id-det-002-positive-fixture-v1",
+  "fixture_kind": "controlled-test-demo-only",
+  "host": "controlled-test-fixture-host",
+  "network_required": false,
+  "runtime_required": false,
+  "safe_fixture": true,
+  "schema_version": "hoxline-demo-fixture-v0"
+}

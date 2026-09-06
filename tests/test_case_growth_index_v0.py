@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 try:
@@ -14,7 +18,17 @@ try:
 except ImportError:  # pragma: no cover - exercised only when optional test dep is absent
     jsonschema = None
 
-from hoxline.case_growth.collector import BOUNDARY, ROW_FIELDS, build_case_growth_index
+from hoxline.case_growth.collector import (
+    BOUNDARY,
+    ROW_FIELDS,
+    _content_normalized_cases,
+    _reproducibility_hash,
+    build_case_growth_index,
+    diff_case_growth_snapshot,
+    verify_selected_source_checkout,
+    verify_case_growth_snapshot,
+)
+from hoxline.case_growth.discovery import REPO_NAMES, repo_dirty, repo_head_sha, repo_origin
 from hoxline.case_growth.render import render_case_growth_markdown
 from hoxline.cli import main
 
@@ -22,7 +36,84 @@ from hoxline.cli import main
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = ROOT / "tests" / "fixtures" / "case_growth" / "org"
 SAMPLE_JSON = ROOT / "examples" / "case-growth" / "sample-case-growth-index.json"
+CURRENT_JSON = ROOT / "examples" / "case-growth" / "current-case-growth-index.json"
 SCHEMA = ROOT / "schemas" / "case-growth-index-v0.schema.json"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+
+
+def _git(repo: Path, *args: str, input_text: str | None = None) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        input=input_text,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _write_source_selection_manifest(
+    org_root: Path,
+    selected_repository: str,
+    revision: str,
+    reviewed_tree: str,
+) -> None:
+    command_center = org_root / ".github"
+    command_authority_path = command_center / "governance" / "COMMAND_CENTER_INVARIANTS.json"
+    command_authority_path.parent.mkdir(parents=True)
+    command_authority_path.write_text(
+        json.dumps({"schema": "command-center-invariants-v1", "test_fixture": True}),
+        encoding="utf-8",
+    )
+    _git(command_center, "init")
+    _git(command_center, "config", "user.name", "Hoxline Test")
+    _git(command_center, "config", "user.email", "hoxline-test@example.invalid")
+    _git(command_center, "remote", "add", "origin", "https://github.com/HawkinsOperations/.github.git")
+    _git(command_center, "add", "governance/COMMAND_CENTER_INVARIANTS.json")
+    _git(command_center, "commit", "-m", "command authority")
+    command_content_revision = _git(command_center, "rev-parse", "HEAD")
+
+    entries: list[dict[str, object]] = [
+        {
+            "repository": ".github",
+            "canonical_repository": "HawkinsOperations/.github",
+            "revision_source": "github_event_sha",
+            "authority_content_revision": command_content_revision,
+            "tree_source": "github_event_tree",
+        }
+    ]
+    for repository in REPO_NAMES:
+        if repository == ".github":
+            continue
+        entries.append(
+            {
+                "repository": repository,
+                "canonical_repository": f"HawkinsOperations/{repository}",
+                "revision": revision if repository == selected_repository else "0" * 40,
+                "authority_content_revision": (
+                    revision if repository == selected_repository else "0" * 40
+                ),
+                "reviewed_tree_sha": reviewed_tree if repository == selected_repository else "0" * 40,
+            }
+        )
+    manifest = {
+        "schema": "hawkinsoperations-convergence-source-manifest-v1",
+        "manifest_id": "TEST_EXACT_SEVEN_SOURCE_SELECTION",
+        "repositories": entries,
+        "constraints": {
+            "exact_repository_count": 7,
+            "read_only": True,
+            "default_branch_fallback": False,
+            "require_detached_exact_revision": True,
+            "record_checked_revisions": True,
+            "consumer_outputs_are_not_authority": True,
+            "proof_ceiling": "CONTROLLED_REPO_CONVERGENCE_AND_LOCAL_FIXTURE_REVIEW_ONLY",
+        },
+    }
+    manifest_path = org_root / ".github" / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
+    _git(command_center, "commit", "-m", "source selection")
 
 
 def row_by_id(index: dict[str, object], case_id: str) -> dict[str, object]:
@@ -99,13 +190,117 @@ def derived_health(summary: dict[str, int]) -> dict[str, float]:
 
 
 class CaseGrowthIndexV0Tests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.index = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
-        self.rows = self.index["cases"]
-        assert isinstance(self.rows, list)
+    def test_ci_checks_the_exact_pr_head_and_all_seven_repositories(self) -> None:
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        pr_head = "${{ github.event.pull_request.head.sha || github.sha }}"
+
+        def issues(value: str) -> list[str]:
+            findings = []
+            if value.count("uses: actions/checkout@") != 7:
+                findings.append("checkout_count")
+            for required in (
+                f"HAWKINS_HOXLINE_EVENT_SHA: {pr_head}",
+                f"ref: {pr_head}",
+                '"hoxline": os.environ["HAWKINS_HOXLINE_EVENT_SHA"]',
+                "if sha != immutable[name]:",
+            ):
+                if required not in value:
+                    findings.append(required)
+            return findings
+
+        self.assertEqual([], issues(workflow))
+
+        merge_ref_attack = workflow.replace(f"ref: {pr_head}", "ref: ${{ github.sha }}", 1)
+        self.assertNotEqual([], issues(merge_ref_attack))
+
+    def test_repo_origin_rejects_ambient_instead_of_laundering(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            repo.mkdir()
+            _git(repo, "init")
+            stored_origin = "C:/hostile/local-hoxline"
+            canonical = "https://github.com/HawkinsOperations/hoxline.git"
+            _git(repo, "remote", "add", "origin", stored_origin)
+            hostile_env = {
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": f"url.{canonical}.insteadOf",
+                "GIT_CONFIG_VALUE_0": stored_origin,
+            }
+            with mock.patch.dict(os.environ, hostile_env, clear=False):
+                effective = _git(repo, "remote", "get-url", "origin")
+                self.assertEqual(effective, canonical)
+                self.assertEqual(repo_origin(repo), stored_origin)
+
+    def test_repo_origin_rejects_empty_duplicate_in_both_orders(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            repo.mkdir()
+            _git(repo, "init")
+            canonical = "https://github.com/HawkinsOperations/hoxline.git"
+            _git(repo, "config", "--add", "remote.origin.url", canonical)
+            _git(repo, "config", "--add", "remote.origin.url", "")
+            self.assertEqual(repo_origin(repo), "UNKNOWN")
+            _git(repo, "config", "--unset-all", "remote.origin.url")
+            _git(repo, "config", "--add", "remote.origin.url", "")
+            _git(repo, "config", "--add", "remote.origin.url", canonical)
+            self.assertEqual(repo_origin(repo), "UNKNOWN")
+
+    def test_git_identity_ignores_ambient_repository_and_index_redirection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            target = base / "target"
+            decoy = base / "decoy"
+            for repo, origin, content in (
+                (target, "C:/hostile/target", "target\n"),
+                (decoy, "https://github.com/HawkinsOperations/hoxline.git", "decoy\n"),
+            ):
+                repo.mkdir()
+                _git(repo, "init")
+                _git(repo, "config", "user.name", "Hoxline Test")
+                _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+                _git(repo, "remote", "add", "origin", origin)
+                (repo / "tracked.txt").write_text(content, encoding="utf-8")
+                _git(repo, "add", "tracked.txt")
+                _git(repo, "commit", "-m", "fixture")
+
+            target_head = _git(target, "rev-parse", "HEAD")
+            decoy_head = _git(decoy, "rev-parse", "HEAD")
+            self.assertNotEqual(target_head, decoy_head)
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "GIT_DIR": str(decoy / ".git"),
+                    "GIT_WORK_TREE": str(decoy),
+                    "GIT_INDEX_FILE": str(decoy / ".git" / "index"),
+                    "GIT_CONFIG_COUNT": "1",
+                    "GIT_CONFIG_KEY_0": "core.repositoryformatversion",
+                    "GIT_CONFIG_VALUE_0": "0",
+                },
+                clear=False,
+            ):
+                self.assertEqual(repo_origin(target), "C:/hostile/target")
+                self.assertEqual(repo_head_sha(target), target_head)
+
+            clean_index = base / "clean-index"
+            shutil.copy2(target / ".git" / "index", clean_index)
+            (target / "tracked.txt").write_text("changed\n", encoding="utf-8")
+            _git(target, "add", "tracked.txt")
+            (target / "tracked.txt").write_text("target\n", encoding="utf-8")
+            with mock.patch.dict(
+                os.environ,
+                {"GIT_INDEX_FILE": str(clean_index)},
+                clear=False,
+            ):
+                self.assertTrue(repo_dirty(target))
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.index = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
+        cls.rows = cls.index["cases"]
+        assert isinstance(cls.rows, list)
 
     def test_fixture_repo_root_loads(self) -> None:
-        self.assertEqual(self.index["schema_version"], "case-growth-index-v0")
+        self.assertEqual(self.index["schema_version"], "case-growth-index-v1")
         self.assertGreaterEqual(self.index["summary"]["cases_total"], 1)
 
     def test_cli_prints_json(self) -> None:
@@ -114,7 +309,7 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
             status = main(["case-growth", "index", "--repo-root", str(FIXTURE_ROOT), "--format", "json"])
         self.assertEqual(status, 0)
         payload = json.loads(stdout.getvalue())
-        self.assertEqual(payload["schema_version"], "case-growth-index-v0")
+        self.assertEqual(payload["schema_version"], "case-growth-index-v1")
 
     def test_cli_prints_markdown(self) -> None:
         stdout = io.StringIO()
@@ -123,14 +318,81 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("| case_id | source | validation | runtime_candidate |", stdout.getvalue())
 
-    def test_schema_validates_sample_json(self) -> None:
-        sample = json.loads(SAMPLE_JSON.read_text(encoding="utf-8"))
+    def test_cli_writes_content_bound_json_markdown_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            pair_base = Path(temp_dir) / "case-growth"
+            with contextlib.redirect_stdout(io.StringIO()):
+                status = main(
+                    [
+                        "case-growth",
+                        "index",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--format",
+                        "json",
+                        "--paired-output-base",
+                        str(pair_base),
+                    ]
+                )
+            self.assertEqual(status, 0)
+            payload = json.loads(pair_base.with_suffix(".json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                pair_base.with_suffix(".md").read_text(encoding="utf-8"),
+                render_case_growth_markdown(payload),
+            )
+            pair_base.with_suffix(".md").write_text("tampered\n", encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                verify_status = main(
+                    [
+                        "case-growth",
+                        "verify",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--snapshot",
+                        str(pair_base.with_suffix(".json")),
+                        "--format",
+                        "json",
+                    ]
+                )
+            self.assertEqual(verify_status, 1)
+            self.assertIn("not the exact render", stdout.getvalue())
+
+    def test_schema_validates_fail_closed_diagnostic_index(self) -> None:
+        sample = self.index
         schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
         if jsonschema is not None:
             jsonschema.validate(sample, schema)
         else:
             for field in schema["required"]:
                 self.assertIn(field, sample)
+
+    def test_schema_validates_checked_current_and_historical_states(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        current = json.loads(CURRENT_JSON.read_text(encoding="utf-8"))
+        historical = copy.deepcopy(current)
+        historical["historical_snapshot"] = True
+        historical["current_authority"] = False
+        historical["snapshot_state"]["historical_snapshot"] = True
+        historical["snapshot_state"]["current_authority"] = False
+        if jsonschema is not None:
+            jsonschema.validate(current, schema)
+            jsonschema.validate(historical, schema)
+        else:
+            self.assertFalse(current["historical_snapshot"])
+            self.assertTrue(current["current_authority"])
+            self.assertTrue(historical["historical_snapshot"])
+            self.assertFalse(historical["current_authority"])
+
+    def test_schema_rejects_historical_snapshot_claiming_current_authority(self) -> None:
+        if jsonschema is None:
+            self.skipTest("jsonschema is not installed")
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+        contradictory = json.loads(CURRENT_JSON.read_text(encoding="utf-8"))
+        contradictory["historical_snapshot"] = True
+        contradictory["current_authority"] = True
+        with self.assertRaises(jsonschema.ValidationError):
+            jsonschema.validate(contradictory, schema)
 
     def test_rows_include_every_required_field(self) -> None:
         for row in self.rows:
@@ -221,10 +483,8 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertTrue(all(row["case_state"] != "CLOSED" for row in self.rows))
 
     def test_website_evidence_never_creates_proof_status(self) -> None:
-        website_only = row_by_id(self.index, "HO-DET-999")
-        self.assertEqual(website_only["source_status"], "NOT_FOUND")
-        self.assertEqual(website_only["proof_record_status"], "NOT_PROVEN")
-        self.assertEqual(website_only["proofcard_status"], "NOT_PROVEN")
+        case_ids = {row["case_id"] for row in self.rows}
+        self.assertNotIn("HO-DET-999", case_ids)
 
     def test_metrics_available_for_hox_gauntlet_fixture(self) -> None:
         gauntlet = row_by_id(self.index, "HOX-GAUNTLET-001")
@@ -251,6 +511,8 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
     def test_generated_markdown_includes_table_headers(self) -> None:
         markdown = render_case_growth_markdown(self.index)
         self.assertIn("| Metric | Count |", markdown)
+        self.assertIn("## Source Revisions", markdown)
+        self.assertIn("## Convergence Findings", markdown)
         self.assertIn("## Case Growth Health", markdown)
         self.assertIn("| Health metric | Value |", markdown)
         self.assertIn("| Top bottleneck |", markdown)
@@ -263,6 +525,604 @@ class CaseGrowthIndexV0Tests(unittest.TestCase):
         self.assertIn("repo_slot_accuracy", sample)
         self.assertIn("cases", sample)
         self.assertIn("boundary", sample)
+
+    def test_v1_source_revisions_are_exactly_seven_and_sanitized(self) -> None:
+        revisions = self.index["source_revisions"]
+        self.assertEqual(len(revisions), 7)
+        self.assertEqual({item["repository"] for item in revisions}, set(REPO_NAMES))
+        serialized = json.dumps(self.index)
+        self.assertNotIn("C:\\\\Raylee\\\\", serialized)
+        self.assertNotIn("C:/Raylee/", serialized)
+        for item in revisions:
+            self.assertIn("authority_role", item)
+            self.assertIn("source_commit_sha", item)
+            self.assertIn("source_file_sha256", item)
+            self.assertIn("source_freshness_state", item)
+            self.assertIn("next_legal_action", item)
+
+    def test_reproducibility_hash_ignores_only_generated_at(self) -> None:
+        first = build_case_growth_index(FIXTURE_ROOT, generated_at="2026-06-27T00:00:00Z")
+        second = build_case_growth_index(FIXTURE_ROOT, generated_at="2030-01-01T00:00:00Z")
+        self.assertEqual(first["reproducibility_sha256"], second["reproducibility_sha256"])
+
+    def test_verify_rejects_absolute_path_duplicate_and_promotion(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["repo_root"] = r"C:\Raylee\Repo\HawkinsOperations"
+        hostile["cases"].append(json.loads(json.dumps(hostile["cases"][0])))
+        hostile["cases"][0]["public_safe_status"] = "PUBLIC_SAFE"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("absolute local path" in error for error in errors))
+        self.assertTrue(any("duplicate case ID" in error for error in errors))
+        self.assertTrue(any("unauthorized public-safe status" in error for error in errors))
+
+    def test_verify_rejects_forged_counts_and_historical_current_conflict(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["summary"]["proof_records_count"] += 99
+        hostile["historical_snapshot"] = True
+        hostile["current_authority"] = True
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertIn("snapshot cannot be both historical_snapshot=true and current_authority=true", errors)
+        self.assertTrue(any("summary counts disagree" in error for error in errors))
+
+    def test_diff_classifies_explicit_historical_changes_as_context(self) -> None:
+        historical = json.loads(json.dumps(self.index))
+        historical["historical_snapshot"] = True
+        historical["current_authority"] = False
+        historical["summary"]["proof_records_count"] = -1
+        report = diff_case_growth_snapshot(FIXTURE_ROOT, historical)
+        change = next(item for item in report["changes"] if item["field"] == "summary.proof_records_count")
+        self.assertEqual(change["classification"], "EXPECTED_HISTORICAL_CONTEXT")
+
+    def test_diff_classifies_head_rewrite_with_same_content_as_observation_only(self) -> None:
+        snapshot = json.loads(json.dumps(self.index))
+        hoxline_revision = next(item for item in snapshot["source_revisions"] if item["repository"] == "hoxline")
+        hoxline_revision["source_commit_sha"] = "a" * 40
+        hoxline_revision["source_observed_head_sha"] = "a" * 40
+        hoxline_revision["current_observed_head_sha"] = "a" * 40
+        report = diff_case_growth_snapshot(FIXTURE_ROOT, snapshot)
+        change = next(
+            item
+            for item in report["changes"]
+            if item["source_owner"] == "hoxline" and item["field"] == "source_commit_sha"
+        )
+        self.assertEqual(change["classification"], "OBSERVATION_ONLY_CONTENT_CURRENT")
+        self.assertTrue(report["next_legal_action"].startswith("none;"))
+
+    def test_case_content_normalization_ignores_only_rewritten_commit_clock(self) -> None:
+        before = json.loads(json.dumps(self.rows))
+        after = json.loads(json.dumps(self.rows))
+        after[0]["last_updated"] = "2035-01-02T03:04:05+00:00"
+        self.assertEqual(_content_normalized_cases(before), _content_normalized_cases(after))
+
+        after[0]["source_status"] = "FORGED_SOURCE_STATUS"
+        self.assertNotEqual(_content_normalized_cases(before), _content_normalized_cases(after))
+
+    def test_cli_verify_fails_closed_on_hostile_snapshot(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["repo_root"] = r"C:\Users\operator\snapshot.json"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            snapshot = Path(temp_dir) / "hostile.json"
+            snapshot.write_text(json.dumps(hostile), encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                status = main(
+                    [
+                        "case-growth",
+                        "verify",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--snapshot",
+                        str(snapshot),
+                        "--format",
+                        "json",
+                    ]
+                )
+        self.assertEqual(status, 1)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["status"], "FAIL")
+        self.assertTrue(any("absolute local path" in error for error in payload["errors"]))
+
+    def test_cli_diff_emits_reviewer_readable_json(self) -> None:
+        historical = json.loads(json.dumps(self.index))
+        historical["historical_snapshot"] = True
+        historical["current_authority"] = False
+        historical["summary"]["proof_records_count"] = -1
+        with tempfile.TemporaryDirectory() as temp_dir:
+            snapshot = Path(temp_dir) / "historical.json"
+            snapshot.write_text(json.dumps(historical), encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                status = main(
+                    [
+                        "case-growth",
+                        "diff",
+                        "--repo-root",
+                        str(FIXTURE_ROOT),
+                        "--snapshot",
+                        str(snapshot),
+                        "--format",
+                        "json",
+                    ]
+                )
+        self.assertEqual(status, 0)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["schema_version"], "case-growth-diff-v1")
+        self.assertTrue(payload["changes"])
+
+    def test_verify_requires_exact_unique_seven_repository_set(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["source_revisions"][-1] = json.loads(json.dumps(hostile["source_revisions"][0]))
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("repository names must be unique" in error for error in errors))
+        self.assertTrue(any("exact seven-repository set" in error for error in errors))
+
+    def test_verify_rejects_forged_runtime_and_claim_authority_fields(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["cases"][0]["runtime_candidate_status"] = "RUNTIME_ACTIVE"
+        hostile["cases"][0]["claim_authority_status"] = "ANALYST_APPROVED"
+        hostile["cases"][0]["next_gate"] = "final authorization and case closure"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("unauthorized runtime_candidate_status" in error for error in errors))
+        self.assertTrue(any("unauthorized claim_authority_status" in error for error in errors))
+        self.assertTrue(any("final authorization wording" in error for error in errors))
+        self.assertTrue(any("case closure wording" in error for error in errors))
+
+    def test_missing_authorization_metric_token_is_bounded_context(self) -> None:
+        bounded = json.loads(json.dumps(self.index))
+        bounded["cases"][0]["notes"] = ["missing_human_final_authorization"]
+        bounded["reproducibility_sha256"] = _reproducibility_hash(bounded)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, bounded)
+        self.assertFalse(any("final authorization wording" in error for error in errors))
+
+    def test_unavailable_observed_sha_does_not_replace_content_authority(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["source_revisions"][0]["source_commit_sha"] = "f" * 40
+        hostile["source_revisions"][0]["source_observed_head_sha"] = "f" * 40
+        hostile["source_revisions"][0]["current_observed_head_sha"] = "f" * 40
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertFalse(any("authoritative Git blob disagrees" in error for error in errors))
+
+    def test_generation_head_observation_is_separate_from_content_identity(self) -> None:
+        current = json.loads(json.dumps(self.index))
+        revision = current["source_revisions"][0]
+        revision["current_observed_head_sha"] = "e" * 40
+        current["reproducibility_sha256"] = _reproducibility_hash(current)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, current)
+        self.assertFalse(
+            any(
+                "observed-head fields must identify the same reviewed source commit" in error
+                for error in errors
+            )
+        )
+        self.assertFalse(
+            any(
+                "current_observed_head_sha must be a 40-character Git SHA" in error
+                for error in errors
+            )
+        )
+
+    def test_selected_source_checkout_accepts_exact_detached_and_content_equivalent_rewrite(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
+            _git(repo, "add", "authority.yml", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority")
+            (repo / "review.txt").write_text("reviewed selection\n", encoding="utf-8")
+            _git(repo, "add", "review.txt")
+            _git(repo, "commit", "-m", "reviewed selection")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            _git(repo, "checkout", "--detach", selected)
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+            selection_path = org_root / ".github" / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+            selection_text = selection_path.read_text(encoding="utf-8")
+            selection_path.write_text(selection_text + "\n", encoding="utf-8")
+            self.assertTrue(
+                any(
+                    "must be tracked and clean" in error
+                    for error in verify_selected_source_checkout(org_root, repository)
+                )
+            )
+            selection_path.write_text(selection_text, encoding="utf-8")
+
+            (repo / "post-selection.txt").write_text("merge descendant observation\n", encoding="utf-8")
+            _git(repo, "add", "post-selection.txt")
+            _git(repo, "commit", "-m", "merge descendant")
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+            rewritten = _git(repo, "commit-tree", reviewed_tree, input_text="rewritten identity\n")
+            _git(repo, "checkout", "--detach", rewritten)
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+    def test_detached_seven_source_generation_records_exact_resolved_refs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir) / "org"
+            shutil.copytree(FIXTURE_ROOT, org_root)
+            missing_authority_fixtures = {
+                ".github/governance/COMMAND_CENTER_INVARIANTS.json": "{}\n",
+                (
+                    "hawkinsoperations-platform/contracts/"
+                    "public-status-source-contract-v1.json"
+                ): "{}\n",
+                "hawkinsoperations-website/schemas/public-status-v0.schema.json": "{}\n",
+                "hoxline/src/hoxline/case_growth/collector.py": (
+                    "# detached authority fixture\n"
+                ),
+            }
+            for relative, content in missing_authority_fixtures.items():
+                authority_path = org_root / relative
+                authority_path.parent.mkdir(parents=True, exist_ok=True)
+                authority_path.write_text(content, encoding="utf-8")
+            expected_heads: dict[str, str] = {}
+            for repository in REPO_NAMES:
+                repo = org_root / repository
+                _git(repo, "init")
+                _git(repo, "config", "user.name", "Hoxline Test")
+                _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+                _git(
+                    repo,
+                    "remote",
+                    "add",
+                    "origin",
+                    f"https://github.com/HawkinsOperations/{repository}.git",
+                )
+                _git(repo, "add", ".")
+                _git(repo, "commit", "-m", "detached authority fixture")
+                head = _git(repo, "rev-parse", "HEAD")
+                expected_heads[repository] = head
+                _git(repo, "checkout", "--detach", head)
+
+            selections: list[dict[str, object]] = []
+            for repository in REPO_NAMES:
+                head = expected_heads[repository]
+                if repository == ".github":
+                    selections.append(
+                        {
+                            "repository": repository,
+                            "canonical_repository": "HawkinsOperations/.github",
+                            "revision_source": "github_event_sha",
+                            "authority_content_revision": head,
+                            "tree_source": "github_event_tree",
+                        }
+                    )
+                else:
+                    selections.append(
+                        {
+                            "repository": repository,
+                            "canonical_repository": (
+                                f"HawkinsOperations/{repository}"
+                            ),
+                            "revision": head,
+                            "authority_content_revision": head,
+                            "reviewed_tree_sha": _git(
+                                org_root / repository,
+                                "rev-parse",
+                                "HEAD^{tree}",
+                            ),
+                        }
+                    )
+            manifest = {
+                "schema": "hawkinsoperations-convergence-source-manifest-v1",
+                "manifest_id": "TEST_DETACHED_EXACT_SEVEN_SOURCE_SELECTION",
+                "repositories": selections,
+                "constraints": {
+                    "exact_repository_count": 7,
+                    "read_only": True,
+                    "default_branch_fallback": False,
+                    "require_detached_exact_revision": True,
+                    "record_checked_revisions": True,
+                    "consumer_outputs_are_not_authority": True,
+                    "proof_ceiling": (
+                        "CONTROLLED_REPO_CONVERGENCE_AND_LOCAL_FIXTURE_REVIEW_ONLY"
+                    ),
+                },
+            }
+            manifest_path = (
+                org_root
+                / ".github"
+                / "governance"
+                / "CONVERGENCE_SOURCE_MANIFEST.json"
+            )
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            command_center = org_root / ".github"
+            _git(
+                command_center,
+                "add",
+                "governance/CONVERGENCE_SOURCE_MANIFEST.json",
+            )
+            _git(command_center, "commit", "-m", "detached source selection")
+            expected_heads[".github"] = _git(command_center, "rev-parse", "HEAD")
+
+            with mock.patch.dict(
+                "os.environ",
+                {
+                    "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": (
+                        expected_heads[".github"]
+                    )
+                },
+            ):
+                generated = build_case_growth_index(
+                    org_root,
+                    generated_at="2026-06-27T00:00:00Z",
+                )
+            for revision in generated["source_revisions"]:
+                repository = revision["repository"]
+                with self.subTest(repository=repository):
+                    self.assertEqual(
+                        expected_heads[repository],
+                        revision["resolved_ref"],
+                    )
+                    self.assertEqual(
+                        revision["current_observed_head_sha"],
+                        revision["resolved_ref"],
+                    )
+                    self.assertFalse(
+                        str(revision["resolved_ref"]).startswith(
+                            "UNKNOWN_WITH_REASON:"
+                        )
+                    )
+
+            with mock.patch.dict(
+                "os.environ",
+                {
+                    "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": (
+                        expected_heads[".github"]
+                    )
+                },
+            ):
+                errors, _ = verify_case_growth_snapshot(org_root, generated)
+            self.assertEqual([], errors, errors)
+
+    def test_dynamic_command_center_selection_requires_exact_detached_observation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
+            _git(repo, "add", "authority.yml", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            command_center = org_root / ".github"
+            command_head = _git(command_center, "rev-parse", "HEAD")
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": ""},
+            ):
+                self.assertEqual(
+                    verify_selected_source_checkout(org_root, ".github"),
+                    [],
+                )
+
+            _git(command_center, "checkout", "--detach", command_head)
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": ""},
+            ):
+                errors = verify_selected_source_checkout(org_root, ".github")
+            self.assertTrue(any("requires HAWKINS_COMMAND_CENTER" in error for error in errors))
+
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": command_head},
+            ):
+                self.assertEqual(
+                    verify_selected_source_checkout(org_root, ".github"),
+                    [],
+                )
+
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": "f" * 40},
+            ):
+                errors = verify_selected_source_checkout(org_root, ".github")
+            self.assertTrue(any("differs from the immutable workflow observation" in error for error in errors))
+
+    def test_command_center_content_identity_survives_exact_rewritten_event_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            _git(repo, "add", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            command_center = org_root / ".github"
+            command_tree = _git(command_center, "rev-parse", "HEAD^{tree}")
+            rewritten = _git(
+                command_center,
+                "commit-tree",
+                command_tree,
+                input_text="rewritten command event\n",
+            )
+            _git(command_center, "checkout", "--detach", rewritten)
+            with mock.patch.dict(
+                "os.environ",
+                {"HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA": rewritten},
+            ):
+                self.assertEqual(
+                    verify_selected_source_checkout(org_root, ".github"),
+                    [],
+                )
+
+    def test_content_commit_must_belong_to_selected_reviewed_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            authority_path = repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml"
+            authority_path.write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            _git(repo, "add", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority content")
+            content_revision = _git(repo, "rev-parse", "HEAD")
+            content_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            (repo / "review.txt").write_text("reviewed final\n", encoding="utf-8")
+            _git(repo, "add", "review.txt")
+            _git(repo, "commit", "-m", "reviewed final")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            command_center = org_root / ".github"
+            manifest_path = command_center / "governance" / "CONVERGENCE_SOURCE_MANIFEST.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            selected_entry = next(
+                entry
+                for entry in manifest["repositories"]
+                if entry["repository"] == repository
+            )
+            selected_entry["authority_content_revision"] = content_revision
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
+            _git(command_center, "commit", "-m", "select content ancestor")
+
+            rewritten = _git(repo, "commit-tree", reviewed_tree, input_text="rewritten final\n")
+            _git(repo, "checkout", "--detach", rewritten)
+            self.assertEqual(verify_selected_source_checkout(org_root, repository), [])
+
+            unrelated_content = _git(
+                repo,
+                "commit-tree",
+                content_tree,
+                input_text="unrelated same authority content\n",
+            )
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            selected_entry = next(
+                entry
+                for entry in manifest["repositories"]
+                if entry["repository"] == repository
+            )
+            selected_entry["authority_content_revision"] = unrelated_content
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            _git(command_center, "add", "governance/CONVERGENCE_SOURCE_MANIFEST.json")
+            _git(command_center, "commit", "-m", "hostile unrelated content")
+            errors = verify_selected_source_checkout(org_root, repository)
+            self.assertTrue(
+                any(
+                    "outside the reviewed current lineage" in error
+                    for error in errors
+                )
+            )
+
+    def test_selected_source_checkout_rejects_older_same_authority_blob_ancestor(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            org_root = Path(temp_dir)
+            repository = "hawkinsoperations-detections"
+            repo = org_root / repository
+            repo.mkdir()
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Hoxline Test")
+            _git(repo, "config", "user.email", "hoxline-test@example.invalid")
+            (repo / "detections").mkdir()
+            (repo / "detections" / "DETECTION_PROMOTION_MATRIX.yml").write_text(
+                "schema: detection-promotion-matrix-v1\nentries: []\n",
+                encoding="utf-8",
+            )
+            (repo / "authority.yml").write_text("authority: detection\n", encoding="utf-8")
+            _git(repo, "add", "authority.yml", "detections/DETECTION_PROMOTION_MATRIX.yml")
+            _git(repo, "commit", "-m", "authority")
+            older = _git(repo, "rev-parse", "HEAD")
+            authority_blob = _git(repo, "rev-parse", "HEAD:authority.yml")
+            (repo / "review.txt").write_text("reviewed selection\n", encoding="utf-8")
+            _git(repo, "add", "review.txt")
+            _git(repo, "commit", "-m", "reviewed selection")
+            selected = _git(repo, "rev-parse", "HEAD")
+            reviewed_tree = _git(repo, "rev-parse", "HEAD^{tree}")
+            self.assertEqual(_git(repo, "rev-parse", "HEAD:authority.yml"), authority_blob)
+            _write_source_selection_manifest(org_root, repository, selected, reviewed_tree)
+
+            _git(repo, "checkout", "--detach", older)
+            errors = verify_selected_source_checkout(org_root, repository)
+            self.assertTrue(any("behind the explicit selected revision" in error for error in errors))
+
+    def test_current_snapshot_rejects_forged_content_identity(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["source_revisions"][0]["authoritative_git_blob_sha"] = "a" * 40
+        hostile["source_revisions"][0]["authoritative_content_fingerprint"] = "0" * 64
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("authoritative Git blob disagrees" in error for error in errors))
+        self.assertTrue(any("semantic fingerprint disagrees" in error for error in errors))
+
+    def test_current_snapshot_rejects_worktree_modified_freshness(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hostile["current_authority"] = True
+        hostile["snapshot_state"]["current_authority"] = True
+        hostile["source_revisions"][0]["source_freshness_state"] = "WORKTREE_MODIFIED"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("source_freshness_state must be one of" in error for error in errors))
+
+    def test_generated_consumers_cannot_become_self_referential_authority(self) -> None:
+        hostile = json.loads(json.dumps(self.index))
+        hoxline_revision = next(
+            revision for revision in hostile["source_revisions"] if revision["repository"] == "hoxline"
+        )
+        hoxline_revision["self_referential"] = True
+        hoxline_revision["revision_scope"] = "authoritative_source_at_commit"
+        hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+        errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+        self.assertTrue(any("generated consumers must not be self-referential authority" in error for error in errors))
+        self.assertTrue(any("revision_scope must be content_addressed_authority" in error for error in errors))
+
+    def test_verify_rejects_drive_unc_and_posix_absolute_paths(self) -> None:
+        for leaked_path in (r"D:\private\evidence.json", r"\\private-host\share\evidence.json", "/home/reviewer/evidence.json"):
+            with self.subTest(leaked_path=leaked_path):
+                hostile = json.loads(json.dumps(self.index))
+                hostile["cases"][0]["source_evidence_refs"] = [leaked_path]
+                hostile["reproducibility_sha256"] = _reproducibility_hash(hostile)
+                errors, _ = verify_case_growth_snapshot(FIXTURE_ROOT, hostile)
+                self.assertTrue(any("absolute local path" in error for error in errors))
 
     def test_anti_vague_output_has_numeric_counts_and_evidence_refs(self) -> None:
         self.assertGreater(self.index["summary"]["cases_total"], 0)

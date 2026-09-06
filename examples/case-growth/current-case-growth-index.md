@@ -1,48 +1,70 @@
-# Hoxline Case Growth Index v0
+# Hoxline Case Growth Index v1
 
-Generated: `2026-06-27T10:05:59Z`
+Generated: `2026-09-06T14:17:30Z`
 Proof ceiling: `CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY`
 Repo-slot accuracy: `seven expected repo slots evaluated; seven present local repos scanned`
+Historical snapshot: `false`
+Current authority: `true`
+Source manifest digest: `e19616241e7b762e1fa8462a5b3d8cbf086e603154ea50c21f371df3e46a7167`
+Reproducibility SHA-256: `324aeb3bf7e5f9c091408db65a053a0a22567c32ffec30f828cede509672428b`
 
 ## Summary
 
 | Metric | Count |
 | --- | ---: |
-| `cases_total` | 27 |
+| `cases_total` | 26 |
 | `source_packages_count` | 14 |
 | `controlled_validations_count` | 12 |
 | `runtime_candidate_lanes_count` | 5 |
 | `private_runtime_evidence_captured_count` | 1 |
 | `scheduled_collector_lanes_count` | 4 |
-| `proof_records_count` | 4 |
-| `proofcards_count` | 4 |
+| `proof_records_count` | 11 |
+| `proofcards_count` | 12 |
 | `claim_authority_cases_count` | 26 |
 | `metrics_available_count` | 1 |
 | `public_safe_cases_count` | 0 |
 | `closed_cases_count` | 0 |
-| `blocked_claims_count` | 243 |
+| `blocked_claims_count` | 295 |
 | `cases_with_next_gate_count` | 26 |
-| `cases_missing_proof_record_count` | 23 |
-| `cases_missing_proofcard_count` | 23 |
-| `cases_not_public_safe_count` | 27 |
-| `unknown_state_count` | 1 |
+| `cases_missing_proof_record_count` | 15 |
+| `cases_missing_proofcard_count` | 14 |
+| `cases_not_public_safe_count` | 26 |
+| `unknown_state_count` | 0 |
+
+## Source Revisions
+
+| Repository | Authority role | Authority path | Observed head | Git blob | Semantic fingerprint | Source freshness |
+| --- | --- | --- | --- | --- | --- | --- |
+| `.github` | `org command-center routing` | `governance/COMMAND_CENTER_INVARIANTS.json` | `6e6763a81d6af09c2e4588462b56117ce82c2f88` | `623e3f9e813b0599618a7df41dee1c9a40fb7a18` | `45cfa989c3f742b546f7f8a497632b43c928029bcaa09e80e04c7c894dba660c` | `CURRENT` |
+| `hawkinsoperations-detections` | `detection source truth` | `detections/DETECTION_PROMOTION_MATRIX.yml` | `f8bc0a0925113ca815bf5692081b5216162cc918` | `3123d4f2a9dabdaa31d7e1d20698a17e7854491c` | `d5214ccc882ac68eb56b3018b3c37799b7c5851e37c7b76e34cda570f0e061f1` | `CURRENT` |
+| `hawkinsoperations-validation` | `controlled validation truth` | `validation/VALIDATION_REGISTRY.yml` | `ebf52f7c6c9b78de767272cc56fccdc584f5c4e0` | `6fac3ac3d048c3ef687faaf5ebef1b04e846aad1` | `de88ff4a621256cae51ec597a2cbb73f172d16c9d6e5109bcc42ff9a3b461cc3` | `CURRENT` |
+| `hawkinsoperations-platform` | `platform contract truth` | `contracts/public-status-source-contract-v1.json` | `13fd8d88b179572bc53759f371d9b968ba3c94d4` | `70507d53fcc5ce7c89be401d38fd3e43776bc55d` | `a4e8183b128cefaed1252168136a64b919dddee50f256d3aa6a681bac77ca841` | `CURRENT` |
+| `hawkinsoperations-proof` | `proof and claim-boundary truth` | `proof/indexes/DETECTION_PROOF_STATUS_INDEX.yml` | `042a918ad4a8473cd5abcfd575072fc094639682` | `623b93e6e5ac141684978ff4dcdc6ed1dec55678` | `68e5de4749bfe34a6677331f6116fab82987c88e999ae14eaf706e9b33536170` | `CURRENT` |
+| `hawkinsoperations-website` | `rendering-only public status contract` | `schemas/public-status-v0.schema.json` | `5856f8e69527b5e61c3953b88a2ad4c088268655` | `1f10e8c0948635eda720905c1f1e7476ef63bf3c` | `5d04c8fbce269352e341798f28afdc29720fd2ea97b80d63884cfdb32e893a11` | `CURRENT` |
+| `hoxline` | `case-growth and fixture-review product truth` | `src/hoxline/case_growth/collector.py` | `1cb97efc45ffe753389105645c25ed7fe57cf9e5` | `90c809e9ccd3764d14903f647980c81341bb3c42` | `98277ac2a8bb2b85b7a7cd93863cd9dc3f8aaa9d89cf31038afa6310bc98992c` | `CURRENT` |
+
+## Convergence Findings
+
+- No missing, dangling, contradictory, or stale source-owned state detected.
+
+Next legal action: none; current source-controlled inputs converge
 
 ## Case Growth Health
 
 | Health metric | Value |
 | --- | ---: |
 | `validation_coverage_percent` | 85.71 |
-| `proof_record_coverage_percent` | 14.81 |
-| `proofcard_coverage_percent` | 14.81 |
-| `scheduled_collector_coverage_percent` | 14.81 |
-| `runtime_candidate_coverage_percent` | 18.52 |
-| `metrics_coverage_percent` | 3.7 |
+| `proof_record_coverage_percent` | 42.31 |
+| `proofcard_coverage_percent` | 46.15 |
+| `scheduled_collector_coverage_percent` | 15.38 |
+| `runtime_candidate_coverage_percent` | 19.23 |
+| `metrics_coverage_percent` | 3.85 |
 | `public_safe_percent` | 0.0 |
 | `closed_case_percent` | 0.0 |
-| `blocked_claim_density` | 9.0 |
-| `next_gate_coverage_percent` | 96.3 |
-| `missing_proof_record_percent` | 85.19 |
-| `missing_proofcard_percent` | 85.19 |
+| `blocked_claim_density` | 11.35 |
+| `next_gate_coverage_percent` | 100.0 |
+| `missing_proof_record_percent` | 57.69 |
+| `missing_proofcard_percent` | 53.85 |
 | `not_public_safe_percent` | 100.0 |
 
 | Assessment | Value |
@@ -74,24 +96,23 @@ The health section is derived from numeric index counts only. It does not promot
 | `HO-DET-006` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-DET-007` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-DET-008` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
-| `HO-DET-009` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_CANDIDATE` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `platform fixture support and separately approved runtime receipt only after cleanup gates pass` |
-| `HO-DET-010` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_CANDIDATE` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any private runtime gate` |
-| `HO-DET-011` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_EVIDENCE_CAPTURED` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `PROOF_RECORD_EXISTS` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof-card or public reviewer route only after separate human-approved proof scope` |
+| `HO-DET-009` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_CANDIDATE` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `separate runtime receipt and proof review before any runtime, signal, public-safe, production, or approval wording` |
+| `HO-DET-010` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_CANDIDATE` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any separately approved private runtime gate` |
+| `HO-DET-011` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_EVIDENCE_CAPTURED` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof-card or public reviewer route only after separate human-approved proof scope` |
 | `HO-DET-012` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `PRIVATE_RUNTIME_CANDIDATE` | `SCHEDULED_COLLECTOR_LANE_PRESENT_GATED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `blocked until separate runtime or signal evidence review supports any runtime, routed-telemetry, public-safe, production, autonomous SOC, or disposition-authority promotion` |
-| `HO-DET-013` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `separate proof record or runtime/signal review before any public proof promotion` |
+| `HO-DET-013` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any separately approved private runtime gate` |
 | `HO-DET-014` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-DET-015` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-DET-016` | `VALIDATION_PLANNED` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
-| `HO-DET-999` | `NOT_FOUND` | `NOT_FOUND` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `UNKNOWN_WITH_REASON` | `UNKNOWN_WITH_REASON: no next gate indexed` |
 | `HO-NDR-001` | `EXTERNAL_BOUNDARY_CONTRACT` | `VALIDATION_CONTRACT_ENFORCED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `captured cross-source corroboration evidence under separate proof scope` |
 | `HO-NDR-002` | `VALIDATION_PLANNED` | `NOT_FOUND` | `LISTED_ONLY` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `create source package under separate source-authoring approval` |
 | `HO-PIPE-001` | `SOURCE_EXISTS` | `VALIDATION_CONTRACT_ENFORCED` | `TELEMETRY_CONTRACT_ONLY` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof and runtime remain separate; any traffic, delivery, signal, route-proof, public-safe, or production wording requires separate approval` |
 | `HOD-001` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `preserve hero baseline while successor HO-DET-001 remains the current reviewed source package` |
 | `HOX-GAUNTLET-001` | `SOURCE_EXISTS` | `CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY` | `NOT_INDEXED` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | true | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `human review before runtime, signal, customer, production, public wording, or final human gate promotion` |
-| `ID-DET-001` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof record creation under separate proof scope` |
-| `ID-DET-002` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof record creation under separate proof scope` |
-| `ID-DET-003` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof record creation under separate proof scope` |
-| `ID-DET-004` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `NOT_PROVEN` | `NOT_PROVEN` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `proof record creation under separate proof scope` |
+| `ID-DET-001` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any separately approved identity runtime gate` |
+| `ID-DET-002` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any separately approved identity runtime gate` |
+| `ID-DET-003` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any separately approved identity runtime gate` |
+| `ID-DET-004` | `SOURCE_EXISTS` | `CONTROLLED_TEST_VALIDATED` | `NOT_PROVEN` | `NOT_INDEXED` | `PROOF_RECORD_EXISTS` | `PROOFCARD_EXISTS` | false | `NOT_PUBLIC_SAFE` | `BLOCKED_WAITING_NEXT_GATE` | `reviewer validates source and controlled-test validation before any separately approved identity runtime gate` |
 
 ## Boundary
 
@@ -111,12 +132,4 @@ The health section is derived from numeric index counts only. It does not promot
 ## Data Quality Notes
 
 - platform lifetime ledger manifest reports closed_case_count=0
-- HO-DET-009 has controlled validation but no proof record
-- HO-DET-010 has controlled validation but no proof record
-- HO-DET-011 has proof record but no ProofCard
-- HO-DET-013 has controlled validation but no proof record
 - HOD-001 has controlled validation but no proof record
-- ID-DET-001 has controlled validation but no proof record
-- ID-DET-002 has controlled validation but no proof record
-- ID-DET-003 has controlled validation but no proof record
-- ID-DET-004 has controlled validation but no proof record

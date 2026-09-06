@@ -27,14 +27,14 @@ POLICY = ROOT / "examples" / "policies" / "default-claim-authority-policy.yml"
 
 
 class HoxlineGauntletV0Test(unittest.TestCase):
-    def test_sample_artifact_is_synthetic_splunk_soc_detection_artifact(self) -> None:
+    def test_sample_artifact_is_controlled_test_splunk_soc_detection_artifact(self) -> None:
         artifact = _load_json(ARTIFACT)
 
         self.assertEqual(artifact["artifact_id"], "HOX-GAUNTLET-001")
         self.assertTrue(artifact["ai_assisted"])
         self.assertEqual(artifact["detection_artifact"]["platform"], "Splunk")
         self.assertEqual(artifact["proof_ceiling"], "CONTROLLED_VALIDATION_PRODUCT_DEMO_ONLY")
-        self.assertTrue(artifact["public_safety"]["synthetic_only"])
+        self.assertTrue(artifact["public_safety"]["controlled_test_only"])
         self.assertFalse(artifact["public_safety"]["contains_malware_code"])
         self.assertFalse(artifact["public_safety"]["contains_exploit_instructions"])
 

@@ -3,7 +3,7 @@
   "artifact_id": "HO-DET-010",
   "artifact_name": "Windows local Administrators group membership change detection",
   "artifact_type": "detection-review-artifact",
-  "artifact_family": "synthetic-review-only",
+  "artifact_family": "controlled-test-review-only",
   "source_owner": "hawkinsoperations-detections",
   "validation_owner": "hawkinsoperations-validation",
   "platform_owner": "hawkinsoperations-platform",
@@ -12,12 +12,8 @@
   "telemetry_contract": {
     "source": "Windows Security EventChannel",
     "event_ids": [
-      4720,
-      4725,
-      4726,
       4732,
-      4733,
-      4738
+      4733
     ],
     "wazuh_rule_ids": [
       910101,
@@ -39,12 +35,8 @@
     "negative": "examples/demo/ho-det-010-safe-negative-fixture.json"
   },
   "expected_event_ids": [
-    4720,
-    4725,
-    4726,
     4732,
-    4733,
-    4738
+    4733
   ],
   "expected_rule_ids": [
     910101,
@@ -53,7 +45,7 @@
   ],
   "allowed_claim_class": "controlled local fixture review only",
   "requested_claims": [
-    "HO-DET-010 can be reviewed locally through deterministic Hoxline Review Engine v1 using public-safe synthetic fixtures only."
+    "HO-DET-010 can be reviewed locally through deterministic Hoxline Review Engine v1 using public-safe controlled-test fixtures only."
   ],
   "blocked_claim_classes": [
     "production ready",
@@ -78,6 +70,6 @@
   "lifetime_ledger_changed": false,
   "proof_boundary": "Fixture-only local review output; not public proof and not proof authority.",
   "runtime_boundary": "No runtime execution, endpoint mutation, VM, Wazuh, Splunk, Cribl, private infrastructure, or live signal action.",
-  "signal_boundary": "Synthetic fixture signal only; not public signal observation.",
+  "signal_boundary": "Controlled-test fixture signal only; not public signal observation.",
   "next_gate": "human_review_gate"
 }

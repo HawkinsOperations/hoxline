@@ -1,0 +1,64 @@
+{
+  "ai_disposition_authority": false,
+  "allowed_claim_class": "boundary contract review only",
+  "artifact_family": "controlled-test-review-only",
+  "artifact_id": "HO-NDR-001",
+  "artifact_name": "Security Onion NDR boundary contract",
+  "artifact_type": "boundary-review-artifact",
+  "blocked_claim_classes": [
+    "production ready",
+    "public-safe runtime proof",
+    "SOCaaS deployed",
+    "customer deployed",
+    "autonomous SOC",
+    "AI-approved disposition",
+    "analyst-approved disposition",
+    "final authorization",
+    "case closure",
+    "website rendering as proof",
+    "green CI as approval"
+  ],
+  "endpoint_mutation": false,
+  "expected_block_reason": "HO-NDR-001 is boundary-contract scoped and has no owned positive and negative fixture contract; runtime, telemetry, and live Security Onion claims remain blocked.",
+  "expected_event_ids": [],
+  "expected_event_keys": [],
+  "expected_review_outcome": "BLOCKED",
+  "expected_rule_ids": [],
+  "fixture_paths": {
+    "negative": "examples/review/fixtures/ho-ndr-001-boundary-negative-unavailable.json",
+    "positive": "examples/review/fixtures/ho-ndr-001-boundary-positive-unavailable.json"
+  },
+  "human_review_required": true,
+  "lifetime_ledger_changed": false,
+  "manifest_version": "artifact-manifest-v1",
+  "next_gate": "separate owned fixture contract and human review",
+  "platform_owner": "hawkinsoperations-platform",
+  "product_owner": "hoxline",
+  "proof_boundary": "Boundary contract only; not public proof and not proof authority.",
+  "proof_owner": "hawkinsoperations-proof",
+  "public_proof_promoted": false,
+  "public_safe_status": "NOT_PUBLIC_SAFE",
+  "requested_claims": [
+    "HO-NDR-001 remains blocked in local fixture review until an owned fixture contract exists."
+  ],
+  "runtime_boundary": "No runtime execution, Security Onion access, endpoint mutation, SIEM action, or live signal action.",
+  "runtime_proof": false,
+  "signal_boundary": "No controlled-test or live signal is claimed.",
+  "source_owner": "hawkinsoperations-detections",
+  "telemetry_contract": {
+    "event_ids": [],
+    "event_keys": [],
+    "event_key_field": "event_key",
+    "required_fields": [
+      "event_key",
+      "channel",
+      "action",
+      "actor"
+    ],
+    "scope": "boundary contract only",
+    "source": "Security Onion boundary metadata only",
+    "wazuh_rule_ids": []
+  },
+  "validation_owner": "hawkinsoperations-validation",
+  "wazuh_mutation": false
+}

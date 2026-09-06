@@ -1,6 +1,6 @@
 {
   "artifact_id": "HO-DET-009",
-  "description": "Synthetic fixture for HO-DET-009; local review only and not runtime evidence.",
+  "description": "Controlled-test fixture for HO-DET-009; local review only and not runtime evidence.",
   "endpoint_mutation": false,
   "events": [
     {
@@ -13,7 +13,7 @@
   ],
   "expected_detection": true,
   "fixture_id": "ho-det-009-safe-positive-fixture-v1",
-  "fixture_kind": "synthetic-demo-only",
+  "fixture_kind": "controlled-test-demo-only",
   "host": "demo-host-009",
   "network_required": false,
   "runtime_required": false,
