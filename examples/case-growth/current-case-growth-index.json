@@ -1,6 +1,6 @@
 {
   "schema_version": "case-growth-index-v1",
-  "generated_at": "2026-07-24T15:39:07Z",
+  "generated_at": "2026-09-06T14:17:30Z",
   "repo_root": "HawkinsOperations",
   "proof_ceiling": "CASE_GROWTH_INDEX_CONTROLLED_REPO_AGGREGATION_ONLY",
   "historical_snapshot": false,
@@ -16,10 +16,10 @@
     {
       "repository": ".github",
       "authority_role": "org command-center routing",
-      "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
+      "resolved_ref": "agent/source-executed-mutation-factory",
       "source_commit_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
       "source_observed_head_sha": "6e6763a81d6af09c2e4588462b56117ce82c2f88",
-      "current_observed_head_sha": "5c6127f5acc1031bae2528df3ce1f197da882100",
+      "current_observed_head_sha": "18a2e00505f4df4e895bf8d9ecc97052d4d03a61",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -48,10 +48,10 @@
     {
       "repository": "hawkinsoperations-detections",
       "authority_role": "detection source truth",
-      "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
+      "resolved_ref": "agent/source-executed-mutation-factory",
       "source_commit_sha": "f8bc0a0925113ca815bf5692081b5216162cc918",
       "source_observed_head_sha": "f8bc0a0925113ca815bf5692081b5216162cc918",
-      "current_observed_head_sha": "9e01f43fb350de3370f8c01a323dcdcdf2e33147",
+      "current_observed_head_sha": "56cad4f726c0d3988c9464693ce7c127c8f63cad",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -80,10 +80,10 @@
     {
       "repository": "hawkinsoperations-validation",
       "authority_role": "controlled validation truth",
-      "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
+      "resolved_ref": "agent/source-executed-mutation-factory",
       "source_commit_sha": "ebf52f7c6c9b78de767272cc56fccdc584f5c4e0",
       "source_observed_head_sha": "ebf52f7c6c9b78de767272cc56fccdc584f5c4e0",
-      "current_observed_head_sha": "677b704150b0f5f333c27913dd481b4be6a78ab7",
+      "current_observed_head_sha": "c8f3f08995d78fa103115610e5c6a2b85ee61701",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -112,21 +112,21 @@
     {
       "repository": "hawkinsoperations-platform",
       "authority_role": "platform contract truth",
-      "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
-      "source_commit_sha": "a667c4de8b478fe165c3ec612e642bbd5d879492",
-      "source_observed_head_sha": "a667c4de8b478fe165c3ec612e642bbd5d879492",
-      "current_observed_head_sha": "4716d7e65525425be4f70127cdc7f7d3de3a7b9e",
+      "resolved_ref": "agent/source-executed-mutation-factory",
+      "source_commit_sha": "13fd8d88b179572bc53759f371d9b968ba3c94d4",
+      "source_observed_head_sha": "13fd8d88b179572bc53759f371d9b968ba3c94d4",
+      "current_observed_head_sha": "13fd8d88b179572bc53759f371d9b968ba3c94d4",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
       "revision_scope": "content_addressed_authority",
       "source_path": "contracts/public-status-source-contract-v1.json",
       "authoritative_path": "contracts/public-status-source-contract-v1.json",
-      "authoritative_git_blob_sha": "5bc7b79b77150413893f3d8147ae211b98d50e5b",
-      "source_git_blob_sha": "5bc7b79b77150413893f3d8147ae211b98d50e5b",
-      "source_file_sha256": "3a1cdc74a86230fe6567ddaed396ed45662e9b4efef7e398ae522a3e018317e4",
-      "authoritative_content_fingerprint": "f0f16d909e06b4cf67f347c675b999de3f7f10ff7032fbd350dc5a1f54266a01",
-      "source_semantic_fingerprint_sha256": "f0f16d909e06b4cf67f347c675b999de3f7f10ff7032fbd350dc5a1f54266a01",
+      "authoritative_git_blob_sha": "70507d53fcc5ce7c89be401d38fd3e43776bc55d",
+      "source_git_blob_sha": "70507d53fcc5ce7c89be401d38fd3e43776bc55d",
+      "source_file_sha256": "34b2801c10de7c269220010797a0a1a7c8eae8e26213243940a9b0e2ca3d8cea",
+      "authoritative_content_fingerprint": "a4e8183b128cefaed1252168136a64b919dddee50f256d3aa6a681bac77ca841",
+      "source_semantic_fingerprint_sha256": "a4e8183b128cefaed1252168136a64b919dddee50f256d3aa6a681bac77ca841",
       "canonical_origin": "github.com/hawkinsoperations/hawkinsoperations-platform",
       "observed_origin": "github.com/hawkinsoperations/hawkinsoperations-platform",
       "repository_dirty_observed": false,
@@ -176,10 +176,10 @@
     {
       "repository": "hawkinsoperations-website",
       "authority_role": "rendering-only public status contract",
-      "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
+      "resolved_ref": "agent/source-executed-mutation-factory",
       "source_commit_sha": "5856f8e69527b5e61c3953b88a2ad4c088268655",
       "source_observed_head_sha": "5856f8e69527b5e61c3953b88a2ad4c088268655",
-      "current_observed_head_sha": "0e7cb554ee3fd5519142006246201e7b15f0c9b5",
+      "current_observed_head_sha": "a18a196d4336e088f94c0cec0305c8ae8ebbe0cf",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -208,10 +208,10 @@
     {
       "repository": "hoxline",
       "authority_role": "case-growth and fixture-review product truth",
-      "resolved_ref": "feature/hoxline-case-growth-convergence-v1",
+      "resolved_ref": "agent/source-executed-mutation-factory",
       "source_commit_sha": "1cb97efc45ffe753389105645c25ed7fe57cf9e5",
       "source_observed_head_sha": "1cb97efc45ffe753389105645c25ed7fe57cf9e5",
-      "current_observed_head_sha": "52867ee7e332dba3cab4d2c3e308d636ed5bb610",
+      "current_observed_head_sha": "6bdf263144f2f5465ec232c996666c3c00d16945",
       "source_observation_kind": "reviewed_immutable_commit",
       "source_parent_sha": null,
       "self_referential": false,
@@ -238,7 +238,7 @@
       "next_legal_action": "none; preserve source ownership"
     }
   ],
-  "source_manifest_digest": "f295e5268283eeed408bd42c80c38a70b438a166d7882a75d3fd2b9bd79f957e",
+  "source_manifest_digest": "e19616241e7b762e1fa8462a5b3d8cbf086e603154ea50c21f371df3e46a7167",
   "contradictions": [],
   "drift": [],
   "next_legal_action": "none; current source-controlled inputs converge",
@@ -247,7 +247,7 @@
       "repo": ".github",
       "path": ".github",
       "exists": true,
-      "branch": "feature/hoxline-case-growth-convergence-v1",
+      "branch": "agent/source-executed-mutation-factory",
       "dirty": false,
       "authority_boundary": "org metadata and reviewer routing only; not proof authority",
       "files_scanned": 37
@@ -256,7 +256,7 @@
       "repo": "hawkinsoperations-detections",
       "path": "hawkinsoperations-detections",
       "exists": true,
-      "branch": "feature/hoxline-case-growth-convergence-v1",
+      "branch": "agent/source-executed-mutation-factory",
       "dirty": false,
       "authority_boundary": "source package and source status authority only",
       "files_scanned": 93
@@ -265,16 +265,16 @@
       "repo": "hawkinsoperations-validation",
       "path": "hawkinsoperations-validation",
       "exists": true,
-      "branch": "feature/hoxline-case-growth-convergence-v1",
+      "branch": "agent/source-executed-mutation-factory",
       "dirty": false,
       "authority_boundary": "controlled validation authority only",
-      "files_scanned": 202
+      "files_scanned": 204
     },
     {
       "repo": "hawkinsoperations-platform",
       "path": "hawkinsoperations-platform",
       "exists": true,
-      "branch": "feature/hoxline-case-growth-convergence-v1",
+      "branch": "agent/source-executed-mutation-factory",
       "dirty": false,
       "authority_boundary": "platform runtime-candidate, collector, receipt, and ledger contract authority only",
       "files_scanned": 121
@@ -292,7 +292,7 @@
       "repo": "hawkinsoperations-website",
       "path": "hawkinsoperations-website",
       "exists": true,
-      "branch": "feature/hoxline-case-growth-convergence-v1",
+      "branch": "agent/source-executed-mutation-factory",
       "dirty": false,
       "authority_boundary": "route/rendering surface only; not proof authority",
       "files_scanned": 274
@@ -301,10 +301,10 @@
       "repo": "hoxline",
       "path": "hoxline",
       "exists": true,
-      "branch": "feature/hoxline-case-growth-convergence-v1",
+      "branch": "agent/source-executed-mutation-factory",
       "dirty": false,
       "authority_boundary": "product metrics and Hoxline Gauntlet artifact authority only",
-      "files_scanned": 181
+      "files_scanned": 182
     }
   ],
   "repo_slot_accuracy": {
@@ -499,7 +499,7 @@
       "case_state": "BLOCKED_WAITING_NEXT_GATE",
       "metrics_available": false,
       "metrics_refs": [],
-      "last_updated": "2026-07-24T08:54:44-05:00",
+      "last_updated": "2026-09-06T08:56:27-05:00",
       "next_gate": "proof-record-specific human review before any public-safe, runtime, or signal promotion",
       "evidence_confidence": "HIGH",
       "notes": [
@@ -933,7 +933,7 @@
       "case_state": "BLOCKED_WAITING_NEXT_GATE",
       "metrics_available": false,
       "metrics_refs": [],
-      "last_updated": "2026-07-24T08:54:44-05:00",
+      "last_updated": "2026-09-06T08:46:02-05:00",
       "next_gate": "separate runtime receipt and proof review before any runtime, signal, public-safe, production, or approval wording",
       "evidence_confidence": "HIGH",
       "notes": [
@@ -1013,7 +1013,7 @@
       "case_state": "BLOCKED_WAITING_NEXT_GATE",
       "metrics_available": false,
       "metrics_refs": [],
-      "last_updated": "2026-07-24T08:54:44-05:00",
+      "last_updated": "2026-09-06T08:46:02-05:00",
       "next_gate": "reviewer validates source and controlled-test validation before any separately approved private runtime gate",
       "evidence_confidence": "HIGH",
       "notes": [
@@ -1179,7 +1179,7 @@
       "case_state": "BLOCKED_WAITING_NEXT_GATE",
       "metrics_available": false,
       "metrics_refs": [],
-      "last_updated": "2026-07-24T08:54:44-05:00",
+      "last_updated": "2026-09-06T08:46:02-05:00",
       "next_gate": "blocked until separate runtime or signal evidence review supports any runtime, routed-telemetry, public-safe, production, autonomous SOC, or disposition-authority promotion",
       "evidence_confidence": "HIGH",
       "notes": [
@@ -1271,7 +1271,7 @@
       "case_state": "BLOCKED_WAITING_NEXT_GATE",
       "metrics_available": false,
       "metrics_refs": [],
-      "last_updated": "2026-07-24T08:54:44-05:00",
+      "last_updated": "2026-09-06T08:46:02-05:00",
       "next_gate": "reviewer validates source and controlled-test validation before any separately approved private runtime gate",
       "evidence_confidence": "HIGH",
       "notes": [
@@ -2024,5 +2024,5 @@
     "website_rendering_treated_as_proof": false,
     "green_ci_treated_as_approval": false
   },
-  "reproducibility_sha256": "a8b5ec50636e7b62f9a0c11e0316d62b8009b3d18e4a52faf9b72578e059f8a1"
+  "reproducibility_sha256": "324aeb3bf7e5f9c091408db65a053a0a22567c32ffec30f828cede509672428b"
 }

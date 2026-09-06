@@ -43,7 +43,7 @@ def test_ci_uses_immutable_sibling_revisions_and_all_required_trust_checks() -> 
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     refs = re.findall(r"^\s+ref:\s+([0-9a-f]{40})\s*$", workflow, flags=re.MULTILINE)
     reviewed_manifest = "governance/CONVERGENCE_SOURCE_MANIFEST.json"
-    command_center_ref = "5c6127f5acc1031bae2528df3ce1f197da882100"
+    command_center_ref = "18a2e00505f4df4e895bf8d9ecc97052d4d03a61"
     assert refs == [command_center_ref]
     assert (
         "HAWKINS_COMMAND_CENTER_IMMUTABLE_OBSERVED_SHA: "

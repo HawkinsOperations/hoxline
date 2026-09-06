@@ -34,6 +34,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
+    if args.command == "detection-quality":
+        from .detection_quality import QualityReviewError, compare_replay, read_report, render_review, run_review
+        try:
+            report = run_review(Path(args.repo_root), args.detections_ref, args.validation_ref, args.platform_ref)
+            if args.verify:
+                compare_replay(read_report(Path(args.verify).read_text(encoding="utf-8")), report)
+            print(json.dumps(report, indent=2, sort_keys=True) if args.format == "json" else render_review(report), end="\n")
+            return 0
+        except (QualityReviewError, OSError) as exc:
+            print(json.dumps({"status": "BLOCKED", "error": str(exc), "human_review_required": True, "ai_disposition_authority": False}))
+            return 2
+
     if args.command == "gauntlet" and args.gauntlet_command == "run":
         return _run_gauntlet(args)
     if args.command == "gauntlet" and args.gauntlet_command == "metrics":
@@ -76,6 +88,14 @@ def main(argv: list[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hoxline")
     subparsers = parser.add_subparsers(dest="command")
+
+    quality_parser = subparsers.add_parser("detection-quality", help="replay validation-owned source mutation quality through platform")
+    quality_parser.add_argument("--repo-root", required=True)
+    quality_parser.add_argument("--detections-ref", required=True)
+    quality_parser.add_argument("--validation-ref", required=True)
+    quality_parser.add_argument("--platform-ref", required=True)
+    quality_parser.add_argument("--format", choices=("json", "markdown"), default="markdown")
+    quality_parser.add_argument("--verify", help="compare a saved owner report with freshly executed source/corpus")
 
     gauntlet_parser = subparsers.add_parser("gauntlet", help="run Hoxline Gauntlet workflows")
     gauntlet_subparsers = gauntlet_parser.add_subparsers(dest="gauntlet_command")

@@ -37,6 +37,28 @@ See `docs/demo/HOXLINE_ONE_COMMAND_REVIEWER_DEMO_V0.md` for the design contract 
 
 ## Reusable Review Engine
 
+### Source-executed detection quality
+
+```powershell
+python -B -m hoxline detection-quality --repo-root .. --detections-ref <exact-detection-commit> --validation-ref <exact-validation-commit> --platform-ref <exact-platform-commit>
+```
+
+This review executes six canonical detection predicates through platform's
+validation-owned handoff. It renders observed confusion matrices and real rule
+mutation outcomes from the existing controlled corpus. Add `--format json` for
+the owner report, or `--verify <saved-quality.json>` to reexecute and compare a
+saved report. Exact clean source, validation, and platform heads are required.
+Altered metrics, nested authority additions, source hashes, and AI approval or
+closure fields cannot pass replay merely by changing a report checksum.
+
+Validation owns behavior and metrics; platform delegates; Hoxline renders.
+Mutants remain in memory, survivors remain visible, and parser errors never count
+as kills. AI authors candidate engineering labor and tests.
+AI does not approve disposition, case closure, public-safe status, or proof promotion. This offline
+predicate path does not establish backend parity, endpoint execution, runtime
+signal, or production detection quality. The owning validation workflow runs the
+same path on GitHub-hosted Linux and Windows.
+
 Use the reusable manifest-driven engine when you want the same deterministic ProofOps loop behind a machine-checkable artifact manifest:
 
 ```powershell
